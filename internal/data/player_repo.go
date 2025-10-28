@@ -1,0 +1,38 @@
+// internal/data/player_repo.go
+package data
+
+import (
+	"context"
+
+	"fish_server/internal/biz/player"
+	"fish_server/internal/pkg/logger"
+)
+
+// playerRepo 實現了 biz.PlayerRepo 接口
+type playerRepo struct {
+	data   *Data
+	logger *logger.Logger
+}
+
+// NewPlayerRepo 創建一個 playerRepo
+func NewPlayerRepo(data *Data, logger *logger.Logger) player.PlayerRepo {
+	return &playerRepo{
+		data:   data,
+		logger: logger.With("module", "data/player"),
+	}
+}
+
+// FindByUsername 根據用戶名查找玩家
+func (r *playerRepo) FindByUsername(ctx context.Context, username string) (*player.Player, error) {
+	// 在這裡，我們將編寫從資料庫查詢用戶的邏輯
+	// 為了演示，我們先返回一個固定的用戶數據
+	// TODO: 實現真實的資料庫查詢
+	if username == "test" {
+		return &player.Player{
+			ID:           1,
+			Username:     "test",
+			PasswordHash: "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", // "password" 的 bcrypt hash
+		}, nil
+	}
+	return nil, nil // 在真實情境中，這裡應該回傳 not found 錯誤
+}
