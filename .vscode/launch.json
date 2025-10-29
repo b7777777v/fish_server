@@ -1,0 +1,38 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Admin Server",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/admin",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "-conf",
+                "./configs/config.yaml"
+            ]
+        },
+        {
+            "name": "Launch Game Server",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/game",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "-conf",
+                "./configs/config.yaml"
+            ]
+        }
+    ],
+    "compounds": [ 
+        {
+            "name": "Launch All Services", 
+            "configurations": [
+                "Launch Admin Server", 
+                "Launch Game Server"
+            ]
+        }
+    ]
+}
