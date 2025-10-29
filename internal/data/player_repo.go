@@ -4,18 +4,18 @@ package data
 import (
 	"context"
 
-	"fish_server/internal/biz/player"
-	"fish_server/internal/pkg/logger"
+	"github.com/b7777777v/fish_server/internal/biz/player"
+	"github.com/b7777777v/fish_server/internal/pkg/logger"
 )
 
 // playerRepo 實現了 biz.PlayerRepo 接口
 type playerRepo struct {
 	data   *Data
-	logger *logger.Logger
+	logger logger.Logger
 }
 
 // NewPlayerRepo 創建一個 playerRepo
-func NewPlayerRepo(data *Data, logger *logger.Logger) player.PlayerRepo {
+func NewPlayerRepo(data *Data, logger logger.Logger) player.PlayerRepo {
 	return &playerRepo{
 		data:   data,
 		logger: logger.With("module", "data/player"),

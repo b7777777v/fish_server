@@ -1,0 +1,23 @@
+// api/proto/v1/game.proto
+syntax = "proto3";
+
+package v1;
+
+option go_package = "pkg/pb/v1;v1";
+
+// Game 服務定義
+service Game {
+  // 玩家登入
+  rpc Login(LoginRequest) returns (LoginResponse);
+}
+
+// 登入請求
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// 登入回應
+message LoginResponse {
+  string token = 1;
+}

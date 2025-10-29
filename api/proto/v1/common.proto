@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+package v1;
+
+option go_package = "pkg/pb/v1;v1";

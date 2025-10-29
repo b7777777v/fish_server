@@ -2,8 +2,8 @@
 package data
 
 import (
-	"fish_server/internal/conf"
-	"fish_server/internal/pkg/logger"
+	"github.com/b7777777v/fish_server/internal/conf"
+	"github.com/b7777777v/fish_server/internal/pkg/logger"
 
 	"github.com/go-redis/redis/v8"
 	"gorm.io/driver/postgres"
@@ -17,7 +17,7 @@ type Data struct {
 }
 
 // NewData .創建一個新的 Data 結構
-func NewData(c *conf.Data, logger *logger.Logger) (*Data, func(), error) {
+func NewData(c *conf.Data, logger logger.Logger) (*Data, func(), error) {
 	db, err := gorm.Open(postgres.Open(c.Database.Source), &gorm.Config{})
 	if err != nil {
 		logger.Errorf("failed opening connection to postgres: %v", err)

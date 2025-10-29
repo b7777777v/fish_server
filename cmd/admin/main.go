@@ -16,7 +16,7 @@ func main() {
 	}
 
 	// 創建 Logger
-	appLogger, err := logger.NewLogger(cfg.Log)
+	appLogger, _, err := logger.NewLogger(cfg.Log)
 	if err != nil {
 		panic(err)
 	}
