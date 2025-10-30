@@ -2,36 +2,37 @@
 package main
 
 import (
+	"log"
+	"os"
+
 	"github.com/b7777777v/fish_server/internal/conf"
-	"github.com/b7777777v/fish_server/internal/pkg/logger"
 )
 
 func main() {
+	// 設置配置文件路徑
+	configPath := "./configs/config.yaml"
+	if len(os.Args) > 1 {
+		configPath = os.Args[1]
+	}
+
 	// 加載配置
-	cfg, err := conf.NewConfig("./configs/config.yaml")
+	cfg, err := conf.NewConfig(configPath)
 	if err != nil {
-		// 這裡還不能用我們的 logger，因為它還沒被創建
-		// 使用標準庫 log 記錄致命錯誤
-		panic(err)
+		log.Fatalf("Failed to load config from %s: %v", configPath, err)
 	}
 
-	// 創建 Logger
-	appLogger, _, err := logger.NewLogger(cfg.Log)
+	// 使用 wire 初始化應用程序
+	app, cleanup, err := initApp(cfg)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to initialize admin app: %v", err)
 	}
+	defer cleanup()
 
-	// 使用我們的 logger！
-	appLogger.Infow("Config loaded successfully!",
-		"admin_port", cfg.Server.Admin.Port,
-		"db_driver", cfg.Data.Database.Driver,
-	)
+	// 設置清理函數
+	app.SetCleanup(cleanup)
 
-	appLogger.Debugw("This is a debug message with details.",
-		"jwt_secret_length", len(cfg.JWT.Secret),
-	)
-
-	appLogger.Warnw("This is a warning message.")
-
-	// 之後這裡會是啟動 Gin 伺服器的程式碼
+	// 運行應用程序
+	if err := app.Run(); err != nil {
+		log.Fatalf("Admin app failed to run: %v", err)
+	}
 }

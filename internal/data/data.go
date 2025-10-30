@@ -24,12 +24,7 @@ func NewData(c *conf.Data, logger logger.Logger) (*Data, func(), error) {
 	}
 
 	// 初始化 Redis 客戶端
-	redisConfig := &redis.Config{
-		Addr:     c.Redis.Addr,
-		Password: c.Redis.Password,
-		DB:       int(c.Redis.DB),
-	}
-	redisClient, err := redis.NewClient(redisConfig, logger)
+	redisClient, err := redis.NewClientFromRedis(c.Redis, logger)
 	if err != nil {
 		logger.Errorf("failed to create redis client: %v", err)
 		// 關閉已創建的資源

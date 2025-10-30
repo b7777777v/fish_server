@@ -3,17 +3,17 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	"github.com/go-redis/redis/v8"
 )
 
 // Config 是 Redis 的配置
 type Config struct {
-	Addr     string
-	Password string
-	DB       int
+	Redis *conf.Redis
 }
 
 // Client 是 Redis 客戶端
@@ -24,11 +24,33 @@ type Client struct {
 
 // NewClient 創建一個新的 Redis 客戶端
 func NewClient(cfg *Config, logger logger.Logger) (*Client, error) {
+	// 驗證配置
+	if cfg.Redis == nil {
+		logger.Error("redis config is nil")
+		return nil, fmt.Errorf("redis config is nil")
+	}
+	
+	return NewClientFromRedis(cfg.Redis, logger)
+}
+
+// NewClientFromRedis 直接從 Redis 配置創建客戶端
+func NewClientFromRedis(redisConfig *conf.Redis, logger logger.Logger) (*Client, error) {
+	// 驗證配置
+	if redisConfig == nil {
+		logger.Error("redis config is nil")
+		return nil, fmt.Errorf("redis config is nil")
+	}
+	
+	if redisConfig.Addr == "" {
+		logger.Error("redis address is empty")
+		return nil, fmt.Errorf("redis address is empty")
+	}
+
 	// 創建 Redis 客戶端
 	client := redis.NewClient(&redis.Options{
-		Addr:     cfg.Addr,
-		Password: cfg.Password,
-		DB:       cfg.DB,
+		Addr:     redisConfig.Addr,
+		Password: redisConfig.Password,
+		DB:       redisConfig.DB,
 		// 連接池配置
 		PoolSize:     10,
 		MinIdleConns: 5,
