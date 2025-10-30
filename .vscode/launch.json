@@ -32,7 +32,8 @@
             "configurations": [
                 "Launch Admin Server", 
                 "Launch Game Server"
-            ]
+            ],
+            "preLaunchTask": "wire-gen"
         }
     ]
 }
