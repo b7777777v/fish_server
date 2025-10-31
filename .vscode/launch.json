@@ -11,7 +11,9 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/admin",
             "cwd": "${workspaceFolder}",
-            "args": ["./configs/config.dev.yaml"],
+            "args": [
+                "./configs/config.dev.yaml"
+            ],
             "env": {
                 "ENVIRONMENT": "dev",
                 "FISH_ENVIRONMENT": "dev",
@@ -28,7 +30,9 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/admin",
             "cwd": "${workspaceFolder}",
-            "args": ["./configs/config.staging.yaml"],
+            "args": [
+                "./configs/config.staging.yaml"
+            ],
             "env": {
                 "ENVIRONMENT": "staging",
                 "FISH_ENVIRONMENT": "staging",
@@ -48,7 +52,9 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/admin",
             "cwd": "${workspaceFolder}",
-            "args": ["./configs/config.prod.yaml"],
+            "args": [
+                "./configs/config.prod.yaml"
+            ],
             "env": {
                 "ENVIRONMENT": "production",
                 "FISH_ENVIRONMENT": "production",
@@ -79,7 +85,6 @@
             "console": "integratedTerminal",
             "preLaunchTask": "wire-gen"
         },
-        
         // ========================================
         // Game Server - 多環境配置
         // ========================================
@@ -90,9 +95,12 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/game",
             "cwd": "${workspaceFolder}",
-            "args": ["./configs/config.dev.yaml"],
+            "args": [
+                "./configs/config.dev.yaml"
+            ],
             "env": {
                 "ENVIRONMENT": "dev",
+                "FISH_ENVIRONMENT": "dev",
                 "LOG_LEVEL": "debug",
                 "GIN_MODE": "debug"
             },
@@ -106,16 +114,59 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/game",
             "cwd": "${workspaceFolder}",
-            "args": ["./configs/config.staging.yaml"],
+            "args": [
+                "./configs/config.staging.yaml"
+            ],
             "env": {
                 "ENVIRONMENT": "staging",
+                "FISH_ENVIRONMENT": "staging",
                 "LOG_LEVEL": "info",
-                "GIN_MODE": "release"
+                "GIN_MODE": "release",
+                "JWT_SECRET": "staging-jwt-secret-for-debug",
+                "REDIS_PASSWORD": ""
             },
             "console": "integratedTerminal",
             "preLaunchTask": "wire-gen"
         },
-        
+        {
+            "name": "🎮 Game Server - PROD",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/game",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "./configs/config.prod.yaml"
+            ],
+            "env": {
+                "ENVIRONMENT": "production",
+                "FISH_ENVIRONMENT": "production",
+                "LOG_LEVEL": "warn",
+                "GIN_MODE": "release",
+                "JWT_SECRET": "production-jwt-secret-change-this",
+                "DATABASE_URL": "postgresql://user:password@localhost:5432/fish_db_prod?sslmode=require",
+                "REDIS_ADDR": "localhost:6379",
+                "REDIS_PASSWORD": "prod-redis-password"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "wire-gen"
+        },
+        {
+            "name": "🎮 Game Server - Auto Environment",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/game",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "ENVIRONMENT": "${input:environment}",
+                "FISH_ENVIRONMENT": "${input:environment}",
+                "LOG_LEVEL": "${input:logLevel}",
+                "GIN_MODE": "${input:ginMode}"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "wire-gen"
+        },
         // ========================================
         // 除錯配置
         // ========================================
@@ -126,18 +177,101 @@
             "mode": "debug",
             "program": "${workspaceFolder}/cmd/admin",
             "cwd": "${workspaceFolder}",
-            "args": ["./configs/config.dev.yaml"],
+            "args": [
+                "./configs/config.dev.yaml"
+            ],
             "env": {
                 "ENVIRONMENT": "dev",
-                "LOG_LEVEL": "debug"
+                "FISH_ENVIRONMENT": "dev",
+                "LOG_LEVEL": "debug",
+                "GIN_MODE": "debug"
             },
             "console": "integratedTerminal",
             "showLog": true,
             "logOutput": "debugger",
-            "dlvFlags": ["--check-go-version=false"],
+            "dlvFlags": [
+                "--check-go-version=false"
+            ],
             "preLaunchTask": "wire-gen"
         },
-        
+        {
+            "name": "🔍 Debug Game Server - DEV",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/game",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "./configs/config.dev.yaml"
+            ],
+            "env": {
+                "ENVIRONMENT": "dev",
+                "FISH_ENVIRONMENT": "dev",
+                "LOG_LEVEL": "debug",
+                "GIN_MODE": "debug"
+            },
+            "console": "integratedTerminal",
+            "showLog": true,
+            "logOutput": "debugger",
+            "dlvFlags": [
+                "--check-go-version=false"
+            ],
+            "preLaunchTask": "wire-gen"
+        },
+        {
+            "name": "🔍 Debug Game Server - STAGING",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/game",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "./configs/config.staging.yaml"
+            ],
+            "env": {
+                "ENVIRONMENT": "staging",
+                "FISH_ENVIRONMENT": "staging",
+                "LOG_LEVEL": "info",
+                "GIN_MODE": "release",
+                "JWT_SECRET": "staging-jwt-secret-for-debug",
+                "REDIS_PASSWORD": ""
+            },
+            "console": "integratedTerminal",
+            "showLog": true,
+            "logOutput": "debugger",
+            "dlvFlags": [
+                "--check-go-version=false"
+            ],
+            "preLaunchTask": "wire-gen"
+        },
+        {
+            "name": "🔍 Debug Game Server - PROD",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/game",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "./configs/config.prod.yaml"
+            ],
+            "env": {
+                "ENVIRONMENT": "production",
+                "FISH_ENVIRONMENT": "production",
+                "LOG_LEVEL": "warn",
+                "GIN_MODE": "release",
+                "JWT_SECRET": "production-jwt-secret-change-this",
+                "DATABASE_URL": "postgresql://user:password@localhost:5432/fish_db_prod?sslmode=require",
+                "REDIS_ADDR": "localhost:6379",
+                "REDIS_PASSWORD": "prod-redis-password"
+            },
+            "console": "integratedTerminal",
+            "showLog": true,
+            "logOutput": "debugger",
+            "dlvFlags": [
+                "--check-go-version=false"
+            ],
+            "preLaunchTask": "wire-gen"
+        },
         // ========================================
         // 測試配置
         // ========================================
@@ -155,7 +289,6 @@
             "console": "integratedTerminal"
         }
     ],
-    
     // ========================================
     // 複合配置 - 同時啟動多個服務
     // ========================================
@@ -170,16 +303,51 @@
             "stopAll": true
         },
         {
-            "name": "🏗️ STAGING Environment - All Services", 
+            "name": "🏗️ STAGING Environment - All Services",
             "configurations": [
                 "🟡 Admin Server - STAGING (Pprof OFF)",
                 "🎮 Game Server - STAGING"
             ],
             "preLaunchTask": "wire-gen",
             "stopAll": true
+        },
+        {
+            "name": "🔴 PROD Environment - All Services",
+            "configurations": [
+                "🔴 Admin Server - PROD (Secure)",
+                "🎮 Game Server - PROD"
+            ],
+            "preLaunchTask": "wire-gen",
+            "stopAll": true
+        },
+        {
+            "name": "🔍 Debug DEV - All Services",
+            "configurations": [
+                "🔍 Debug Admin with Delve",
+                "🔍 Debug Game Server - DEV"
+            ],
+            "preLaunchTask": "wire-gen",
+            "stopAll": true
+        },
+        {
+            "name": "🔍 Debug STAGING - All Services",
+            "configurations": [
+                "🔍 Debug Admin with Delve",
+                "🔍 Debug Game Server - STAGING"
+            ],
+            "preLaunchTask": "wire-gen",
+            "stopAll": true
+        },
+        {
+            "name": "🔍 Debug PROD - All Services",
+            "configurations": [
+                "🔍 Debug Admin with Delve",
+                "🔍 Debug Game Server - PROD"
+            ],
+            "preLaunchTask": "wire-gen",
+            "stopAll": true
         }
     ],
-    
     // ========================================
     // 輸入變數定義
     // ========================================
@@ -194,7 +362,7 @@
                     "value": "dev"
                 },
                 {
-                    "label": "Staging (STAG) - 預發布環境", 
+                    "label": "Staging (STAG) - 預發布環境",
                     "value": "staging"
                 },
                 {
@@ -210,7 +378,7 @@
             "type": "pickString",
             "options": [
                 "debug",
-                "info", 
+                "info",
                 "warn",
                 "error"
             ],
