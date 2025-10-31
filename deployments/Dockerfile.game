@@ -1,0 +1,111 @@
+# ========================================
+# 多階段構建 Dockerfile for Game Service
+# ========================================
+
+# 第一階段：構建階段
+FROM golang:1.24-alpine AS builder
+
+# 設置工作目錄
+WORKDIR /app
+
+# 安裝必要的工具和 ca-certificates
+# tzdata 用於時區支持
+RUN apk update && apk add --no-cache \
+    git \
+    ca-certificates \
+    tzdata \
+    && update-ca-certificates
+
+# 複製 go mod 文件
+# 利用 Docker 層緩存加速後續構建
+COPY ../go.mod ../go.sum ./
+
+# 下載並驗證依賴
+RUN go mod download && go mod verify
+
+# 複製所有源代碼
+COPY ../ .
+
+# 設置編譯環境變量
+ENV CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64
+
+# 構建 game 服務
+# -a: 強制重新構建
+# -ldflags: 注入版本信息，並移除調試符號以縮小體積
+RUN go build -a -installsuffix cgo \
+    -ldflags="-w -s -X main.version=$(date +%Y%m%d-%H%M%S)" \
+    -o /app/bin/game \
+    ./cmd/game/
+
+# 驗證構建的二進制文件權限
+RUN chmod +x /app/bin/game
+
+# ========================================
+# 第二階段：運行階段
+# ========================================
+FROM alpine:3.18 AS runner
+
+# 安裝運行時依賴 (curl 用於健康檢查)
+RUN apk update && apk add --no-cache \
+    ca-certificates \
+    tzdata \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# 設置時區為台北
+ENV TZ=Asia/Taipei
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 創建一個非 root 的使用者和群組，增強安全性
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+# 設置工作目錄
+WORKDIR /app
+
+# 創建應用程式需要的目錄，並設置權限
+RUN mkdir -p /app/configs /app/logs && \
+    chown -R appuser:appgroup /app
+
+# 從構建階段複製編譯好的二進制文件和 CA 證書
+COPY --from=builder /app/bin/game /app/game
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# 複製配置文件，並指定擁有者
+COPY --chown=appuser:appgroup ../configs/config.yaml /app/configs/
+
+# 確保執行檔有執行權限
+RUN chmod +x /app/game
+
+# 切換到非 root 用戶
+USER appuser
+
+# 暴露 Game Server 的端口
+EXPOSE 9090
+
+# 設置環境變量
+# 假設 game server 也使用這些環境變量
+ENV GIN_MODE=release \
+    LOG_LEVEL=info \
+    CONFIG_PATH=/app/configs/config.yaml
+
+# 健康檢查
+# 注意：Game Server 可能是一個純 WebSocket/gRPC 服務，不一定有 HTTP 的 /ping 端點。
+# 如果沒有，此健康檢查會失敗。您可能需要為 Game Server 添加一個簡單的 HTTP health check 端點。
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:9090/health || exit 1
+
+# 設置啟動命令
+ENTRYPOINT ["/app/game"]
+CMD ["--conf", "/app/configs/config.yaml"]
+
+# ========================================
+# 元數據標籤
+# ========================================
+LABEL maintainer="Fish Server Team" \
+      version="1.0.0" \
+      description="Fish Server Game Service" \
+      service="game" \
+      port="9090"
