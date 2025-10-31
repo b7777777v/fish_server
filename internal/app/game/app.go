@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -104,7 +105,7 @@ func (app *GameApp) setupHTTPServer() {
 	}
 	
 	if app.config != nil && app.config.Game != nil {
-		app.httpServer.Addr = ":" + string(rune(app.config.Game.Port))
+		app.httpServer.Addr = fmt.Sprintf(":%d", app.config.Game.Port)
 	}
 }
 
