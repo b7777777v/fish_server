@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: fish_db_staging
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+    ports:
+      - "5433:5432"  # 使用不同端口避免衝突
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+      - ../storage/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-user} -d fish_db_staging"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD:-}
+    ports:
+      - "6380:6379"  # 使用不同端口避免衝突
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  admin:
+    image: fish-server-admin:staging
+    ports:
+      - "6061:6060"  # 使用不同端口避免衝突
+    environment:
+      - ENVIRONMENT=staging
+      - FISH_ENVIRONMENT=staging
+      - LOG_LEVEL=info
+      - GIN_MODE=release
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - PPROF_AUTH_KEY=${PPROF_AUTH_KEY}
+    volumes:
+      - ./config-docker.staging.yaml:/app/configs/config.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6060/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  postgres_staging_data:

@@ -1,0 +1,46 @@
+# STAGING 環境配置文件
+environment: "staging"
+
+log:
+  level: "info"
+  format: "json"
+
+server:
+  game:
+    port: 9090
+  admin:
+    port: 6060
+
+# STAGING 環境特定配置
+debug:
+  enable_pprof: false       # Staging 環境關閉 pprof
+  pprof_auth: true          # 如果需要啟用，則需要認證
+  pprof_auth_key: "staging-pprof-secret-2024"
+  enable_gin_debug: false   # 關閉 Gin 調試模式
+  enable_sql_debug: false   # 關閉 SQL 調試日誌
+
+data:
+  database:
+    driver: "postgres"
+    source: "postgresql://user:password@postgres-staging:5432/fish_db_staging?sslmode=require"
+    max_open_conns: 50
+    max_idle_conns: 25
+    conn_max_lifetime: "30m"
+  redis:
+    addr: "redis-staging:6379"
+    password: "${REDIS_PASSWORD}" # 從環境變量讀取
+    db: 0
+
+jwt:
+  secret: "${JWT_SECRET}"    # 從環境變量讀取
+  issuer: "fish_server_staging"
+  expire: 7200               # 2小時
+
+# Staging 環境安全設置
+cors:
+  allow_origins: ["https://staging.fishserver.com", "https://admin-staging.fishserver.com"]
+  allow_credentials: true
+
+rate_limit:
+  enable: true
+  requests_per_minute: 100

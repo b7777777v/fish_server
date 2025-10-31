@@ -1,0 +1,52 @@
+# PRODUCTION 環境配置文件
+environment: "production"
+
+log:
+  level: "warn"
+  format: "json"
+
+server:
+  game:
+    port: 9090
+  admin:
+    port: 6060
+
+# PRODUCTION 環境特定配置
+debug:
+  enable_pprof: false       # 生產環境完全關閉 pprof
+  pprof_auth: true
+  pprof_auth_key: "${PPROF_AUTH_KEY}" # 從環境變量讀取
+  enable_gin_debug: false
+  enable_sql_debug: false
+
+data:
+  database:
+    driver: "postgres"
+    source: "${DATABASE_URL}?sslmode=require"
+    max_open_conns: 100
+    max_idle_conns: 50
+    conn_max_lifetime: "1h"
+  redis:
+    addr: "${REDIS_ADDR}"
+    password: "${REDIS_PASSWORD}"
+    db: 0
+
+jwt:
+  secret: "${JWT_SECRET}"
+  issuer: "fish_server_production"
+  expire: 3600               # 1小時，生產環境較短
+
+# 生產環境安全設置
+cors:
+  allow_origins: ["https://fishserver.com", "https://admin.fishserver.com"]
+  allow_credentials: true
+
+rate_limit:
+  enable: true
+  requests_per_minute: 60
+
+# 生產環境安全增強
+security:
+  enable_csrf: true
+  enable_secure_headers: true
+  max_request_size: "1MB"

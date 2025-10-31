@@ -3,6 +3,7 @@ package admin
 import (
 	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
+	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 )
 
@@ -10,6 +11,7 @@ import (
 type AdminService struct {
 	playerUC *player.PlayerUsecase
 	walletUC *wallet.WalletUsecase
+	config   *conf.Config
 	logger   logger.Logger
 }
 
@@ -17,11 +19,13 @@ type AdminService struct {
 func NewAdminService(
 	playerUC *player.PlayerUsecase,
 	walletUC *wallet.WalletUsecase,
+	config *conf.Config,
 	logger logger.Logger,
 ) *AdminService {
 	return &AdminService{
 		playerUC: playerUC,
 		walletUC: walletUC,
+		config:   config,
 		logger:   logger.With("module", "app/admin"),
 	}
 }

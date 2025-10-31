@@ -1,0 +1,349 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        // ========================================
+        // 代碼生成任務
+        // ========================================
+        {
+            "label": "wire-gen",
+            "type": "shell",
+            "command": "go",
+            "args": ["generate", "./..."],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": "$go"
+        },
+        {
+            "label": "proto-gen",
+            "type": "shell",
+            "command": "${workspaceFolder}/scripts/proto-gen.sh",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$go"
+        },
+        
+        // ========================================
+        // 構建任務 - 多環境
+        // ========================================
+        {
+            "label": "🔨 Build Admin - DEV",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "build",
+                "-tags", "dev",
+                "-ldflags", "-X main.environment=dev -X main.buildTime=${env:BUILD_TIME}",
+                "-o", "cmd/admin/admin-dev${pathSeparator}exe",
+                "./cmd/admin"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$go",
+            "dependsOn": "wire-gen"
+        },
+        {
+            "label": "🔨 Build Admin - STAGING",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "build",
+                "-tags", "staging",
+                "-ldflags", "-X main.environment=staging -X main.buildTime=${env:BUILD_TIME} -s -w",
+                "-o", "cmd/admin/admin-staging${pathSeparator}exe",
+                "./cmd/admin"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$go",
+            "dependsOn": "wire-gen"
+        },
+        {
+            "label": "🔨 Build Admin - PROD",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "build",
+                "-tags", "prod",
+                "-ldflags", "-X main.environment=production -X main.buildTime=${env:BUILD_TIME} -s -w",
+                "-o", "cmd/admin/admin-prod${pathSeparator}exe",
+                "./cmd/admin"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$go",
+            "dependsOn": "wire-gen"
+        },
+        
+        // ========================================
+        // Docker 構建任務
+        // ========================================
+        {
+            "label": "🐳 Docker Build - DEV",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "build",
+                "-f", "deployments/Dockerfile.admin",
+                "-t", "fish-server-admin:latest",
+                "--build-arg", "ENVIRONMENT=dev",
+                "."
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🐳 Docker Build - STAGING",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "build",
+                "-f", "deployments/Dockerfile.admin",
+                "-t", "fish-server-admin:staging",
+                "--build-arg", "ENVIRONMENT=staging",
+                "."
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        
+        // ========================================
+        // 環境管理任務
+        // ========================================
+        {
+            "label": "🚀 Start DEV Environment",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f", "deployments/docker-compose.dev.yml",
+                "--env-file", "deployments/.env.dev",
+                "up", "-d"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🏗️ Start STAGING Environment",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f", "deployments/docker-compose.staging.yml",
+                "--env-file", "deployments/.env.staging",
+                "up", "-d"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🛑 Stop All Environments",
+            "type": "shell",
+            "command": "sh",
+            "args": [
+                "-c",
+                "docker-compose -f deployments/docker-compose.dev.yml down && docker-compose -f deployments/docker-compose.staging.yml down"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        
+        // ========================================
+        // 測試任務
+        // ========================================
+        {
+            "label": "🧪 Test All",
+            "type": "shell",
+            "command": "go",
+            "args": ["test", "./..."],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$go"
+        },
+        {
+            "label": "🧪 Test Admin Service",
+            "type": "shell",
+            "command": "go",
+            "args": ["test", "./internal/app/admin/..."],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$go"
+        },
+        {
+            "label": "🧪 Test with Coverage",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "test",
+                "./...",
+                "-coverprofile=coverage.out",
+                "-covermode=atomic"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": "$go"
+        },
+        
+        // ========================================
+        // 驗證任務
+        // ========================================
+        {
+            "label": "✅ Verify DEV Pprof",
+            "type": "shell",
+            "command": "curl",
+            "args": [
+                "-f",
+                "http://localhost:6060/debug/pprof/"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "❌ Verify STAGING Pprof Disabled",
+            "type": "shell",
+            "command": "curl",
+            "args": [
+                "http://localhost:6061/debug/pprof/disabled"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "📊 Check Environment Info",
+            "type": "shell",
+            "command": "sh",
+            "args": [
+                "-c",
+                "echo '=== DEV Environment ===' && curl -s http://localhost:6060/admin/env | jq && echo '\\n=== STAGING Environment ===' && curl -s http://localhost:6061/admin/env | jq"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        
+        // ========================================
+        // 清理任務
+        // ========================================
+        {
+            "label": "🧹 Clean Build Artifacts",
+            "type": "shell",
+            "command": "sh",
+            "args": [
+                "-c",
+                "rm -f cmd/admin/admin-* cmd/game/game-* coverage.out"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🧹 Clean Docker Images",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "rmi",
+                "fish-server-admin:latest",
+                "fish-server-admin:staging"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

@@ -1,0 +1,43 @@
+# Docker DEV 環境配置文件
+environment: "dev"
+
+log:
+  level: "debug"
+  format: "console"
+
+server:
+  game:
+    port: 9090
+  admin:
+    port: 6060
+
+# DEV 環境特定配置 - 啟用所有調試功能
+debug:
+  enable_pprof: true        # 開發環境啟用 pprof
+  pprof_auth: false         # 開發環境不需要認證
+  enable_gin_debug: true    # 啟用 Gin 調試模式
+  enable_sql_debug: true    # 啟用 SQL 調試日誌
+
+data:
+  database:
+    driver: "postgres"
+    source: "postgresql://user:password@postgres:5432/fish_db_dev?sslmode=disable"
+    max_open_conns: 25
+    max_idle_conns: 10
+    conn_max_lifetime: "5m"
+  redis:
+    addr: "redis:6379"
+    password: ""
+    db: 0
+
+jwt:
+  secret: "dev-secret-key-not-for-production"
+  issuer: "fish_server_dev"
+  expire: 86400
+
+cors:
+  allow_origins: ["*"]
+  allow_credentials: true
+
+rate_limit:
+  enable: false

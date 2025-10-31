@@ -1,0 +1,102 @@
+# ========================================
+# 多階段構建 Dockerfile for Admin Service
+# ========================================
+
+# 第一階段：構建階段
+FROM golang:1.24-alpine AS builder
+
+# 設置工作目錄
+WORKDIR /app
+
+# 安裝必要的工具和 ca-certificates
+RUN apk update && apk add --no-cache \
+    git \
+    ca-certificates \
+    tzdata \
+    && update-ca-certificates
+
+# 複製 go mod 文件
+COPY go.mod go.sum ./
+
+# 下載依賴（利用 Docker 層緩存）
+RUN go mod download && go mod verify
+
+# 複製源代碼
+COPY . .
+
+# 設置編譯環境變量
+ENV CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64
+
+# 構建 admin 服務
+RUN go build -a -installsuffix cgo \
+    -ldflags="-w -s -X main.version=$(date +%Y%m%d-%H%M%S)" \
+    -o /app/bin/admin \
+    ./cmd/admin/
+
+# 驗證構建的二進制文件
+RUN chmod +x /app/bin/admin
+
+# ========================================
+# 第二階段：運行階段
+FROM alpine:3.18 AS runner
+
+# 安裝運行時依賴
+RUN apk update && apk add --no-cache \
+    ca-certificates \
+    tzdata \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# 設置時區
+ENV TZ=Asia/Taipei
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 創建非 root 用戶
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+# 設置工作目錄
+WORKDIR /app
+
+# 創建必要的目錄
+RUN mkdir -p /app/configs /app/logs && \
+    chown -R appuser:appgroup /app
+
+# 從構建階段複製二進制文件
+COPY --from=builder /app/bin/admin /app/admin
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# 複製配置文件
+COPY --chown=appuser:appgroup configs/config.yaml /app/configs/
+
+# 設置權限
+RUN chmod +x /app/admin
+
+# 切換到非 root 用戶
+USER appuser
+
+# 暴露端口
+EXPOSE 6060
+
+# 設置環境變量
+ENV GIN_MODE=release \
+    LOG_LEVEL=info \
+    CONFIG_PATH=/app/configs/config.yaml
+
+# 健康檢查
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:6060/ping || exit 1
+
+# 設置啟動命令
+ENTRYPOINT ["/app/admin"]
+CMD ["/app/configs/config.yaml"]
+
+# ========================================
+# 元數據標籤
+LABEL maintainer="Fish Server Team" \
+      version="1.0.0" \
+      description="Fish Server Admin Service" \
+      service="admin" \
+      port="6060"

@@ -1,0 +1,64 @@
+# Git 相關
+.git
+.gitignore
+.gitattributes
+
+# 文檔
+README.md
+*.md
+docs/
+
+# 測試文件
+*_test.go
+testdata/
+test/
+
+# 開發工具
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 構建產物
+*.exe
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+vendor/
+
+# 日誌文件
+*.log
+logs/
+
+# 臨時文件
+tmp/
+temp/
+.tmp
+
+# 環境文件
+.env
+.env.local
+.env.*.local
+
+# 操作系統
+.DS_Store
+Thumbs.db
+
+# Docker 相關
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# 部署相關（除了需要的配置）
+deployments/
+!deployments/Dockerfile.admin
+
+# 其他服務的二進制文件
+cmd/game/game*
+cmd/migrator/migrator*
+
+# 開發腳本
+scripts/

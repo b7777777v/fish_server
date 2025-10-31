@@ -1,0 +1,135 @@
+[
+    // ========================================
+    // 快速啟動環境快捷鍵
+    // ========================================
+    {
+        "key": "ctrl+f1",
+        "command": "workbench.action.debug.selectandstart",
+        "args": "🟢 Admin Server - DEV (Pprof ON)"
+    },
+    {
+        "key": "ctrl+f2", 
+        "command": "workbench.action.debug.selectandstart",
+        "args": "🟡 Admin Server - STAGING (Pprof OFF)"
+    },
+    {
+        "key": "ctrl+f3",
+        "command": "workbench.action.debug.selectandstart", 
+        "args": "🔴 Admin Server - PROD (Secure)"
+    },
+    {
+        "key": "ctrl+shift+f1",
+        "command": "workbench.action.debug.selectandstart",
+        "args": "🚀 DEV Environment - All Services"
+    },
+    {
+        "key": "ctrl+shift+f2",
+        "command": "workbench.action.debug.selectandstart",
+        "args": "🏗️ STAGING Environment - All Services"
+    },
+    
+    // ========================================
+    // 快速任務執行
+    // ========================================
+    {
+        "key": "ctrl+shift+b",
+        "command": "workbench.action.tasks.runTask",
+        "args": "🔨 Build Admin - DEV"
+    },
+    {
+        "key": "ctrl+shift+t",
+        "command": "workbench.action.tasks.runTask",
+        "args": "🧪 Test All"
+    },
+    {
+        "key": "ctrl+shift+d",
+        "command": "workbench.action.tasks.runTask",
+        "args": "🐳 Docker Build - DEV"
+    },
+    
+    // ========================================
+    // 環境驗證快捷鍵
+    // ========================================
+    {
+        "key": "ctrl+alt+v",
+        "command": "workbench.action.tasks.runTask",
+        "args": "📊 Check Environment Info"
+    },
+    {
+        "key": "ctrl+alt+p",
+        "command": "workbench.action.tasks.runTask",
+        "args": "✅ Verify DEV Pprof"
+    },
+    {
+        "key": "ctrl+alt+s",
+        "command": "workbench.action.tasks.runTask", 
+        "args": "❌ Verify STAGING Pprof Disabled"
+    },
+    
+    // ========================================
+    // 環境管理快捷鍵
+    // ========================================
+    {
+        "key": "ctrl+alt+1",
+        "command": "workbench.action.tasks.runTask",
+        "args": "🚀 Start DEV Environment"
+    },
+    {
+        "key": "ctrl+alt+2",
+        "command": "workbench.action.tasks.runTask",
+        "args": "🏗️ Start STAGING Environment"
+    },
+    {
+        "key": "ctrl+alt+0",
+        "command": "workbench.action.tasks.runTask",
+        "args": "🛑 Stop All Environments"
+    },
+    
+    // ========================================
+    // 代碼生成快捷鍵
+    // ========================================
+    {
+        "key": "ctrl+alt+w",
+        "command": "workbench.action.tasks.runTask",
+        "args": "wire-gen"
+    },
+    {
+        "key": "ctrl+alt+g",
+        "command": "workbench.action.tasks.runTask",
+        "args": "proto-gen"
+    },
+    
+    // ========================================
+    // 清理快捷鍵
+    // ========================================
+    {
+        "key": "ctrl+alt+c",
+        "command": "workbench.action.tasks.runTask",
+        "args": "🧹 Clean Build Artifacts"
+    },
+    {
+        "key": "ctrl+alt+shift+c",
+        "command": "workbench.action.tasks.runTask",
+        "args": "🧹 Clean Docker Images"
+    },
+    
+    // ========================================
+    // 終端快捷鍵
+    // ========================================
+    {
+        "key": "ctrl+shift+`",
+        "command": "workbench.action.terminal.new",
+        "args": {
+            "profileName": "PowerShell (Fish Server)"
+        },
+        "when": "isWindows"
+    },
+    {
+        "key": "ctrl+shift+`",
+        "command": "workbench.action.terminal.new", 
+        "args": {
+            "profileName": "Bash (Fish Server)"
+        },
+        "when": "!isWindows"
+    }
+]

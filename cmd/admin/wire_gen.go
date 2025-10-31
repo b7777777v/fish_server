@@ -23,24 +23,24 @@ func initApp(config *conf.Config) (*admin.AdminApp, func(), error) {
 	server := config.Server
 	confData := config.Data
 	log := config.Log
-	sugaredLogger, cleanup, err := logger.NewLogger(log)
+	v, cleanup, err := logger.NewLogger(log)
 	if err != nil {
 		return nil, nil, err
 	}
-	dataData, cleanup2, err := data.NewData(confData, sugaredLogger)
+	dataData, cleanup2, err := data.NewData(confData, v)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	playerRepo := data.NewPlayerRepo(dataData, sugaredLogger)
+	playerRepo := data.NewPlayerRepo(dataData, v)
 	jwt := config.JWT
 	tokenHelper := token.NewTokenHelper(jwt)
-	playerUsecase := player.NewPlayerUsecase(playerRepo, tokenHelper, sugaredLogger)
-	walletRepo := data.NewWalletRepo(dataData, sugaredLogger)
-	walletUsecase := wallet.NewWalletUsecase(walletRepo, sugaredLogger)
-	adminService := admin.NewAdminService(playerUsecase, walletUsecase, sugaredLogger)
-	adminServer := admin.NewServer(server, adminService, sugaredLogger)
-	adminApp := admin.NewAdminApp(adminServer, sugaredLogger)
+	playerUsecase := player.NewPlayerUsecase(playerRepo, tokenHelper, v)
+	walletRepo := data.NewWalletRepo(dataData, v)
+	walletUsecase := wallet.NewWalletUsecase(walletRepo, v)
+	adminService := admin.NewAdminService(playerUsecase, walletUsecase, config, v)
+	adminServer := admin.NewServer(server, adminService, v)
+	adminApp := admin.NewAdminApp(adminServer, v)
 	return adminApp, func() {
 		cleanup2()
 		cleanup()

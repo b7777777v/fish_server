@@ -1,0 +1,106 @@
+{
+    "folders": [
+        {
+            "name": "🐟 Fish Server",
+            "path": "."
+        }
+    ],
+    "settings": {
+        // ========================================
+        // 工作區特定設定
+        // ========================================
+        "files.exclude": {
+            "**/cmd/admin/admin-*": true,
+            "**/cmd/game/game-*": true,
+            "**/coverage.out": true,
+            "**/.DS_Store": true,
+            "**/Thumbs.db": true,
+            "**/node_modules": true,
+            "**/.git": false
+        },
+        
+        // ========================================
+        // Go 開發設定
+        // ========================================
+        "go.toolsManagement.autoUpdate": true,
+        "go.useLanguageServer": true,
+        "go.lintTool": "golangci-lint",
+        "go.formatTool": "goimports",
+        "go.testTimeout": "30s",
+        
+        // ========================================
+        // 環境提示設定
+        // ========================================
+        "workbench.colorCustomizations": {
+            "statusBar.background": "#1e7d32",
+            "statusBar.foreground": "#ffffff",
+            "statusBar.noFolderBackground": "#1e7d32"
+        },
+        
+        // ========================================
+        // 終端設定
+        // ========================================
+        "terminal.integrated.profiles.windows": {
+            "PowerShell (Fish Server)": {
+                "source": "PowerShell",
+                "args": ["-NoProfile"],
+                "env": {
+                    "ENVIRONMENT": "dev",
+                    "FISH_ENVIRONMENT": "dev"
+                }
+            }
+        },
+        "terminal.integrated.profiles.osx": {
+            "Bash (Fish Server)": {
+                "path": "/bin/bash",
+                "env": {
+                    "ENVIRONMENT": "dev",
+                    "FISH_ENVIRONMENT": "dev"
+                }
+            }
+        },
+        
+        // ========================================
+        // 任務和啟動配置
+        // ========================================
+        "launch": {
+            "version": "0.2.0",
+            "configurations": [],
+            "compounds": []
+        },
+        
+        // ========================================
+        // 推薦擴展
+        // ========================================
+        "extensions.recommendations": [
+            "golang.go",
+            "ms-vscode.vscode-json",
+            "redhat.vscode-yaml",
+            "ms-kubernetes-tools.vscode-docker",
+            "ms-azuretools.vscode-docker",
+            "bradlc.vscode-tailwindcss",
+            "esbenp.prettier-vscode"
+        ]
+    },
+    
+    // ========================================
+    // 任務配置
+    // ========================================
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": []
+    },
+    
+    // ========================================
+    // 工作區擴展
+    // ========================================
+    "extensions": {
+        "recommendations": [
+            "golang.go",
+            "ms-vscode.vscode-json", 
+            "redhat.vscode-yaml",
+            "ms-kubernetes-tools.vscode-docker"
+        ],
+        "unwantedRecommendations": []
+    }
+}

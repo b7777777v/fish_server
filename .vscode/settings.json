@@ -1,0 +1,108 @@
+{
+    // ========================================
+    // Go 語言設定
+    // ========================================
+    "go.useLanguageServer": true,
+    "go.toolsManagement.autoUpdate": true,
+    "go.lintTool": "golangci-lint",
+    "go.lintOnSave": "package",
+    "go.formatTool": "goimports",
+    "go.generateTestsFlags": [
+        "-all"
+    ],
+    
+    // ========================================
+    // 環境變數設定 (開發時使用)
+    // ========================================
+    "go.testEnvVars": {
+        "ENVIRONMENT": "test",
+        "LOG_LEVEL": "debug",
+        "GIN_MODE": "test"
+    },
+    
+    // ========================================
+    // 調試設定
+    // ========================================
+    "go.delveConfig": {
+        "dlvLoadConfig": {
+            "followPointers": true,
+            "maxVariableRecurse": 3,
+            "maxStringLen": 300,
+            "maxArrayValues": 64,
+            "maxStructFields": -1
+        },
+        "apiVersion": 2,
+        "showGlobalVariables": false
+    },
+    
+    // ========================================
+    // 文件關聯設定
+    // ========================================
+    "files.associations": {
+        "*.yaml": "yaml",
+        "*.yml": "yaml",
+        "Dockerfile.*": "dockerfile",
+        ".env.*": "properties"
+    },
+    
+    // ========================================
+    // 工作區設定
+    // ========================================
+    "files.exclude": {
+        "**/cmd/admin/admin-*": true,
+        "**/cmd/game/game-*": true,
+        "**/coverage.out": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true
+    },
+    
+    // ========================================
+    // 推薦擴展設定
+    // ========================================
+    "recommendations": [
+        "golang.go",
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "ms-kubernetes-tools.vscode-docker",
+        "ms-azuretools.vscode-docker"
+    ],
+    
+    // ========================================
+    // YAML 設定
+    // ========================================
+    "yaml.schemas": {
+        "https://json.schemastore.org/docker-compose.json": [
+            "docker-compose*.yml",
+            "docker-compose*.yaml"
+        ]
+    },
+    
+    // ========================================
+    // 終端設定
+    // ========================================
+    "terminal.integrated.env.windows": {
+        "ENVIRONMENT": "dev"
+    },
+    "terminal.integrated.env.osx": {
+        "ENVIRONMENT": "dev"
+    },
+    "terminal.integrated.env.linux": {
+        "ENVIRONMENT": "dev"
+    },
+    
+    // ========================================
+    // 編輯器設定
+    // ========================================
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+    },
+    
+    // ========================================
+    // 環境特定設定
+    // ========================================
+    "launch": {
+        "configurations": [],
+        "compounds": []
+    }
+}

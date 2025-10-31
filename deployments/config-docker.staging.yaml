@@ -1,0 +1,50 @@
+# Docker STAGING 環境配置文件
+environment: "staging"
+
+log:
+  level: "info"
+  format: "json"
+
+server:
+  game:
+    port: 9090
+  admin:
+    port: 6060
+
+# STAGING 環境特定配置 - 關閉 pprof 以降低資源使用
+debug:
+  enable_pprof: false       # Staging 環境關閉 pprof
+  pprof_auth: true
+  pprof_auth_key: "${PPROF_AUTH_KEY}"
+  enable_gin_debug: false
+  enable_sql_debug: false
+
+data:
+  database:
+    driver: "postgres"
+    source: "postgresql://user:password@postgres:5432/fish_db_staging?sslmode=require"
+    max_open_conns: 50
+    max_idle_conns: 25
+    conn_max_lifetime: "30m"
+  redis:
+    addr: "redis:6379"
+    password: "${REDIS_PASSWORD}"
+    db: 0
+
+jwt:
+  secret: "${JWT_SECRET}"
+  issuer: "fish_server_staging"
+  expire: 7200
+
+cors:
+  allow_origins: ["https://staging.fishserver.com"]
+  allow_credentials: true
+
+rate_limit:
+  enable: true
+  requests_per_minute: 100
+
+security:
+  enable_csrf: true
+  enable_secure_headers: true
+  max_request_size: "1MB"

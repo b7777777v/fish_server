@@ -72,6 +72,9 @@ func (s *AdminService) RegisterRoutes(r *gin.Engine) {
 		// 伺服器狀態
 		admin.GET("/status", s.ServerStatus)
 		admin.GET("/metrics", s.Metrics)
+		
+		// 環境信息
+		admin.GET("/env", s.GetEnvironmentInfo)
 
 		// 玩家管理
 		players := admin.Group("/players")
@@ -92,8 +95,8 @@ func (s *AdminService) RegisterRoutes(r *gin.Engine) {
 		}
 	}
 
-	// pprof 路由（性能分析）
-	s.registerPprofRoutes(r)
+	// 根據環境條件性註冊 pprof 路由
+	s.registerConditionalPprofRoutes(r)
 }
 
 // HealthCheck 一般健康檢查
@@ -218,6 +221,62 @@ func (s *AdminService) Metrics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, metrics)
+}
+
+// GetEnvironmentInfo 獲取環境信息
+func (s *AdminService) GetEnvironmentInfo(c *gin.Context) {
+	envInfo := gin.H{
+		"environment": s.config.Environment,
+		"features": gin.H{
+			"pprof_enabled": s.config.Debug != nil && s.config.Debug.EnablePprof,
+			"pprof_auth":    s.config.Debug != nil && s.config.Debug.PprofAuth,
+			"gin_debug":     s.config.Debug != nil && s.config.Debug.EnableGinDebug,
+			"sql_debug":     s.config.Debug != nil && s.config.Debug.EnableSQLDebug,
+			"rate_limit":    s.config.RateLimit != nil && s.config.RateLimit.Enable,
+			"cors_enabled":  s.config.CORS != nil && len(s.config.CORS.AllowOrigins) > 0,
+		},
+		"security": gin.H{
+			"csrf_enabled":    s.config.Security != nil && s.config.Security.EnableCSRF,
+			"secure_headers": s.config.Security != nil && s.config.Security.EnableSecureHeaders,
+		},
+		"timestamp": time.Now(),
+	}
+
+	c.JSON(http.StatusOK, envInfo)
+}
+
+// registerConditionalPprofRoutes 根據環境條件性註冊 pprof 路由
+func (s *AdminService) registerConditionalPprofRoutes(r *gin.Engine) {
+	// 檢查是否啟用 pprof
+	if s.config.Debug == nil || !s.config.Debug.EnablePprof {
+		s.logger.Infof("Pprof is disabled in %s environment", s.config.Environment)
+		
+		// 添加一個說明端點
+		r.GET("/debug/pprof/disabled", func(c *gin.Context) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"message":     "Pprof is disabled in this environment",
+				"environment": s.config.Environment,
+				"reason":      "Performance profiling is disabled for security and resource optimization",
+				"alternatives": gin.H{
+					"metrics": "/admin/metrics",
+					"status":  "/admin/status",
+					"health":  "/admin/health",
+				},
+			})
+		})
+		return
+	}
+
+	s.logger.Infof("Pprof is enabled in %s environment", s.config.Environment)
+
+	// 根據配置決定是否需要認證
+	if s.config.Debug.PprofAuth && s.config.Debug.PprofAuthKey != "" {
+		s.logger.Info("Pprof endpoints require authentication")
+		s.EnablePprofWithAuth(r, s.config.Debug.PprofAuthKey)
+	} else {
+		s.logger.Warn("Pprof endpoints are enabled without authentication - this should only be used in development")
+		s.registerPprofRoutes(r)
+	}
 }
 
 // formatBytes 格式化位元組數

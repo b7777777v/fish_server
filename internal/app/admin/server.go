@@ -35,8 +35,8 @@ func NewServer(
 
 // Start 啟動管理後台服務器
 func (s *Server) Start() error {
-	// 設置 Gin 模式
-	gin.SetMode(gin.ReleaseMode)
+	// 根據環境設置 Gin 模式
+	s.setupGinMode()
 	
 	// 創建 Gin 引擎
 	s.engine = gin.New()
@@ -48,16 +48,10 @@ func (s *Server) Start() error {
 	s.setupRoutes()
 	
 	// 創建 HTTP 服務器
-	s.server = &http.Server{
-		Addr:           fmt.Sprintf(":%d", s.conf.Admin.Port),
-		Handler:        s.engine,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		IdleTimeout:    60 * time.Second,
-		MaxHeaderBytes: 1 << 20, // 1MB
-	}
+	s.server = s.createHTTPServer()
 	
-	s.logger.Infof("Starting admin server on port %d", s.conf.Admin.Port)
+	s.logger.Infof("Starting admin server on port %d in %s environment", 
+		s.conf.Admin.Port, s.service.config.Environment)
 	
 	// 啟動服務器
 	if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -107,9 +101,6 @@ func (s *Server) setupRoutes() {
 	
 	// 註冊業務路由
 	s.service.RegisterRoutes(s.engine)
-	
-	// pprof 信息端點
-	s.engine.GET("/debug/pprof/info", s.service.GetPprofInfo)
 }
 
 // ginLogger 自定義 Gin 日誌中間件
@@ -226,6 +217,51 @@ func (s *Server) pingHandler(c *gin.Context) {
 // GetEngine 獲取 Gin 引擎（用於測試）
 func (s *Server) GetEngine() *gin.Engine {
 	return s.engine
+}
+
+// setupGinMode 根據環境設置 Gin 模式
+func (s *Server) setupGinMode() {
+	if s.service.config.Debug != nil && s.service.config.Debug.EnableGinDebug {
+		gin.SetMode(gin.DebugMode)
+		s.logger.Info("Gin running in debug mode")
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+		s.logger.Info("Gin running in release mode")
+	}
+}
+
+// createHTTPServer 創建 HTTP 服務器
+func (s *Server) createHTTPServer() *http.Server {
+	// 根據環境設置不同的超時配置
+	var readTimeout, writeTimeout, idleTimeout time.Duration
+	var maxHeaderBytes int
+	
+	switch s.service.config.Environment {
+	case "dev", "development":
+		readTimeout = 30 * time.Second
+		writeTimeout = 30 * time.Second
+		idleTimeout = 120 * time.Second
+		maxHeaderBytes = 2 << 20 // 2MB for development
+	case "staging", "stag":
+		readTimeout = 15 * time.Second
+		writeTimeout = 15 * time.Second
+		idleTimeout = 90 * time.Second
+		maxHeaderBytes = 1 << 20 // 1MB
+	default: // production
+		readTimeout = 10 * time.Second
+		writeTimeout = 10 * time.Second
+		idleTimeout = 60 * time.Second
+		maxHeaderBytes = 1 << 20 // 1MB
+	}
+	
+	return &http.Server{
+		Addr:           fmt.Sprintf(":%d", s.conf.Admin.Port),
+		Handler:        s.engine,
+		ReadTimeout:    readTimeout,
+		WriteTimeout:   writeTimeout,
+		IdleTimeout:    idleTimeout,
+		MaxHeaderBytes: maxHeaderBytes,
+	}
 }
 
 // GetAddr 獲取服務器地址

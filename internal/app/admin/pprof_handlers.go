@@ -24,6 +24,7 @@ func (s *AdminService) registerPprofRoutes(r *gin.Engine) {
 		pprofGroup.GET("/heap", s.pprofHeap)
 		pprofGroup.GET("/mutex", s.pprofMutex)
 		pprofGroup.GET("/threadcreate", s.pprofThreadCreate)
+		pprofGroup.GET("/info", s.GetPprofInfo)
 	}
 }
 
@@ -130,6 +131,7 @@ func (s *AdminService) EnablePprofWithAuth(r *gin.Engine, authKey string) {
 		authGroup.GET("/heap", s.pprofHeap)
 		authGroup.GET("/mutex", s.pprofMutex)
 		authGroup.GET("/threadcreate", s.pprofThreadCreate)
+		authGroup.GET("/info", s.GetPprofInfo)
 	}
 }
 

@@ -1,39 +1,230 @@
 {
     "version": "0.2.0",
     "configurations": [
+        // ========================================
+        // Admin Server - 多環境配置
+        // ========================================
         {
-            "name": "Launch Admin Server",
+            "name": "🟢 Admin Server - DEV (Pprof ON)",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/admin",
             "cwd": "${workspaceFolder}",
-            "args": [
-                "-conf",
-                "./configs/config.yaml"
-            ]
+            "args": ["./configs/config.dev.yaml"],
+            "env": {
+                "ENVIRONMENT": "dev",
+                "FISH_ENVIRONMENT": "dev",
+                "LOG_LEVEL": "debug",
+                "GIN_MODE": "debug"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "wire-gen"
         },
         {
-            "name": "Launch Game Server",
+            "name": "🟡 Admin Server - STAGING (Pprof OFF)",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/admin",
+            "cwd": "${workspaceFolder}",
+            "args": ["./configs/config.staging.yaml"],
+            "env": {
+                "ENVIRONMENT": "staging",
+                "FISH_ENVIRONMENT": "staging",
+                "LOG_LEVEL": "info",
+                "GIN_MODE": "release",
+                "JWT_SECRET": "staging-jwt-secret-for-debug",
+                "REDIS_PASSWORD": "",
+                "PPROF_AUTH_KEY": "staging-pprof-secret-2024"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "wire-gen"
+        },
+        {
+            "name": "🔴 Admin Server - PROD (Secure)",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/admin",
+            "cwd": "${workspaceFolder}",
+            "args": ["./configs/config.prod.yaml"],
+            "env": {
+                "ENVIRONMENT": "production",
+                "FISH_ENVIRONMENT": "production",
+                "LOG_LEVEL": "warn",
+                "GIN_MODE": "release",
+                "JWT_SECRET": "production-jwt-secret-change-this",
+                "DATABASE_URL": "postgresql://user:password@localhost:5432/fish_db_prod?sslmode=require",
+                "REDIS_ADDR": "localhost:6379",
+                "REDIS_PASSWORD": "prod-redis-password",
+                "PPROF_AUTH_KEY": "super-secure-pprof-key"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "wire-gen"
+        },
+        {
+            "name": "⚡ Admin Server - Auto Environment",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/admin",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "ENVIRONMENT": "${input:environment}",
+                "FISH_ENVIRONMENT": "${input:environment}",
+                "LOG_LEVEL": "${input:logLevel}",
+                "GIN_MODE": "${input:ginMode}"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "wire-gen"
+        },
+        
+        // ========================================
+        // Game Server - 多環境配置
+        // ========================================
+        {
+            "name": "🎮 Game Server - DEV",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/game",
             "cwd": "${workspaceFolder}",
-            "args": [
-                "-conf",
-                "./configs/config.yaml"
-            ]
+            "args": ["./configs/config.dev.yaml"],
+            "env": {
+                "ENVIRONMENT": "dev",
+                "LOG_LEVEL": "debug",
+                "GIN_MODE": "debug"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "wire-gen"
+        },
+        {
+            "name": "🎮 Game Server - STAGING",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/game",
+            "cwd": "${workspaceFolder}",
+            "args": ["./configs/config.staging.yaml"],
+            "env": {
+                "ENVIRONMENT": "staging",
+                "LOG_LEVEL": "info",
+                "GIN_MODE": "release"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "wire-gen"
+        },
+        
+        // ========================================
+        // 除錯配置
+        // ========================================
+        {
+            "name": "🔍 Debug Admin with Delve",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/admin",
+            "cwd": "${workspaceFolder}",
+            "args": ["./configs/config.dev.yaml"],
+            "env": {
+                "ENVIRONMENT": "dev",
+                "LOG_LEVEL": "debug"
+            },
+            "console": "integratedTerminal",
+            "showLog": true,
+            "logOutput": "debugger",
+            "dlvFlags": ["--check-go-version=false"],
+            "preLaunchTask": "wire-gen"
+        },
+        
+        // ========================================
+        // 測試配置
+        // ========================================
+        {
+            "name": "🧪 Test Admin Service",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/internal/app/admin",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "ENVIRONMENT": "test",
+                "LOG_LEVEL": "debug"
+            },
+            "console": "integratedTerminal"
         }
     ],
-    "compounds": [ 
+    
+    // ========================================
+    // 複合配置 - 同時啟動多個服務
+    // ========================================
+    "compounds": [
         {
-            "name": "Launch All Services", 
+            "name": "🚀 DEV Environment - All Services",
             "configurations": [
-                "Launch Admin Server", 
-                "Launch Game Server"
+                "🟢 Admin Server - DEV (Pprof ON)",
+                "🎮 Game Server - DEV"
             ],
-            "preLaunchTask": "wire-gen"
+            "preLaunchTask": "wire-gen",
+            "stopAll": true
+        },
+        {
+            "name": "🏗️ STAGING Environment - All Services", 
+            "configurations": [
+                "🟡 Admin Server - STAGING (Pprof OFF)",
+                "🎮 Game Server - STAGING"
+            ],
+            "preLaunchTask": "wire-gen",
+            "stopAll": true
+        }
+    ],
+    
+    // ========================================
+    // 輸入變數定義
+    // ========================================
+    "inputs": [
+        {
+            "id": "environment",
+            "description": "選擇運行環境",
+            "type": "pickString",
+            "options": [
+                {
+                    "label": "Development (DEV) - 開發環境",
+                    "value": "dev"
+                },
+                {
+                    "label": "Staging (STAG) - 預發布環境", 
+                    "value": "staging"
+                },
+                {
+                    "label": "Production (PROD) - 生產環境",
+                    "value": "production"
+                }
+            ],
+            "default": "dev"
+        },
+        {
+            "id": "logLevel",
+            "description": "選擇日誌級別",
+            "type": "pickString",
+            "options": [
+                "debug",
+                "info", 
+                "warn",
+                "error"
+            ],
+            "default": "debug"
+        },
+        {
+            "id": "ginMode",
+            "description": "選擇 Gin 模式",
+            "type": "pickString",
+            "options": [
+                "debug",
+                "release"
+            ],
+            "default": "debug"
         }
     ]
 }
