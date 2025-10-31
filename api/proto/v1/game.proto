@@ -5,11 +5,255 @@ package v1;
 
 option go_package = "pkg/pb/v1;v1";
 
-// Game 服務定義
-service Game {
-  // 玩家登入
-  rpc Login(LoginRequest) returns (LoginResponse);
+// ========================================
+// 基本類型定義
+// ========================================
+
+// 位置信息
+message Position {
+  double x = 1;
+  double y = 2;
 }
+
+// 消息類型枚舉
+enum MessageType {
+  // 客戶端請求
+  FIRE_BULLET = 0;
+  SWITCH_CANNON = 1;
+  JOIN_ROOM = 2;
+  LEAVE_ROOM = 3;
+  HEARTBEAT = 4;
+  GET_ROOM_LIST = 5;
+  GET_PLAYER_INFO = 6;
+  
+  // 服務器響應
+  FIRE_BULLET_RESPONSE = 10;
+  SWITCH_CANNON_RESPONSE = 11;
+  JOIN_ROOM_RESPONSE = 12;
+  LEAVE_ROOM_RESPONSE = 13;
+  HEARTBEAT_RESPONSE = 14;
+  ROOM_LIST_RESPONSE = 15;
+  PLAYER_INFO_RESPONSE = 16;
+  
+  // 事件廣播
+  BULLET_FIRED = 20;
+  CANNON_SWITCHED = 21;
+  FISH_SPAWNED = 22;
+  FISH_DIED = 23;
+  PLAYER_REWARD = 24;
+  
+  // 錯誤消息
+  ERROR = 99;
+}
+
+// ========================================
+// 遊戲消息主體
+// ========================================
+
+// 遊戲消息包裝
+message GameMessage {
+  MessageType type = 1;
+  oneof data {
+    // 請求消息
+    FireBulletRequest fire_bullet = 2;
+    SwitchCannonRequest switch_cannon = 3;
+    JoinRoomRequest join_room = 4;
+    LeaveRoomRequest leave_room = 5;
+    HeartbeatMessage heartbeat = 6;
+    GetRoomListRequest get_room_list = 7;
+    GetPlayerInfoRequest get_player_info = 8;
+    
+    // 響應消息
+    FireBulletResponse fire_bullet_response = 12;
+    SwitchCannonResponse switch_cannon_response = 13;
+    JoinRoomResponse join_room_response = 14;
+    LeaveRoomResponse leave_room_response = 15;
+    HeartbeatResponse heartbeat_response = 16;
+    RoomListResponse room_list_response = 17;
+    PlayerInfoResponse player_info_response = 18;
+    
+    // 事件消息
+    BulletFiredEvent bullet_fired = 22;
+    CannonSwitchedEvent cannon_switched = 23;
+    FishSpawnedEvent fish_spawned = 24;
+    FishDiedEvent fish_died = 25;
+    PlayerRewardEvent player_reward = 26;
+    
+    // 錯誤消息
+    ErrorMessage error = 99;
+  }
+}
+
+// ========================================
+// 請求消息
+// ========================================
+
+// 開火請求
+message FireBulletRequest {
+  double direction = 1;  // 方向（弧度）
+  int32 power = 2;       // 威力 1-100
+  Position position = 3; // 發射位置
+}
+
+// 切換砲台請求
+message SwitchCannonRequest {
+  int32 cannon_type = 1; // 砲台類型 1-10
+  int32 level = 2;       // 砲台等級 1-10
+}
+
+// 加入房間請求
+message JoinRoomRequest {
+  string room_id = 1;
+}
+
+// 離開房間請求
+message LeaveRoomRequest {
+  // 空消息
+}
+
+// 心跳消息
+message HeartbeatMessage {
+  int64 timestamp = 1;
+}
+
+// 獲取房間列表請求
+message GetRoomListRequest {
+  string room_type = 1; // 可選的房間類型過濾
+}
+
+// 獲取玩家信息請求
+message GetPlayerInfoRequest {
+  // 空消息，使用當前連接的玩家
+}
+
+// ========================================
+// 響應消息
+// ========================================
+
+// 開火響應
+message FireBulletResponse {
+  bool success = 1;
+  int64 bullet_id = 2;
+  int64 cost = 3;
+  int64 timestamp = 4;
+}
+
+// 切換砲台響應
+message SwitchCannonResponse {
+  bool success = 1;
+  int32 cannon_type = 2;
+  int32 level = 3;
+  int32 power = 4;
+  int64 timestamp = 5;
+}
+
+// 加入房間響應
+message JoinRoomResponse {
+  bool success = 1;
+  string room_id = 2;
+  int64 timestamp = 3;
+}
+
+// 離開房間響應
+message LeaveRoomResponse {
+  bool success = 1;
+  string room_id = 2;
+  int64 timestamp = 3;
+}
+
+// 心跳響應
+message HeartbeatResponse {
+  int64 server_time = 1;
+  int64 timestamp = 2;
+}
+
+// 房間列表響應
+message RoomListResponse {
+  repeated RoomInfo rooms = 1;
+  int64 timestamp = 2;
+}
+
+// 玩家信息響應
+message PlayerInfoResponse {
+  int64 player_id = 1;
+  string nickname = 2;
+  int64 balance = 3;
+  int32 level = 4;
+  int64 exp = 5;
+  string room_id = 6;
+  int64 timestamp = 7;
+}
+
+// ========================================
+// 事件消息
+// ========================================
+
+// 子彈發射事件
+message BulletFiredEvent {
+  int64 player_id = 1;
+  int64 bullet_id = 2;
+  double direction = 3;
+  int32 power = 4;
+  Position position = 5;
+  int64 timestamp = 6;
+}
+
+// 砲台切換事件
+message CannonSwitchedEvent {
+  int64 player_id = 1;
+  int32 cannon_type = 2;
+  int32 level = 3;
+  int32 power = 4;
+  int64 timestamp = 5;
+}
+
+// 魚類生成事件
+message FishSpawnedEvent {
+  int64 fish_id = 1;
+  int32 fish_type = 2;
+  Position position = 3;
+  int64 timestamp = 4;
+}
+
+// 魚類死亡事件
+message FishDiedEvent {
+  int64 fish_id = 1;
+  int64 player_id = 2;
+  int64 reward = 3;
+  int64 timestamp = 4;
+}
+
+// 玩家獎勵事件
+message PlayerRewardEvent {
+  int64 player_id = 1;
+  int64 reward = 2;
+  int64 timestamp = 3;
+}
+
+// ========================================
+// 輔助類型
+// ========================================
+
+// 房間信息
+message RoomInfo {
+  string room_id = 1;
+  string name = 2;
+  string type = 3;
+  int32 player_count = 4;
+  int32 max_players = 5;
+  string status = 6;
+}
+
+// 錯誤消息
+message ErrorMessage {
+  string message = 1;
+  string code = 2;
+  int64 timestamp = 3;
+}
+
+// ========================================
+// gRPC 服務定義（向後相容）
+// ========================================
 
 // 登入請求
 message LoginRequest {
@@ -20,4 +264,10 @@ message LoginRequest {
 // 登入回應
 message LoginResponse {
   string token = 1;
+}
+
+// Game 服務定義
+service Game {
+  // 玩家登入
+  rpc Login(LoginRequest) returns (LoginResponse);
 }

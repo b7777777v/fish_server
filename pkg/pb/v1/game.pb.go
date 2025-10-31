@@ -23,6 +23,1844 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// 消息類型枚舉
+type MessageType int32
+
+const (
+	// 客戶端請求
+	MessageType_FIRE_BULLET     MessageType = 0
+	MessageType_SWITCH_CANNON   MessageType = 1
+	MessageType_JOIN_ROOM       MessageType = 2
+	MessageType_LEAVE_ROOM      MessageType = 3
+	MessageType_HEARTBEAT       MessageType = 4
+	MessageType_GET_ROOM_LIST   MessageType = 5
+	MessageType_GET_PLAYER_INFO MessageType = 6
+	// 服務器響應
+	MessageType_FIRE_BULLET_RESPONSE   MessageType = 10
+	MessageType_SWITCH_CANNON_RESPONSE MessageType = 11
+	MessageType_JOIN_ROOM_RESPONSE     MessageType = 12
+	MessageType_LEAVE_ROOM_RESPONSE    MessageType = 13
+	MessageType_HEARTBEAT_RESPONSE     MessageType = 14
+	MessageType_ROOM_LIST_RESPONSE     MessageType = 15
+	MessageType_PLAYER_INFO_RESPONSE   MessageType = 16
+	// 事件廣播
+	MessageType_BULLET_FIRED    MessageType = 20
+	MessageType_CANNON_SWITCHED MessageType = 21
+	MessageType_FISH_SPAWNED    MessageType = 22
+	MessageType_FISH_DIED       MessageType = 23
+	MessageType_PLAYER_REWARD   MessageType = 24
+	// 錯誤消息
+	MessageType_ERROR MessageType = 99
+)
+
+// Enum value maps for MessageType.
+var (
+	MessageType_name = map[int32]string{
+		0:  "FIRE_BULLET",
+		1:  "SWITCH_CANNON",
+		2:  "JOIN_ROOM",
+		3:  "LEAVE_ROOM",
+		4:  "HEARTBEAT",
+		5:  "GET_ROOM_LIST",
+		6:  "GET_PLAYER_INFO",
+		10: "FIRE_BULLET_RESPONSE",
+		11: "SWITCH_CANNON_RESPONSE",
+		12: "JOIN_ROOM_RESPONSE",
+		13: "LEAVE_ROOM_RESPONSE",
+		14: "HEARTBEAT_RESPONSE",
+		15: "ROOM_LIST_RESPONSE",
+		16: "PLAYER_INFO_RESPONSE",
+		20: "BULLET_FIRED",
+		21: "CANNON_SWITCHED",
+		22: "FISH_SPAWNED",
+		23: "FISH_DIED",
+		24: "PLAYER_REWARD",
+		99: "ERROR",
+	}
+	MessageType_value = map[string]int32{
+		"FIRE_BULLET":            0,
+		"SWITCH_CANNON":          1,
+		"JOIN_ROOM":              2,
+		"LEAVE_ROOM":             3,
+		"HEARTBEAT":              4,
+		"GET_ROOM_LIST":          5,
+		"GET_PLAYER_INFO":        6,
+		"FIRE_BULLET_RESPONSE":   10,
+		"SWITCH_CANNON_RESPONSE": 11,
+		"JOIN_ROOM_RESPONSE":     12,
+		"LEAVE_ROOM_RESPONSE":    13,
+		"HEARTBEAT_RESPONSE":     14,
+		"ROOM_LIST_RESPONSE":     15,
+		"PLAYER_INFO_RESPONSE":   16,
+		"BULLET_FIRED":           20,
+		"CANNON_SWITCHED":        21,
+		"FISH_SPAWNED":           22,
+		"FISH_DIED":              23,
+		"PLAYER_REWARD":          24,
+		"ERROR":                  99,
+	}
+)
+
+func (x MessageType) Enum() *MessageType {
+	p := new(MessageType)
+	*p = x
+	return p
+}
+
+func (x MessageType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MessageType) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_v1_game_proto_enumTypes[0].Descriptor()
+}
+
+func (MessageType) Type() protoreflect.EnumType {
+	return &file_proto_v1_game_proto_enumTypes[0]
+}
+
+func (x MessageType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MessageType.Descriptor instead.
+func (MessageType) EnumDescriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{0}
+}
+
+// 位置信息
+type Position struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	X             float64                `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
+	Y             float64                `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Position) Reset() {
+	*x = Position{}
+	mi := &file_proto_v1_game_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Position) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Position) ProtoMessage() {}
+
+func (x *Position) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Position.ProtoReflect.Descriptor instead.
+func (*Position) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Position) GetX() float64 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *Position) GetY() float64 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+// 遊戲消息包裝
+type GameMessage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Type  MessageType            `protobuf:"varint,1,opt,name=type,proto3,enum=v1.MessageType" json:"type,omitempty"`
+	// Types that are valid to be assigned to Data:
+	//
+	//	*GameMessage_FireBullet
+	//	*GameMessage_SwitchCannon
+	//	*GameMessage_JoinRoom
+	//	*GameMessage_LeaveRoom
+	//	*GameMessage_Heartbeat
+	//	*GameMessage_GetRoomList
+	//	*GameMessage_GetPlayerInfo
+	//	*GameMessage_FireBulletResponse
+	//	*GameMessage_SwitchCannonResponse
+	//	*GameMessage_JoinRoomResponse
+	//	*GameMessage_LeaveRoomResponse
+	//	*GameMessage_HeartbeatResponse
+	//	*GameMessage_RoomListResponse
+	//	*GameMessage_PlayerInfoResponse
+	//	*GameMessage_BulletFired
+	//	*GameMessage_CannonSwitched
+	//	*GameMessage_FishSpawned
+	//	*GameMessage_FishDied
+	//	*GameMessage_PlayerReward
+	//	*GameMessage_Error
+	Data          isGameMessage_Data `protobuf_oneof:"data"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GameMessage) Reset() {
+	*x = GameMessage{}
+	mi := &file_proto_v1_game_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GameMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GameMessage) ProtoMessage() {}
+
+func (x *GameMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GameMessage.ProtoReflect.Descriptor instead.
+func (*GameMessage) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GameMessage) GetType() MessageType {
+	if x != nil {
+		return x.Type
+	}
+	return MessageType_FIRE_BULLET
+}
+
+func (x *GameMessage) GetData() isGameMessage_Data {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *GameMessage) GetFireBullet() *FireBulletRequest {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_FireBullet); ok {
+			return x.FireBullet
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetSwitchCannon() *SwitchCannonRequest {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_SwitchCannon); ok {
+			return x.SwitchCannon
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetJoinRoom() *JoinRoomRequest {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_JoinRoom); ok {
+			return x.JoinRoom
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetLeaveRoom() *LeaveRoomRequest {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_LeaveRoom); ok {
+			return x.LeaveRoom
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetHeartbeat() *HeartbeatMessage {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_Heartbeat); ok {
+			return x.Heartbeat
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetGetRoomList() *GetRoomListRequest {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_GetRoomList); ok {
+			return x.GetRoomList
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetGetPlayerInfo() *GetPlayerInfoRequest {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_GetPlayerInfo); ok {
+			return x.GetPlayerInfo
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetFireBulletResponse() *FireBulletResponse {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_FireBulletResponse); ok {
+			return x.FireBulletResponse
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetSwitchCannonResponse() *SwitchCannonResponse {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_SwitchCannonResponse); ok {
+			return x.SwitchCannonResponse
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetJoinRoomResponse() *JoinRoomResponse {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_JoinRoomResponse); ok {
+			return x.JoinRoomResponse
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetLeaveRoomResponse() *LeaveRoomResponse {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_LeaveRoomResponse); ok {
+			return x.LeaveRoomResponse
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetHeartbeatResponse() *HeartbeatResponse {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_HeartbeatResponse); ok {
+			return x.HeartbeatResponse
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetRoomListResponse() *RoomListResponse {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_RoomListResponse); ok {
+			return x.RoomListResponse
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetPlayerInfoResponse() *PlayerInfoResponse {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_PlayerInfoResponse); ok {
+			return x.PlayerInfoResponse
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetBulletFired() *BulletFiredEvent {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_BulletFired); ok {
+			return x.BulletFired
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetCannonSwitched() *CannonSwitchedEvent {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_CannonSwitched); ok {
+			return x.CannonSwitched
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetFishSpawned() *FishSpawnedEvent {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_FishSpawned); ok {
+			return x.FishSpawned
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetFishDied() *FishDiedEvent {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_FishDied); ok {
+			return x.FishDied
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetPlayerReward() *PlayerRewardEvent {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_PlayerReward); ok {
+			return x.PlayerReward
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetError() *ErrorMessage {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_Error); ok {
+			return x.Error
+		}
+	}
+	return nil
+}
+
+type isGameMessage_Data interface {
+	isGameMessage_Data()
+}
+
+type GameMessage_FireBullet struct {
+	// 請求消息
+	FireBullet *FireBulletRequest `protobuf:"bytes,2,opt,name=fire_bullet,json=fireBullet,proto3,oneof"`
+}
+
+type GameMessage_SwitchCannon struct {
+	SwitchCannon *SwitchCannonRequest `protobuf:"bytes,3,opt,name=switch_cannon,json=switchCannon,proto3,oneof"`
+}
+
+type GameMessage_JoinRoom struct {
+	JoinRoom *JoinRoomRequest `protobuf:"bytes,4,opt,name=join_room,json=joinRoom,proto3,oneof"`
+}
+
+type GameMessage_LeaveRoom struct {
+	LeaveRoom *LeaveRoomRequest `protobuf:"bytes,5,opt,name=leave_room,json=leaveRoom,proto3,oneof"`
+}
+
+type GameMessage_Heartbeat struct {
+	Heartbeat *HeartbeatMessage `protobuf:"bytes,6,opt,name=heartbeat,proto3,oneof"`
+}
+
+type GameMessage_GetRoomList struct {
+	GetRoomList *GetRoomListRequest `protobuf:"bytes,7,opt,name=get_room_list,json=getRoomList,proto3,oneof"`
+}
+
+type GameMessage_GetPlayerInfo struct {
+	GetPlayerInfo *GetPlayerInfoRequest `protobuf:"bytes,8,opt,name=get_player_info,json=getPlayerInfo,proto3,oneof"`
+}
+
+type GameMessage_FireBulletResponse struct {
+	// 響應消息
+	FireBulletResponse *FireBulletResponse `protobuf:"bytes,12,opt,name=fire_bullet_response,json=fireBulletResponse,proto3,oneof"`
+}
+
+type GameMessage_SwitchCannonResponse struct {
+	SwitchCannonResponse *SwitchCannonResponse `protobuf:"bytes,13,opt,name=switch_cannon_response,json=switchCannonResponse,proto3,oneof"`
+}
+
+type GameMessage_JoinRoomResponse struct {
+	JoinRoomResponse *JoinRoomResponse `protobuf:"bytes,14,opt,name=join_room_response,json=joinRoomResponse,proto3,oneof"`
+}
+
+type GameMessage_LeaveRoomResponse struct {
+	LeaveRoomResponse *LeaveRoomResponse `protobuf:"bytes,15,opt,name=leave_room_response,json=leaveRoomResponse,proto3,oneof"`
+}
+
+type GameMessage_HeartbeatResponse struct {
+	HeartbeatResponse *HeartbeatResponse `protobuf:"bytes,16,opt,name=heartbeat_response,json=heartbeatResponse,proto3,oneof"`
+}
+
+type GameMessage_RoomListResponse struct {
+	RoomListResponse *RoomListResponse `protobuf:"bytes,17,opt,name=room_list_response,json=roomListResponse,proto3,oneof"`
+}
+
+type GameMessage_PlayerInfoResponse struct {
+	PlayerInfoResponse *PlayerInfoResponse `protobuf:"bytes,18,opt,name=player_info_response,json=playerInfoResponse,proto3,oneof"`
+}
+
+type GameMessage_BulletFired struct {
+	// 事件消息
+	BulletFired *BulletFiredEvent `protobuf:"bytes,22,opt,name=bullet_fired,json=bulletFired,proto3,oneof"`
+}
+
+type GameMessage_CannonSwitched struct {
+	CannonSwitched *CannonSwitchedEvent `protobuf:"bytes,23,opt,name=cannon_switched,json=cannonSwitched,proto3,oneof"`
+}
+
+type GameMessage_FishSpawned struct {
+	FishSpawned *FishSpawnedEvent `protobuf:"bytes,24,opt,name=fish_spawned,json=fishSpawned,proto3,oneof"`
+}
+
+type GameMessage_FishDied struct {
+	FishDied *FishDiedEvent `protobuf:"bytes,25,opt,name=fish_died,json=fishDied,proto3,oneof"`
+}
+
+type GameMessage_PlayerReward struct {
+	PlayerReward *PlayerRewardEvent `protobuf:"bytes,26,opt,name=player_reward,json=playerReward,proto3,oneof"`
+}
+
+type GameMessage_Error struct {
+	// 錯誤消息
+	Error *ErrorMessage `protobuf:"bytes,99,opt,name=error,proto3,oneof"`
+}
+
+func (*GameMessage_FireBullet) isGameMessage_Data() {}
+
+func (*GameMessage_SwitchCannon) isGameMessage_Data() {}
+
+func (*GameMessage_JoinRoom) isGameMessage_Data() {}
+
+func (*GameMessage_LeaveRoom) isGameMessage_Data() {}
+
+func (*GameMessage_Heartbeat) isGameMessage_Data() {}
+
+func (*GameMessage_GetRoomList) isGameMessage_Data() {}
+
+func (*GameMessage_GetPlayerInfo) isGameMessage_Data() {}
+
+func (*GameMessage_FireBulletResponse) isGameMessage_Data() {}
+
+func (*GameMessage_SwitchCannonResponse) isGameMessage_Data() {}
+
+func (*GameMessage_JoinRoomResponse) isGameMessage_Data() {}
+
+func (*GameMessage_LeaveRoomResponse) isGameMessage_Data() {}
+
+func (*GameMessage_HeartbeatResponse) isGameMessage_Data() {}
+
+func (*GameMessage_RoomListResponse) isGameMessage_Data() {}
+
+func (*GameMessage_PlayerInfoResponse) isGameMessage_Data() {}
+
+func (*GameMessage_BulletFired) isGameMessage_Data() {}
+
+func (*GameMessage_CannonSwitched) isGameMessage_Data() {}
+
+func (*GameMessage_FishSpawned) isGameMessage_Data() {}
+
+func (*GameMessage_FishDied) isGameMessage_Data() {}
+
+func (*GameMessage_PlayerReward) isGameMessage_Data() {}
+
+func (*GameMessage_Error) isGameMessage_Data() {}
+
+// 開火請求
+type FireBulletRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Direction     float64                `protobuf:"fixed64,1,opt,name=direction,proto3" json:"direction,omitempty"` // 方向（弧度）
+	Power         int32                  `protobuf:"varint,2,opt,name=power,proto3" json:"power,omitempty"`          // 威力 1-100
+	Position      *Position              `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"`     // 發射位置
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FireBulletRequest) Reset() {
+	*x = FireBulletRequest{}
+	mi := &file_proto_v1_game_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FireBulletRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FireBulletRequest) ProtoMessage() {}
+
+func (x *FireBulletRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FireBulletRequest.ProtoReflect.Descriptor instead.
+func (*FireBulletRequest) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *FireBulletRequest) GetDirection() float64 {
+	if x != nil {
+		return x.Direction
+	}
+	return 0
+}
+
+func (x *FireBulletRequest) GetPower() int32 {
+	if x != nil {
+		return x.Power
+	}
+	return 0
+}
+
+func (x *FireBulletRequest) GetPosition() *Position {
+	if x != nil {
+		return x.Position
+	}
+	return nil
+}
+
+// 切換砲台請求
+type SwitchCannonRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CannonType    int32                  `protobuf:"varint,1,opt,name=cannon_type,json=cannonType,proto3" json:"cannon_type,omitempty"` // 砲台類型 1-10
+	Level         int32                  `protobuf:"varint,2,opt,name=level,proto3" json:"level,omitempty"`                             // 砲台等級 1-10
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SwitchCannonRequest) Reset() {
+	*x = SwitchCannonRequest{}
+	mi := &file_proto_v1_game_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwitchCannonRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwitchCannonRequest) ProtoMessage() {}
+
+func (x *SwitchCannonRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwitchCannonRequest.ProtoReflect.Descriptor instead.
+func (*SwitchCannonRequest) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SwitchCannonRequest) GetCannonType() int32 {
+	if x != nil {
+		return x.CannonType
+	}
+	return 0
+}
+
+func (x *SwitchCannonRequest) GetLevel() int32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
+// 加入房間請求
+type JoinRoomRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinRoomRequest) Reset() {
+	*x = JoinRoomRequest{}
+	mi := &file_proto_v1_game_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinRoomRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinRoomRequest) ProtoMessage() {}
+
+func (x *JoinRoomRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinRoomRequest.ProtoReflect.Descriptor instead.
+func (*JoinRoomRequest) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *JoinRoomRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+// 離開房間請求
+type LeaveRoomRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveRoomRequest) Reset() {
+	*x = LeaveRoomRequest{}
+	mi := &file_proto_v1_game_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveRoomRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveRoomRequest) ProtoMessage() {}
+
+func (x *LeaveRoomRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveRoomRequest.ProtoReflect.Descriptor instead.
+func (*LeaveRoomRequest) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{5}
+}
+
+// 心跳消息
+type HeartbeatMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Timestamp     int64                  `protobuf:"varint,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HeartbeatMessage) Reset() {
+	*x = HeartbeatMessage{}
+	mi := &file_proto_v1_game_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeartbeatMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeartbeatMessage) ProtoMessage() {}
+
+func (x *HeartbeatMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeartbeatMessage.ProtoReflect.Descriptor instead.
+func (*HeartbeatMessage) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *HeartbeatMessage) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 獲取房間列表請求
+type GetRoomListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomType      string                 `protobuf:"bytes,1,opt,name=room_type,json=roomType,proto3" json:"room_type,omitempty"` // 可選的房間類型過濾
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomListRequest) Reset() {
+	*x = GetRoomListRequest{}
+	mi := &file_proto_v1_game_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomListRequest) ProtoMessage() {}
+
+func (x *GetRoomListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomListRequest.ProtoReflect.Descriptor instead.
+func (*GetRoomListRequest) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetRoomListRequest) GetRoomType() string {
+	if x != nil {
+		return x.RoomType
+	}
+	return ""
+}
+
+// 獲取玩家信息請求
+type GetPlayerInfoRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPlayerInfoRequest) Reset() {
+	*x = GetPlayerInfoRequest{}
+	mi := &file_proto_v1_game_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPlayerInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPlayerInfoRequest) ProtoMessage() {}
+
+func (x *GetPlayerInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPlayerInfoRequest.ProtoReflect.Descriptor instead.
+func (*GetPlayerInfoRequest) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{8}
+}
+
+// 開火響應
+type FireBulletResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	BulletId      int64                  `protobuf:"varint,2,opt,name=bullet_id,json=bulletId,proto3" json:"bullet_id,omitempty"`
+	Cost          int64                  `protobuf:"varint,3,opt,name=cost,proto3" json:"cost,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FireBulletResponse) Reset() {
+	*x = FireBulletResponse{}
+	mi := &file_proto_v1_game_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FireBulletResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FireBulletResponse) ProtoMessage() {}
+
+func (x *FireBulletResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FireBulletResponse.ProtoReflect.Descriptor instead.
+func (*FireBulletResponse) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *FireBulletResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *FireBulletResponse) GetBulletId() int64 {
+	if x != nil {
+		return x.BulletId
+	}
+	return 0
+}
+
+func (x *FireBulletResponse) GetCost() int64 {
+	if x != nil {
+		return x.Cost
+	}
+	return 0
+}
+
+func (x *FireBulletResponse) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 切換砲台響應
+type SwitchCannonResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	CannonType    int32                  `protobuf:"varint,2,opt,name=cannon_type,json=cannonType,proto3" json:"cannon_type,omitempty"`
+	Level         int32                  `protobuf:"varint,3,opt,name=level,proto3" json:"level,omitempty"`
+	Power         int32                  `protobuf:"varint,4,opt,name=power,proto3" json:"power,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SwitchCannonResponse) Reset() {
+	*x = SwitchCannonResponse{}
+	mi := &file_proto_v1_game_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwitchCannonResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwitchCannonResponse) ProtoMessage() {}
+
+func (x *SwitchCannonResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwitchCannonResponse.ProtoReflect.Descriptor instead.
+func (*SwitchCannonResponse) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SwitchCannonResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SwitchCannonResponse) GetCannonType() int32 {
+	if x != nil {
+		return x.CannonType
+	}
+	return 0
+}
+
+func (x *SwitchCannonResponse) GetLevel() int32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
+func (x *SwitchCannonResponse) GetPower() int32 {
+	if x != nil {
+		return x.Power
+	}
+	return 0
+}
+
+func (x *SwitchCannonResponse) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 加入房間響應
+type JoinRoomResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinRoomResponse) Reset() {
+	*x = JoinRoomResponse{}
+	mi := &file_proto_v1_game_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinRoomResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinRoomResponse) ProtoMessage() {}
+
+func (x *JoinRoomResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinRoomResponse.ProtoReflect.Descriptor instead.
+func (*JoinRoomResponse) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *JoinRoomResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *JoinRoomResponse) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *JoinRoomResponse) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 離開房間響應
+type LeaveRoomResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	RoomId        string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveRoomResponse) Reset() {
+	*x = LeaveRoomResponse{}
+	mi := &file_proto_v1_game_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveRoomResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveRoomResponse) ProtoMessage() {}
+
+func (x *LeaveRoomResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveRoomResponse.ProtoReflect.Descriptor instead.
+func (*LeaveRoomResponse) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *LeaveRoomResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *LeaveRoomResponse) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *LeaveRoomResponse) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 心跳響應
+type HeartbeatResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ServerTime    int64                  `protobuf:"varint,1,opt,name=server_time,json=serverTime,proto3" json:"server_time,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HeartbeatResponse) Reset() {
+	*x = HeartbeatResponse{}
+	mi := &file_proto_v1_game_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeartbeatResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeartbeatResponse) ProtoMessage() {}
+
+func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
+func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *HeartbeatResponse) GetServerTime() int64 {
+	if x != nil {
+		return x.ServerTime
+	}
+	return 0
+}
+
+func (x *HeartbeatResponse) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 房間列表響應
+type RoomListResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rooms         []*RoomInfo            `protobuf:"bytes,1,rep,name=rooms,proto3" json:"rooms,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomListResponse) Reset() {
+	*x = RoomListResponse{}
+	mi := &file_proto_v1_game_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomListResponse) ProtoMessage() {}
+
+func (x *RoomListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomListResponse.ProtoReflect.Descriptor instead.
+func (*RoomListResponse) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RoomListResponse) GetRooms() []*RoomInfo {
+	if x != nil {
+		return x.Rooms
+	}
+	return nil
+}
+
+func (x *RoomListResponse) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 玩家信息響應
+type PlayerInfoResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlayerId      int64                  `protobuf:"varint,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
+	Nickname      string                 `protobuf:"bytes,2,opt,name=nickname,proto3" json:"nickname,omitempty"`
+	Balance       int64                  `protobuf:"varint,3,opt,name=balance,proto3" json:"balance,omitempty"`
+	Level         int32                  `protobuf:"varint,4,opt,name=level,proto3" json:"level,omitempty"`
+	Exp           int64                  `protobuf:"varint,5,opt,name=exp,proto3" json:"exp,omitempty"`
+	RoomId        string                 `protobuf:"bytes,6,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayerInfoResponse) Reset() {
+	*x = PlayerInfoResponse{}
+	mi := &file_proto_v1_game_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayerInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayerInfoResponse) ProtoMessage() {}
+
+func (x *PlayerInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayerInfoResponse.ProtoReflect.Descriptor instead.
+func (*PlayerInfoResponse) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *PlayerInfoResponse) GetPlayerId() int64 {
+	if x != nil {
+		return x.PlayerId
+	}
+	return 0
+}
+
+func (x *PlayerInfoResponse) GetNickname() string {
+	if x != nil {
+		return x.Nickname
+	}
+	return ""
+}
+
+func (x *PlayerInfoResponse) GetBalance() int64 {
+	if x != nil {
+		return x.Balance
+	}
+	return 0
+}
+
+func (x *PlayerInfoResponse) GetLevel() int32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
+func (x *PlayerInfoResponse) GetExp() int64 {
+	if x != nil {
+		return x.Exp
+	}
+	return 0
+}
+
+func (x *PlayerInfoResponse) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *PlayerInfoResponse) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 子彈發射事件
+type BulletFiredEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlayerId      int64                  `protobuf:"varint,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
+	BulletId      int64                  `protobuf:"varint,2,opt,name=bullet_id,json=bulletId,proto3" json:"bullet_id,omitempty"`
+	Direction     float64                `protobuf:"fixed64,3,opt,name=direction,proto3" json:"direction,omitempty"`
+	Power         int32                  `protobuf:"varint,4,opt,name=power,proto3" json:"power,omitempty"`
+	Position      *Position              `protobuf:"bytes,5,opt,name=position,proto3" json:"position,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BulletFiredEvent) Reset() {
+	*x = BulletFiredEvent{}
+	mi := &file_proto_v1_game_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BulletFiredEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BulletFiredEvent) ProtoMessage() {}
+
+func (x *BulletFiredEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BulletFiredEvent.ProtoReflect.Descriptor instead.
+func (*BulletFiredEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *BulletFiredEvent) GetPlayerId() int64 {
+	if x != nil {
+		return x.PlayerId
+	}
+	return 0
+}
+
+func (x *BulletFiredEvent) GetBulletId() int64 {
+	if x != nil {
+		return x.BulletId
+	}
+	return 0
+}
+
+func (x *BulletFiredEvent) GetDirection() float64 {
+	if x != nil {
+		return x.Direction
+	}
+	return 0
+}
+
+func (x *BulletFiredEvent) GetPower() int32 {
+	if x != nil {
+		return x.Power
+	}
+	return 0
+}
+
+func (x *BulletFiredEvent) GetPosition() *Position {
+	if x != nil {
+		return x.Position
+	}
+	return nil
+}
+
+func (x *BulletFiredEvent) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 砲台切換事件
+type CannonSwitchedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlayerId      int64                  `protobuf:"varint,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
+	CannonType    int32                  `protobuf:"varint,2,opt,name=cannon_type,json=cannonType,proto3" json:"cannon_type,omitempty"`
+	Level         int32                  `protobuf:"varint,3,opt,name=level,proto3" json:"level,omitempty"`
+	Power         int32                  `protobuf:"varint,4,opt,name=power,proto3" json:"power,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CannonSwitchedEvent) Reset() {
+	*x = CannonSwitchedEvent{}
+	mi := &file_proto_v1_game_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CannonSwitchedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CannonSwitchedEvent) ProtoMessage() {}
+
+func (x *CannonSwitchedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CannonSwitchedEvent.ProtoReflect.Descriptor instead.
+func (*CannonSwitchedEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *CannonSwitchedEvent) GetPlayerId() int64 {
+	if x != nil {
+		return x.PlayerId
+	}
+	return 0
+}
+
+func (x *CannonSwitchedEvent) GetCannonType() int32 {
+	if x != nil {
+		return x.CannonType
+	}
+	return 0
+}
+
+func (x *CannonSwitchedEvent) GetLevel() int32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
+func (x *CannonSwitchedEvent) GetPower() int32 {
+	if x != nil {
+		return x.Power
+	}
+	return 0
+}
+
+func (x *CannonSwitchedEvent) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 魚類生成事件
+type FishSpawnedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FishId        int64                  `protobuf:"varint,1,opt,name=fish_id,json=fishId,proto3" json:"fish_id,omitempty"`
+	FishType      int32                  `protobuf:"varint,2,opt,name=fish_type,json=fishType,proto3" json:"fish_type,omitempty"`
+	Position      *Position              `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FishSpawnedEvent) Reset() {
+	*x = FishSpawnedEvent{}
+	mi := &file_proto_v1_game_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FishSpawnedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FishSpawnedEvent) ProtoMessage() {}
+
+func (x *FishSpawnedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FishSpawnedEvent.ProtoReflect.Descriptor instead.
+func (*FishSpawnedEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *FishSpawnedEvent) GetFishId() int64 {
+	if x != nil {
+		return x.FishId
+	}
+	return 0
+}
+
+func (x *FishSpawnedEvent) GetFishType() int32 {
+	if x != nil {
+		return x.FishType
+	}
+	return 0
+}
+
+func (x *FishSpawnedEvent) GetPosition() *Position {
+	if x != nil {
+		return x.Position
+	}
+	return nil
+}
+
+func (x *FishSpawnedEvent) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 魚類死亡事件
+type FishDiedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FishId        int64                  `protobuf:"varint,1,opt,name=fish_id,json=fishId,proto3" json:"fish_id,omitempty"`
+	PlayerId      int64                  `protobuf:"varint,2,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
+	Reward        int64                  `protobuf:"varint,3,opt,name=reward,proto3" json:"reward,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FishDiedEvent) Reset() {
+	*x = FishDiedEvent{}
+	mi := &file_proto_v1_game_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FishDiedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FishDiedEvent) ProtoMessage() {}
+
+func (x *FishDiedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FishDiedEvent.ProtoReflect.Descriptor instead.
+func (*FishDiedEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *FishDiedEvent) GetFishId() int64 {
+	if x != nil {
+		return x.FishId
+	}
+	return 0
+}
+
+func (x *FishDiedEvent) GetPlayerId() int64 {
+	if x != nil {
+		return x.PlayerId
+	}
+	return 0
+}
+
+func (x *FishDiedEvent) GetReward() int64 {
+	if x != nil {
+		return x.Reward
+	}
+	return 0
+}
+
+func (x *FishDiedEvent) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 玩家獎勵事件
+type PlayerRewardEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlayerId      int64                  `protobuf:"varint,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
+	Reward        int64                  `protobuf:"varint,2,opt,name=reward,proto3" json:"reward,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayerRewardEvent) Reset() {
+	*x = PlayerRewardEvent{}
+	mi := &file_proto_v1_game_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayerRewardEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayerRewardEvent) ProtoMessage() {}
+
+func (x *PlayerRewardEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayerRewardEvent.ProtoReflect.Descriptor instead.
+func (*PlayerRewardEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *PlayerRewardEvent) GetPlayerId() int64 {
+	if x != nil {
+		return x.PlayerId
+	}
+	return 0
+}
+
+func (x *PlayerRewardEvent) GetReward() int64 {
+	if x != nil {
+		return x.Reward
+	}
+	return 0
+}
+
+func (x *PlayerRewardEvent) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 房間信息
+type RoomInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	PlayerCount   int32                  `protobuf:"varint,4,opt,name=player_count,json=playerCount,proto3" json:"player_count,omitempty"`
+	MaxPlayers    int32                  `protobuf:"varint,5,opt,name=max_players,json=maxPlayers,proto3" json:"max_players,omitempty"`
+	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomInfo) Reset() {
+	*x = RoomInfo{}
+	mi := &file_proto_v1_game_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomInfo) ProtoMessage() {}
+
+func (x *RoomInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomInfo.ProtoReflect.Descriptor instead.
+func (*RoomInfo) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *RoomInfo) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RoomInfo) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *RoomInfo) GetPlayerCount() int32 {
+	if x != nil {
+		return x.PlayerCount
+	}
+	return 0
+}
+
+func (x *RoomInfo) GetMaxPlayers() int32 {
+	if x != nil {
+		return x.MaxPlayers
+	}
+	return 0
+}
+
+func (x *RoomInfo) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+// 錯誤消息
+type ErrorMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ErrorMessage) Reset() {
+	*x = ErrorMessage{}
+	mi := &file_proto_v1_game_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorMessage) ProtoMessage() {}
+
+func (x *ErrorMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorMessage.ProtoReflect.Descriptor instead.
+func (*ErrorMessage) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ErrorMessage) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ErrorMessage) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *ErrorMessage) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
 // 登入請求
 type LoginRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -34,7 +1872,7 @@ type LoginRequest struct {
 
 func (x *LoginRequest) Reset() {
 	*x = LoginRequest{}
-	mi := &file_proto_v1_game_proto_msgTypes[0]
+	mi := &file_proto_v1_game_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +1884,7 @@ func (x *LoginRequest) String() string {
 func (*LoginRequest) ProtoMessage() {}
 
 func (x *LoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_game_proto_msgTypes[0]
+	mi := &file_proto_v1_game_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +1897,7 @@ func (x *LoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
 func (*LoginRequest) Descriptor() ([]byte, []int) {
-	return file_proto_v1_game_proto_rawDescGZIP(), []int{0}
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *LoginRequest) GetUsername() string {
@@ -86,7 +1924,7 @@ type LoginResponse struct {
 
 func (x *LoginResponse) Reset() {
 	*x = LoginResponse{}
-	mi := &file_proto_v1_game_proto_msgTypes[1]
+	mi := &file_proto_v1_game_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -98,7 +1936,7 @@ func (x *LoginResponse) String() string {
 func (*LoginResponse) ProtoMessage() {}
 
 func (x *LoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_game_proto_msgTypes[1]
+	mi := &file_proto_v1_game_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -111,7 +1949,7 @@ func (x *LoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
 func (*LoginResponse) Descriptor() ([]byte, []int) {
-	return file_proto_v1_game_proto_rawDescGZIP(), []int{1}
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *LoginResponse) GetToken() string {
@@ -125,12 +1963,155 @@ var File_proto_v1_game_proto protoreflect.FileDescriptor
 
 const file_proto_v1_game_proto_rawDesc = "" +
 	"\n" +
-	"\x13proto/v1/game.proto\x12\x02v1\"F\n" +
+	"\x13proto/v1/game.proto\x12\x02v1\"&\n" +
+	"\bPosition\x12\f\n" +
+	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\"\xb2\n" +
+	"\n" +
+	"\vGameMessage\x12#\n" +
+	"\x04type\x18\x01 \x01(\x0e2\x0f.v1.MessageTypeR\x04type\x128\n" +
+	"\vfire_bullet\x18\x02 \x01(\v2\x15.v1.FireBulletRequestH\x00R\n" +
+	"fireBullet\x12>\n" +
+	"\rswitch_cannon\x18\x03 \x01(\v2\x17.v1.SwitchCannonRequestH\x00R\fswitchCannon\x122\n" +
+	"\tjoin_room\x18\x04 \x01(\v2\x13.v1.JoinRoomRequestH\x00R\bjoinRoom\x125\n" +
+	"\n" +
+	"leave_room\x18\x05 \x01(\v2\x14.v1.LeaveRoomRequestH\x00R\tleaveRoom\x124\n" +
+	"\theartbeat\x18\x06 \x01(\v2\x14.v1.HeartbeatMessageH\x00R\theartbeat\x12<\n" +
+	"\rget_room_list\x18\a \x01(\v2\x16.v1.GetRoomListRequestH\x00R\vgetRoomList\x12B\n" +
+	"\x0fget_player_info\x18\b \x01(\v2\x18.v1.GetPlayerInfoRequestH\x00R\rgetPlayerInfo\x12J\n" +
+	"\x14fire_bullet_response\x18\f \x01(\v2\x16.v1.FireBulletResponseH\x00R\x12fireBulletResponse\x12P\n" +
+	"\x16switch_cannon_response\x18\r \x01(\v2\x18.v1.SwitchCannonResponseH\x00R\x14switchCannonResponse\x12D\n" +
+	"\x12join_room_response\x18\x0e \x01(\v2\x14.v1.JoinRoomResponseH\x00R\x10joinRoomResponse\x12G\n" +
+	"\x13leave_room_response\x18\x0f \x01(\v2\x15.v1.LeaveRoomResponseH\x00R\x11leaveRoomResponse\x12F\n" +
+	"\x12heartbeat_response\x18\x10 \x01(\v2\x15.v1.HeartbeatResponseH\x00R\x11heartbeatResponse\x12D\n" +
+	"\x12room_list_response\x18\x11 \x01(\v2\x14.v1.RoomListResponseH\x00R\x10roomListResponse\x12J\n" +
+	"\x14player_info_response\x18\x12 \x01(\v2\x16.v1.PlayerInfoResponseH\x00R\x12playerInfoResponse\x129\n" +
+	"\fbullet_fired\x18\x16 \x01(\v2\x14.v1.BulletFiredEventH\x00R\vbulletFired\x12B\n" +
+	"\x0fcannon_switched\x18\x17 \x01(\v2\x17.v1.CannonSwitchedEventH\x00R\x0ecannonSwitched\x129\n" +
+	"\ffish_spawned\x18\x18 \x01(\v2\x14.v1.FishSpawnedEventH\x00R\vfishSpawned\x120\n" +
+	"\tfish_died\x18\x19 \x01(\v2\x11.v1.FishDiedEventH\x00R\bfishDied\x12<\n" +
+	"\rplayer_reward\x18\x1a \x01(\v2\x15.v1.PlayerRewardEventH\x00R\fplayerReward\x12(\n" +
+	"\x05error\x18c \x01(\v2\x10.v1.ErrorMessageH\x00R\x05errorB\x06\n" +
+	"\x04data\"q\n" +
+	"\x11FireBulletRequest\x12\x1c\n" +
+	"\tdirection\x18\x01 \x01(\x01R\tdirection\x12\x14\n" +
+	"\x05power\x18\x02 \x01(\x05R\x05power\x12(\n" +
+	"\bposition\x18\x03 \x01(\v2\f.v1.PositionR\bposition\"L\n" +
+	"\x13SwitchCannonRequest\x12\x1f\n" +
+	"\vcannon_type\x18\x01 \x01(\x05R\n" +
+	"cannonType\x12\x14\n" +
+	"\x05level\x18\x02 \x01(\x05R\x05level\"*\n" +
+	"\x0fJoinRoomRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"\x12\n" +
+	"\x10LeaveRoomRequest\"0\n" +
+	"\x10HeartbeatMessage\x12\x1c\n" +
+	"\ttimestamp\x18\x01 \x01(\x03R\ttimestamp\"1\n" +
+	"\x12GetRoomListRequest\x12\x1b\n" +
+	"\troom_type\x18\x01 \x01(\tR\broomType\"\x16\n" +
+	"\x14GetPlayerInfoRequest\"}\n" +
+	"\x12FireBulletResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1b\n" +
+	"\tbullet_id\x18\x02 \x01(\x03R\bbulletId\x12\x12\n" +
+	"\x04cost\x18\x03 \x01(\x03R\x04cost\x12\x1c\n" +
+	"\ttimestamp\x18\x04 \x01(\x03R\ttimestamp\"\x9b\x01\n" +
+	"\x14SwitchCannonResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1f\n" +
+	"\vcannon_type\x18\x02 \x01(\x05R\n" +
+	"cannonType\x12\x14\n" +
+	"\x05level\x18\x03 \x01(\x05R\x05level\x12\x14\n" +
+	"\x05power\x18\x04 \x01(\x05R\x05power\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\x03R\ttimestamp\"c\n" +
+	"\x10JoinRoomResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\x03R\ttimestamp\"d\n" +
+	"\x11LeaveRoomResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\x03R\ttimestamp\"R\n" +
+	"\x11HeartbeatResponse\x12\x1f\n" +
+	"\vserver_time\x18\x01 \x01(\x03R\n" +
+	"serverTime\x12\x1c\n" +
+	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"T\n" +
+	"\x10RoomListResponse\x12\"\n" +
+	"\x05rooms\x18\x01 \x03(\v2\f.v1.RoomInfoR\x05rooms\x12\x1c\n" +
+	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\xc6\x01\n" +
+	"\x12PlayerInfoResponse\x12\x1b\n" +
+	"\tplayer_id\x18\x01 \x01(\x03R\bplayerId\x12\x1a\n" +
+	"\bnickname\x18\x02 \x01(\tR\bnickname\x12\x18\n" +
+	"\abalance\x18\x03 \x01(\x03R\abalance\x12\x14\n" +
+	"\x05level\x18\x04 \x01(\x05R\x05level\x12\x10\n" +
+	"\x03exp\x18\x05 \x01(\x03R\x03exp\x12\x17\n" +
+	"\aroom_id\x18\x06 \x01(\tR\x06roomId\x12\x1c\n" +
+	"\ttimestamp\x18\a \x01(\x03R\ttimestamp\"\xc8\x01\n" +
+	"\x10BulletFiredEvent\x12\x1b\n" +
+	"\tplayer_id\x18\x01 \x01(\x03R\bplayerId\x12\x1b\n" +
+	"\tbullet_id\x18\x02 \x01(\x03R\bbulletId\x12\x1c\n" +
+	"\tdirection\x18\x03 \x01(\x01R\tdirection\x12\x14\n" +
+	"\x05power\x18\x04 \x01(\x05R\x05power\x12(\n" +
+	"\bposition\x18\x05 \x01(\v2\f.v1.PositionR\bposition\x12\x1c\n" +
+	"\ttimestamp\x18\x06 \x01(\x03R\ttimestamp\"\x9d\x01\n" +
+	"\x13CannonSwitchedEvent\x12\x1b\n" +
+	"\tplayer_id\x18\x01 \x01(\x03R\bplayerId\x12\x1f\n" +
+	"\vcannon_type\x18\x02 \x01(\x05R\n" +
+	"cannonType\x12\x14\n" +
+	"\x05level\x18\x03 \x01(\x05R\x05level\x12\x14\n" +
+	"\x05power\x18\x04 \x01(\x05R\x05power\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\x03R\ttimestamp\"\x90\x01\n" +
+	"\x10FishSpawnedEvent\x12\x17\n" +
+	"\afish_id\x18\x01 \x01(\x03R\x06fishId\x12\x1b\n" +
+	"\tfish_type\x18\x02 \x01(\x05R\bfishType\x12(\n" +
+	"\bposition\x18\x03 \x01(\v2\f.v1.PositionR\bposition\x12\x1c\n" +
+	"\ttimestamp\x18\x04 \x01(\x03R\ttimestamp\"{\n" +
+	"\rFishDiedEvent\x12\x17\n" +
+	"\afish_id\x18\x01 \x01(\x03R\x06fishId\x12\x1b\n" +
+	"\tplayer_id\x18\x02 \x01(\x03R\bplayerId\x12\x16\n" +
+	"\x06reward\x18\x03 \x01(\x03R\x06reward\x12\x1c\n" +
+	"\ttimestamp\x18\x04 \x01(\x03R\ttimestamp\"f\n" +
+	"\x11PlayerRewardEvent\x12\x1b\n" +
+	"\tplayer_id\x18\x01 \x01(\x03R\bplayerId\x12\x16\n" +
+	"\x06reward\x18\x02 \x01(\x03R\x06reward\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\x03R\ttimestamp\"\xa7\x01\n" +
+	"\bRoomInfo\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12!\n" +
+	"\fplayer_count\x18\x04 \x01(\x05R\vplayerCount\x12\x1f\n" +
+	"\vmax_players\x18\x05 \x01(\x05R\n" +
+	"maxPlayers\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\"Z\n" +
+	"\fErrorMessage\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\x03R\ttimestamp\"F\n" +
 	"\fLoginRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"%\n" +
 	"\rLoginResponse\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token24\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token*\x9e\x03\n" +
+	"\vMessageType\x12\x0f\n" +
+	"\vFIRE_BULLET\x10\x00\x12\x11\n" +
+	"\rSWITCH_CANNON\x10\x01\x12\r\n" +
+	"\tJOIN_ROOM\x10\x02\x12\x0e\n" +
+	"\n" +
+	"LEAVE_ROOM\x10\x03\x12\r\n" +
+	"\tHEARTBEAT\x10\x04\x12\x11\n" +
+	"\rGET_ROOM_LIST\x10\x05\x12\x13\n" +
+	"\x0fGET_PLAYER_INFO\x10\x06\x12\x18\n" +
+	"\x14FIRE_BULLET_RESPONSE\x10\n" +
+	"\x12\x1a\n" +
+	"\x16SWITCH_CANNON_RESPONSE\x10\v\x12\x16\n" +
+	"\x12JOIN_ROOM_RESPONSE\x10\f\x12\x17\n" +
+	"\x13LEAVE_ROOM_RESPONSE\x10\r\x12\x16\n" +
+	"\x12HEARTBEAT_RESPONSE\x10\x0e\x12\x16\n" +
+	"\x12ROOM_LIST_RESPONSE\x10\x0f\x12\x18\n" +
+	"\x14PLAYER_INFO_RESPONSE\x10\x10\x12\x10\n" +
+	"\fBULLET_FIRED\x10\x14\x12\x13\n" +
+	"\x0fCANNON_SWITCHED\x10\x15\x12\x10\n" +
+	"\fFISH_SPAWNED\x10\x16\x12\r\n" +
+	"\tFISH_DIED\x10\x17\x12\x11\n" +
+	"\rPLAYER_REWARD\x10\x18\x12\t\n" +
+	"\x05ERROR\x10c24\n" +
 	"\x04Game\x12,\n" +
 	"\x05Login\x12\x10.v1.LoginRequest\x1a\x11.v1.LoginResponseB\x0eZ\fpkg/pb/v1;v1b\x06proto3"
 
@@ -146,19 +2127,69 @@ func file_proto_v1_game_proto_rawDescGZIP() []byte {
 	return file_proto_v1_game_proto_rawDescData
 }
 
-var file_proto_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_proto_v1_game_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_proto_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_proto_v1_game_proto_goTypes = []any{
-	(*LoginRequest)(nil),  // 0: v1.LoginRequest
-	(*LoginResponse)(nil), // 1: v1.LoginResponse
+	(MessageType)(0),             // 0: v1.MessageType
+	(*Position)(nil),             // 1: v1.Position
+	(*GameMessage)(nil),          // 2: v1.GameMessage
+	(*FireBulletRequest)(nil),    // 3: v1.FireBulletRequest
+	(*SwitchCannonRequest)(nil),  // 4: v1.SwitchCannonRequest
+	(*JoinRoomRequest)(nil),      // 5: v1.JoinRoomRequest
+	(*LeaveRoomRequest)(nil),     // 6: v1.LeaveRoomRequest
+	(*HeartbeatMessage)(nil),     // 7: v1.HeartbeatMessage
+	(*GetRoomListRequest)(nil),   // 8: v1.GetRoomListRequest
+	(*GetPlayerInfoRequest)(nil), // 9: v1.GetPlayerInfoRequest
+	(*FireBulletResponse)(nil),   // 10: v1.FireBulletResponse
+	(*SwitchCannonResponse)(nil), // 11: v1.SwitchCannonResponse
+	(*JoinRoomResponse)(nil),     // 12: v1.JoinRoomResponse
+	(*LeaveRoomResponse)(nil),    // 13: v1.LeaveRoomResponse
+	(*HeartbeatResponse)(nil),    // 14: v1.HeartbeatResponse
+	(*RoomListResponse)(nil),     // 15: v1.RoomListResponse
+	(*PlayerInfoResponse)(nil),   // 16: v1.PlayerInfoResponse
+	(*BulletFiredEvent)(nil),     // 17: v1.BulletFiredEvent
+	(*CannonSwitchedEvent)(nil),  // 18: v1.CannonSwitchedEvent
+	(*FishSpawnedEvent)(nil),     // 19: v1.FishSpawnedEvent
+	(*FishDiedEvent)(nil),        // 20: v1.FishDiedEvent
+	(*PlayerRewardEvent)(nil),    // 21: v1.PlayerRewardEvent
+	(*RoomInfo)(nil),             // 22: v1.RoomInfo
+	(*ErrorMessage)(nil),         // 23: v1.ErrorMessage
+	(*LoginRequest)(nil),         // 24: v1.LoginRequest
+	(*LoginResponse)(nil),        // 25: v1.LoginResponse
 }
 var file_proto_v1_game_proto_depIdxs = []int32{
-	0, // 0: v1.Game.Login:input_type -> v1.LoginRequest
-	1, // 1: v1.Game.Login:output_type -> v1.LoginResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0,  // 0: v1.GameMessage.type:type_name -> v1.MessageType
+	3,  // 1: v1.GameMessage.fire_bullet:type_name -> v1.FireBulletRequest
+	4,  // 2: v1.GameMessage.switch_cannon:type_name -> v1.SwitchCannonRequest
+	5,  // 3: v1.GameMessage.join_room:type_name -> v1.JoinRoomRequest
+	6,  // 4: v1.GameMessage.leave_room:type_name -> v1.LeaveRoomRequest
+	7,  // 5: v1.GameMessage.heartbeat:type_name -> v1.HeartbeatMessage
+	8,  // 6: v1.GameMessage.get_room_list:type_name -> v1.GetRoomListRequest
+	9,  // 7: v1.GameMessage.get_player_info:type_name -> v1.GetPlayerInfoRequest
+	10, // 8: v1.GameMessage.fire_bullet_response:type_name -> v1.FireBulletResponse
+	11, // 9: v1.GameMessage.switch_cannon_response:type_name -> v1.SwitchCannonResponse
+	12, // 10: v1.GameMessage.join_room_response:type_name -> v1.JoinRoomResponse
+	13, // 11: v1.GameMessage.leave_room_response:type_name -> v1.LeaveRoomResponse
+	14, // 12: v1.GameMessage.heartbeat_response:type_name -> v1.HeartbeatResponse
+	15, // 13: v1.GameMessage.room_list_response:type_name -> v1.RoomListResponse
+	16, // 14: v1.GameMessage.player_info_response:type_name -> v1.PlayerInfoResponse
+	17, // 15: v1.GameMessage.bullet_fired:type_name -> v1.BulletFiredEvent
+	18, // 16: v1.GameMessage.cannon_switched:type_name -> v1.CannonSwitchedEvent
+	19, // 17: v1.GameMessage.fish_spawned:type_name -> v1.FishSpawnedEvent
+	20, // 18: v1.GameMessage.fish_died:type_name -> v1.FishDiedEvent
+	21, // 19: v1.GameMessage.player_reward:type_name -> v1.PlayerRewardEvent
+	23, // 20: v1.GameMessage.error:type_name -> v1.ErrorMessage
+	1,  // 21: v1.FireBulletRequest.position:type_name -> v1.Position
+	22, // 22: v1.RoomListResponse.rooms:type_name -> v1.RoomInfo
+	1,  // 23: v1.BulletFiredEvent.position:type_name -> v1.Position
+	1,  // 24: v1.FishSpawnedEvent.position:type_name -> v1.Position
+	24, // 25: v1.Game.Login:input_type -> v1.LoginRequest
+	25, // 26: v1.Game.Login:output_type -> v1.LoginResponse
+	26, // [26:27] is the sub-list for method output_type
+	25, // [25:26] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_proto_v1_game_proto_init() }
@@ -166,18 +2197,41 @@ func file_proto_v1_game_proto_init() {
 	if File_proto_v1_game_proto != nil {
 		return
 	}
+	file_proto_v1_game_proto_msgTypes[1].OneofWrappers = []any{
+		(*GameMessage_FireBullet)(nil),
+		(*GameMessage_SwitchCannon)(nil),
+		(*GameMessage_JoinRoom)(nil),
+		(*GameMessage_LeaveRoom)(nil),
+		(*GameMessage_Heartbeat)(nil),
+		(*GameMessage_GetRoomList)(nil),
+		(*GameMessage_GetPlayerInfo)(nil),
+		(*GameMessage_FireBulletResponse)(nil),
+		(*GameMessage_SwitchCannonResponse)(nil),
+		(*GameMessage_JoinRoomResponse)(nil),
+		(*GameMessage_LeaveRoomResponse)(nil),
+		(*GameMessage_HeartbeatResponse)(nil),
+		(*GameMessage_RoomListResponse)(nil),
+		(*GameMessage_PlayerInfoResponse)(nil),
+		(*GameMessage_BulletFired)(nil),
+		(*GameMessage_CannonSwitched)(nil),
+		(*GameMessage_FishSpawned)(nil),
+		(*GameMessage_FishDied)(nil),
+		(*GameMessage_PlayerReward)(nil),
+		(*GameMessage_Error)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_v1_game_proto_rawDesc), len(file_proto_v1_game_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   2,
+			NumEnums:      1,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_proto_v1_game_proto_goTypes,
 		DependencyIndexes: file_proto_v1_game_proto_depIdxs,
+		EnumInfos:         file_proto_v1_game_proto_enumTypes,
 		MessageInfos:      file_proto_v1_game_proto_msgTypes,
 	}.Build()
 	File_proto_v1_game_proto = out.File

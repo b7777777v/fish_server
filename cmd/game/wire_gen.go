@@ -8,11 +8,10 @@ package main
 
 import (
 	"github.com/b7777777v/fish_server/internal/app/game"
-	"github.com/b7777777v/fish_server/internal/biz/player"
+	game2 "github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/data"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
-	"github.com/b7777777v/fish_server/internal/pkg/token"
 )
 
 // Injectors from wire.go:
@@ -20,21 +19,23 @@ import (
 func initApp(config *conf.Config) (*game.GameApp, func(), error) {
 	confData := config.Data
 	log := config.Log
-	v, cleanup, err := logger.NewLogger(log)
+	sugaredLogger, cleanup, err := logger.NewLogger(log)
 	if err != nil {
 		return nil, nil, err
 	}
-	dataData, cleanup2, err := data.NewData(confData, v)
+	dataData, cleanup2, err := data.NewData(confData, sugaredLogger)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	playerRepo := data.NewPlayerRepo(dataData, v)
-	jwt := config.JWT
-	tokenHelper := token.NewTokenHelper(jwt)
-	playerUsecase := player.NewPlayerUsecase(playerRepo, tokenHelper, v)
-	gameServer := game.NewGameServer(playerUsecase)
-	gameApp := game.NewGameApp(gameServer)
+	gameRepo := data.NewGameRepo(dataData, sugaredLogger)
+	playerRepo := data.NewGamePlayerRepo(dataData, sugaredLogger)
+	fishSpawner := game2.NewFishSpawnerProvider(sugaredLogger)
+	mathModel := game2.NewMathModelProvider(sugaredLogger)
+	roomManager := game2.NewRoomManagerProvider(sugaredLogger, fishSpawner, mathModel)
+	gameUsecase := game2.NewGameUsecaseProvider(gameRepo, playerRepo, roomManager, fishSpawner, mathModel, sugaredLogger)
+	server := config.Server
+	gameApp := game.NewGameApp(gameUsecase, server, sugaredLogger)
 	return gameApp, func() {
 		cleanup2()
 		cleanup()

@@ -4,6 +4,7 @@ package data
 import (
 	"context"
 
+	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 )
@@ -20,6 +21,47 @@ func NewPlayerRepo(data *Data, logger logger.Logger) player.PlayerRepo {
 		data:   data,
 		logger: logger.With("module", "data/player"),
 	}
+}
+
+// gamePlayerRepo 實現了 biz/game.PlayerRepo 接口
+type gamePlayerRepo struct {
+	data   *Data
+	logger logger.Logger
+}
+
+// NewGamePlayerRepo 創建一個用於遊戲業務的 PlayerRepo
+func NewGamePlayerRepo(data *Data, logger logger.Logger) game.PlayerRepo {
+	return &gamePlayerRepo{
+		data:   data,
+		logger: logger.With("component", "game_player_repo"),
+	}
+}
+
+// GetPlayer 獲取玩家信息
+func (r *gamePlayerRepo) GetPlayer(ctx context.Context, playerID int64) (*game.Player, error) {
+	r.logger.Debugf("Getting player: %d", playerID)
+	// TODO: 實現實際的數據庫查詢
+	// 這裡暫時返回一個默認玩家
+	return &game.Player{
+		ID:       playerID,
+		Nickname: "Player" + string(rune(playerID+'0')),
+		Balance:  10000, // 默認餘額
+		Status:   game.PlayerStatusIdle,
+	}, nil
+}
+
+// UpdatePlayerBalance 更新玩家餘額
+func (r *gamePlayerRepo) UpdatePlayerBalance(ctx context.Context, playerID int64, balance int64) error {
+	r.logger.Debugf("Updating player %d balance to %d", playerID, balance)
+	// TODO: 實現實際的數據庫更新
+	return nil
+}
+
+// UpdatePlayerStatus 更新玩家狀態
+func (r *gamePlayerRepo) UpdatePlayerStatus(ctx context.Context, playerID int64, status game.PlayerStatus) error {
+	r.logger.Debugf("Updating player %d status to %s", playerID, status)
+	// TODO: 實現實際的數據庫更新
+	return nil
 }
 
 // FindByUsername 根據用戶名查找玩家

@@ -35,17 +35,17 @@ func (s *GameServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.Login
 	return &pb.LoginResponse{Token: token}, nil
 }
 
-// GameApp 表示遊戲應用，管理 gRPC 伺服器
-type GameApp struct {
+// GrpcGameApp 表示遊戲 gRPC 應用，管理 gRPC 伺服器
+type GrpcGameApp struct {
 	GrpcServer *grpc.Server
 }
 
-// NewGameApp 創建並註冊 gRPC 伺服器
-func NewGameApp(gameServer *GameServer) *GameApp {
+// NewGrpcGameApp 創建並註冊 gRPC 伺服器
+func NewGrpcGameApp(gameServer *GameServer) *GrpcGameApp {
 	grpcSrv := grpc.NewServer()
 	pb.RegisterGameServer(grpcSrv, gameServer)
 
-	return &GameApp{
+	return &GrpcGameApp{
 		GrpcServer: grpcSrv,
 	}
 }

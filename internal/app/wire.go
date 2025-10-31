@@ -9,8 +9,7 @@ import (
 )
 
 var ProviderSet = wire.NewSet(
-	game.NewGameServer,
-	game.NewGameApp,
+	game.ProviderSet,
 )
 
 var AdminProviderSet = wire.NewSet(

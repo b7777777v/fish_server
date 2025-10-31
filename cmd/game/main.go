@@ -3,8 +3,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -35,17 +33,16 @@ func main() {
 	}
 	defer cleanup() // 確保在 main 函式結束時，執行清理工作 (如關閉資料庫連線)
 
-	// 5. 建立 TCP 監聽
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Server.Game.Port))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+	// 5. 驗證配置
+	if cfg.Server == nil || cfg.Server.Game == nil {
+		log.Fatalf("Game server configuration is missing")
 	}
 
-	// 6. 在一個新的 goroutine 中啟動 gRPC 伺服器
+	// 6. 啟動遊戲應用程序
 	go func() {
-		log.Infof("gRPC server listening on: %s", lis.Addr().String())
-		if err := app.GrpcServer.Serve(lis); err != nil {
-			log.Fatalf("failed to serve gRPC: %v", err)
+		log.Info("Starting Game App")
+		if err := app.Run(); err != nil {
+			log.Fatalf("Failed to start game app: %v", err)
 		}
 	}()
 
@@ -54,7 +51,9 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Info("shutting down gRPC server...")
-	app.GrpcServer.GracefulStop()
-	log.Info("gRPC server stopped")
+	log.Info("Shutting down server...")
+	if err := app.Stop(); err != nil {
+		log.Errorf("Error stopping game app: %v", err)
+	}
+	log.Info("Server exited")
 }

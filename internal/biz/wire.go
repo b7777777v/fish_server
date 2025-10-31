@@ -2,6 +2,7 @@
 package biz
 
 import (
+	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 
@@ -10,6 +11,7 @@ import (
 
 // ProviderSet is biz providers.
 var ProviderSet = wire.NewSet(
+	game.ProviderSet,
 	player.NewPlayerUsecase,
 	wallet.NewWalletUsecase,
 )
