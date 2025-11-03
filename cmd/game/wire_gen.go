@@ -19,23 +19,22 @@ import (
 func initApp(config *conf.Config) (*game.GameApp, func(), error) {
 	confData := config.Data
 	log := config.Log
-	sugaredLogger, cleanup, err := logger.NewLogger(log)
+	v, cleanup, err := logger.NewLogger(log)
 	if err != nil {
 		return nil, nil, err
 	}
-	dataData, cleanup2, err := data.NewData(confData, sugaredLogger)
+	dataData, cleanup2, err := data.NewData(confData, v)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	gameRepo := data.NewGameRepo(dataData, sugaredLogger)
-	playerRepo := data.NewGamePlayerRepo(dataData, sugaredLogger)
-	fishSpawner := game2.NewFishSpawnerProvider(sugaredLogger)
-	mathModel := game2.NewMathModelProvider(sugaredLogger)
-	roomManager := game2.NewRoomManagerProvider(sugaredLogger, fishSpawner, mathModel)
-	gameUsecase := game2.NewGameUsecaseProvider(gameRepo, playerRepo, roomManager, fishSpawner, mathModel, sugaredLogger)
-	server := config.Server
-	gameApp := game.NewGameApp(gameUsecase, server, sugaredLogger)
+	gameRepo := data.NewGameRepo(dataData, v)
+	playerRepo := data.NewGamePlayerRepo(dataData, v)
+	fishSpawner := game2.NewFishSpawnerProvider(v)
+	mathModel := game2.NewMathModelProvider(v)
+	roomManager := game2.NewRoomManagerProvider(v, fishSpawner, mathModel)
+	gameUsecase := game2.NewGameUsecaseProvider(gameRepo, playerRepo, roomManager, fishSpawner, mathModel, v)
+	gameApp := game.NewGameApp(gameUsecase, config, v)
 	return gameApp, func() {
 		cleanup2()
 		cleanup()

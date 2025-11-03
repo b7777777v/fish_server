@@ -108,6 +108,25 @@
             "preLaunchTask": "wire-gen"
         },
         {
+            "name": "🎮 Game Server - DEV (Pprof ON)",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/game",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "./configs/config.dev.yaml"
+            ],
+            "env": {
+                "ENVIRONMENT": "dev",
+                "FISH_ENVIRONMENT": "dev",
+                "LOG_LEVEL": "debug",
+                "GIN_MODE": "debug"
+            },
+            "console": "integratedTerminal",
+            "preLaunchTask": "wire-gen"
+        },
+        {
             "name": "🎮 Game Server - STAGING",
             "type": "go",
             "request": "launch",

@@ -124,6 +124,11 @@ func (r *walletRepo) txDo2po(do *wallet.Transaction) (*TransactionPO, error) {
 }
 
 // FindByID 根據ID查詢錢包
+// TODO: [Cache] Implement cache-aside pattern using Redis for this function.
+// 1. Try to get the wallet from Redis using a key like `wallet:<id>`.
+// 2. If cache miss, query the database.
+// 3. After a successful DB query, store the result in Redis with an expiration (e.g., 5 minutes).
+// 4. The corresponding `Update` function must invalidate this cache key.
 func (r *walletRepo) FindByID(ctx context.Context, id uint) (*wallet.Wallet, error) {
 	// 準備SQL查詢
 	query := `SELECT id, user_id, balance, currency, status, created_at, updated_at FROM wallets WHERE id = $1`
@@ -146,6 +151,11 @@ func (r *walletRepo) FindByID(ctx context.Context, id uint) (*wallet.Wallet, err
 }
 
 // FindByUserID 根據用戶ID查詢錢包
+// TODO: [Cache] Implement cache-aside pattern using Redis for this function.
+// 1. Try to get the wallet from Redis using a key like `wallet:user_id:{user_id}:currency:{currency}`.
+// 2. If cache miss, query the database.
+// 3. After a successful DB query, store the result in Redis with an expiration (e.g., 5 minutes).
+// 4. The corresponding `Update` function must invalidate this cache key.
 func (r *walletRepo) FindByUserID(ctx context.Context, userID uint, currency string) (*wallet.Wallet, error) {
 	// 準備SQL查詢
 	query := `SELECT id, user_id, balance, currency, status, created_at, updated_at FROM wallets WHERE user_id = $1 AND currency = $2`
@@ -194,6 +204,12 @@ func (r *walletRepo) Create(ctx context.Context, w *wallet.Wallet) error {
 
 // Update 更新錢包
 func (r *walletRepo) Update(ctx context.Context, w *wallet.Wallet) error {
+	// TODO: [Cache] Implement cache invalidation after a successful DB update.
+	// After the wallet is updated in the database, the corresponding keys in Redis must be deleted.
+	// 1. Delete the cache key for `wallet:<id>`.
+	// 2. Delete the cache key for `wallet:user_id:{user_id}:currency:{currency}`.
+	// It's crucial to perform invalidation *after* the DB transaction is confirmed.
+
 	// 準備SQL查詢
 	query := `
 		UPDATE wallets 
@@ -270,6 +286,11 @@ func (r *walletRepo) CreateTransaction(ctx context.Context, tx *wallet.Transacti
 }
 
 // FindTransactionsByWalletID 查詢錢包的交易記錄
+// TODO: [Cache] Caching transaction history can improve performance for frequently accessed pages.
+// However, this is more complex than caching a single entity.
+// The cache key should include pagination details (e.g., `transactions:wallet_id:{wallet_id}:page:{page_num}`).
+// CRITICAL: This cache MUST be invalidated every time a new transaction is created for this wallet (e.g., after Deposit or Withdraw).
+// A short TTL (e.g., 1-2 minutes) might be a safer strategy here.
 func (r *walletRepo) FindTransactionsByWalletID(ctx context.Context, walletID uint, limit, offset int) ([]*wallet.Transaction, error) {
 
 	// 準備SQL查詢
@@ -389,6 +410,9 @@ func (r *walletRepo) Deposit(ctx context.Context, walletID uint, amount float64,
 		return err
 	}
 
+	// TODO: [Cache] Implement cache invalidation after the transaction is successfully committed.
+	// The keys to invalidate would be `wallet:<walletID>` and the key for the user ID, which needs to be fetched first or passed in.
+
 	return nil
 }
 
@@ -493,6 +517,9 @@ func (r *walletRepo) Withdraw(ctx context.Context, walletID uint, amount float64
 		r.logger.Errorf("failed to commit transaction: %v", err)
 		return err
 	}
+
+	// TODO: [Cache] Implement cache invalidation after the transaction is successfully committed.
+	// The keys to invalidate would be `wallet:<walletID>` and the key for the user ID (`wallet:user_id:{user_id}:currency:{currency}`).
 
 	return nil
 }

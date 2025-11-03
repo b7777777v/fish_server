@@ -5,44 +5,33 @@
 ### 🎯 環境啟動
 | 快捷鍵 | 功能 | 說明 |
 |--------|------|------|
-| `Ctrl+F1` | 🟢 DEV 環境 | Pprof **已啟用** |
-| `Ctrl+F2` | 🟡 STAGING 環境 | Pprof **已關閉** |
-| `Ctrl+F3` | 🔴 PROD 環境 | 最高安全性 |
-| `Ctrl+Shift+F1` | 🚀 DEV 全服務 | 所有開發服務 |
-| `Ctrl+Shift+F2` | 🏗️ STAGING 全服務 | 所有預發布服務 |
+| `Ctrl+F1` | 🟢 Admin DEV | 啟動 Admin 開發版 (Pprof ON) |
+| `Ctrl+F2` | 🟡 Admin STAGING | 啟動 Admin 預發布版 (Pprof OFF) |
+| `Ctrl+F3` | 🔴 Admin PROD | 啟動 Admin 生產版 (Secure) |
+| `Ctrl+Shift+F1` | 🚀 DEV 全服務 | 啟動所有 DEV 服務 |
+| `Ctrl+Shift+F2` | 🏗️ STAGING 全服務 | 啟動所有 STAGING 服務 |
 
-### 🔨 構建和測試
+### 🔨 構建與測試
 | 快捷鍵 | 功能 | 說明 |
 |--------|------|------|
-| `Ctrl+Shift+B` | 🔨 構建 DEV | 構建開發版本 |
-| `Ctrl+Shift+T` | 🧪 運行測試 | 執行所有測試 |
-| `Ctrl+Shift+D` | 🐳 Docker 構建 | 構建 Docker 鏡像 |
-
-### 🔍 驗證和監控
-| 快捷鍵 | 功能 | 說明 |
-|--------|------|------|
-| `Ctrl+Alt+V` | 📊 環境信息 | 查看所有環境狀態 |
-| `Ctrl+Alt+P` | ✅ 驗證 Pprof | 檢查 DEV Pprof 可用 |
-| `Ctrl+Alt+S` | ❌ 驗證關閉 | 檢查 STAGING Pprof 已關閉 |
-
-### 🐳 環境管理
-| 快捷鍵 | 功能 | 說明 |
-|--------|------|------|
-| `Ctrl+Alt+1` | 🚀 啟動 DEV | Docker 開發環境 |
-| `Ctrl+Alt+2` | 🏗️ 啟動 STAGING | Docker 預發布環境 |
-| `Ctrl+Alt+0` | 🛑 停止全部 | 停止所有環境 |
+| `Ctrl+Shift+B` | 🔨 構建 Admin DEV | 僅構建 Admin 開發版本 |
+| `Ctrl+Shift+T` | 🧪 運行所有測試 | 執行專案所有 `_test.go` |
+| `Ctrl+Shift+D` | 🐳 Docker 構建 DEV | 構建 Admin 開發版 Docker 鏡像 |
 
 ### 🛠️ 代碼生成
 | 快捷鍵 | 功能 | 說明 |
 |--------|------|------|
-| `Ctrl+Alt+W` | Wire 生成 | 依賴注入代碼 |
-| `Ctrl+Alt+G` | Proto 生成 | gRPC 代碼生成 |
+| `Ctrl+Alt+W` | Wire 生成 | 生成 `wire_gen.go` 依賴注入 |
+| `Ctrl+Alt+G` | Proto 生成 | 生成 `*.pb.go` gRPC/Protobuf |
 
-### 🧹 清理
+### 🧹 環境管理與清理
 | 快捷鍵 | 功能 | 說明 |
 |--------|------|------|
-| `Ctrl+Alt+C` | 🧹 清理構建 | 刪除構建產物 |
-| `Ctrl+Alt+Shift+C` | 🧹 清理 Docker | 刪除 Docker 鏡像 |
+| `Ctrl+Alt+1` | 🚀 啟動 DEV Docker | 啟動 `docker-compose.dev.yml` |
+| `Ctrl+Alt+2` | 🏗️ 啟動 STAGING Docker | 啟動 `docker-compose.staging.yml` |
+| `Ctrl+Alt+0` | 🛑 停止全部 Docker | 停止所有 docker-compose 環境 |
+| `Ctrl+Alt+C` | 🧹 清理構建產物 | 刪除 `cmd/.../admin-*` 等文件 |
+| `Ctrl+Alt+Shift+C` | 🧹 清理 Docker 鏡像 | 刪除 `fish-server-admin` 鏡像 |
 
 ## 🌍 環境對比
 
@@ -52,11 +41,31 @@
 | **端口** | 6060 | 6061 | 6062 |
 | **日誌級別** | debug | info | warn |
 | **Gin 模式** | debug | release | release |
-| **認證** | 無 | 基本 | 嚴格 |
-| **CORS** | 寬鬆 | 限制 | 嚴格 |
-| **限流** | 無 | 中等 | 嚴格 |
+| **優化** | 無 | `-s -w` | `-s -w` |
+| **安全** | 低 | 中 | 高 |
 
-## 🔗 重要端點
+## 🎮 常用工作流程
+
+### 📝 日常開發 (DEV)
+1. `Ctrl+F1` - 啟動 Admin DEV 環境。
+2. 在代碼中設置斷點。
+3. 按 `F5`，選擇 `🔍 Debug Admin with Delve` 開始偵錯。
+4. `Ctrl+Alt+W` - 如有需要，更新依賴注入。
+5. `Ctrl+Shift+T` - 運行單元測試。
+
+### 🧪 預發布測試 (STAGING)
+1. `Ctrl+F2` - 啟動 Admin STAGING 環境。
+2. 測試生產級別功能。
+3. `Ctrl+Alt+S` - 驗證 Pprof 已被關閉。
+
+### 🚀 生產驗證 (PROD)
+1. `Ctrl+F3` - 啟動 Admin PROD 環境。
+2. 驗證所有安全設置與最終性能。
+
+### 🐳 Docker 工作流程
+1. `Ctrl+Shift+D` - 構建 DEV Docker 鏡像。
+2. `Ctrl+Alt+1` - 啟動 DEV Docker 容器化環境。
+3. `Ctrl+Alt+0` - 測試完畢後停止所有 Docker 服務。
 
 ### DEV 環境 (localhost:6060)
 ```

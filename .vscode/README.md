@@ -24,41 +24,62 @@
 
 ## 🎮 使用方法
 
-### 1. 啟動配置 (F5 或 Ctrl+F5)
+### 1. 啟動與偵錯配置 (F5 或 Ctrl+F5)
 
-#### Admin Server 啟動選項
+#### 單一服務啟動 (Single Service)
 ```
-🟢 Admin Server - DEV (Pprof ON)      # 開發環境，Pprof 啟用
-🟡 Admin Server - STAGING (Pprof OFF) # 預發布環境，Pprof 關閉  
-🔴 Admin Server - PROD (Secure)       # 生產環境，最高安全性
-⚡ Admin Server - Auto Environment    # 動態選擇環境
-```
+# Admin Server
+🟢 Admin Server - DEV (Pprof ON)      # 開發環境 (Pprof開)
+🟡 Admin Server - STAGING (Pprof OFF) # 預發布環境 (Pprof關)
+🔴 Admin Server - PROD (Secure)       # 生產環境 (安全)
+⚡ Admin Server - Auto Environment    # 動態選擇環境啟動
 
-#### Game Server 啟動選項
-```
+# Game Server
 🎮 Game Server - DEV                  # 開發環境
 🎮 Game Server - STAGING              # 預發布環境
+🎮 Game Server - PROD                 # 生產環境
+🎮 Game Server - Auto Environment     # 動態選擇環境啟動
 ```
 
-#### 複合啟動 (同時啟動多個服務)
+#### 複合啟動 (Compound - All Services)
 ```
 🚀 DEV Environment - All Services     # 啟動所有開發環境服務
 🏗️ STAGING Environment - All Services # 啟動所有預發布環境服務
+🔴 PROD Environment - All Services    # 啟動所有生產環境服務
 ```
 
-#### 調試選項
+#### 偵錯模式 (Debug Mode)
 ```
-🔍 Debug Admin with Delve             # 使用 Delve 調試器
-🧪 Test Admin Service                 # 運行測試
+# 單一服務偵錯
+🔍 Debug Admin with Delve             # 使用 Delve 偵錯 Admin 服務
+🔍 Debug Game Server - DEV            # 偵錯 Game 服務 (DEV)
+🔍 Debug Game Server - STAGING        # 偵錯 Game 服務 (Staging)
+🔍 Debug Game Server - PROD           # 偵錯 Game 服務 (Prod)
+
+# 複合偵錯
+🔍 Debug DEV - All Services           # 同時偵錯所有 DEV 服務
+🔍 Debug STAGING - All Services       # 同時偵錯所有 STAGING 服務
+🔍 Debug PROD - All Services          # 同時偵錯所有 PROD 服務
+```
+
+#### 測試執行 (Test Execution)
+```
+🧪 Test Admin Service                 # 運行 Admin 服務的相關測試
 ```
 
 ### 2. 任務執行 (Ctrl+Shift+P → Tasks: Run Task)
 
+#### 代碼生成
+```
+wire-gen                             # 生成 Wire 依賴注入代碼
+proto-gen                            # 從 .proto 文件生成 gRPC 代碼
+```
+
 #### 構建任務
 ```
-🔨 Build Admin - DEV                  # 構建開發版本
-🔨 Build Admin - STAGING              # 構建預發布版本 (優化)
-🔨 Build Admin - PROD                 # 構建生產版本 (最優化)
+🔨 Build Admin - DEV                  # 構建 Admin 開發版本
+🔨 Build Admin - STAGING              # 構建 Admin 預發布版本 (優化)
+🔨 Build Admin - PROD                 # 構建 Admin 生產版本 (最優化)
 ```
 
 #### Docker 任務
@@ -71,7 +92,14 @@
 ```
 🚀 Start DEV Environment              # 啟動開發環境 Docker 服務
 🏗️ Start STAGING Environment          # 啟動預發布環境 Docker 服務
-🛑 Stop All Environments              # 停止所有環境
+🛑 Stop All Environments              # 停止所有 Docker 環境
+```
+
+#### 測試任務
+```
+🧪 Test All                           # 運行所有測試
+🧪 Test Admin Service                 # 只測試 Admin 服務相關
+🧪 Test with Coverage                 # 運行測試並生成覆蓋率報告
 ```
 
 #### 驗證任務
@@ -81,17 +109,10 @@
 📊 Check Environment Info             # 檢查所有環境信息
 ```
 
-#### 測試任務
-```
-🧪 Test All                          # 運行所有測試
-🧪 Test Admin Service                # 只測試 Admin 服務
-🧪 Test with Coverage                # 運行測試並生成覆蓋率報告
-```
-
 #### 清理任務
 ```
-🧹 Clean Build Artifacts             # 清理構建產物
-🧹 Clean Docker Images               # 清理 Docker 鏡像
+🧹 Clean Build Artifacts              # 清理構建產物
+🧹 Clean Docker Images                # 清理 Docker 鏡像
 ```
 
 ## 🔧 配置詳解

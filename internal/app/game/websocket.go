@@ -101,6 +101,11 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	roomID := r.URL.Query().Get("room_id")
 	
 	if playerID != "" {
+		// TODO: [Security] Implement JWT token validation.
+		// The current implementation is simplified for development and accepts player_id directly from the query parameters,
+		// which is insecure and should be replaced with a proper authentication mechanism.
+		// The token should be passed via query param or header, then validated here to extract the player's identity.
+
 		// 這裡應該驗證 JWT token 並解析玩家ID
 		// 簡化實現直接使用查詢參數
 		client.ID = playerID
@@ -200,6 +205,9 @@ func (c *Client) writePump() {
 }
 
 // handleTextMessage 處理文本消息（JSON 格式）
+// TODO: [Refactor] This server handles both JSON (text) and Protobuf (binary) messages.
+// The primary protocol should be Protobuf. This JSON handling logic might be for debugging or legacy purposes.
+// Consider unifying the protocol to only support Protobuf to reduce complexity and maintenance overhead.
 func (c *Client) handleTextMessage(message []byte) {
 	var msg map[string]interface{}
 	if err := json.Unmarshal(message, &msg); err != nil {
@@ -329,6 +337,10 @@ func (c *Client) handleSwitchCannon(msg *pb.GameMessage) {
 
 // handleJoinRoomPB 處理加入房間請求
 func (c *Client) handleJoinRoomPB(msg *pb.GameMessage) {
+	// TODO: [Implementation] The RoomID is hardcoded to "default".
+	// It should be parsed from the protobuf message `msg.GetJoinRoom().GetRoomId()`.
+	// Need to add nil checks for safety.
+
 	// 從 Protobuf 消息中解析房間ID
 	// 這裡需要根據實際的 Protobuf 定義來實現
 	c.hub.joinRoom <- &JoinRoomMessage{
