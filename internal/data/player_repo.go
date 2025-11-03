@@ -47,39 +47,55 @@ func (r *gamePlayerRepo) GetPlayer(ctx context.Context, playerID int64) (*game.P
 	cacheKey := fmt.Sprintf("player:%d", playerID)
 	playerJSON, err := r.data.redis.Get(ctx, cacheKey)
 	if err == nil {
-		// 快取命中，反序列化並返回
 		var player game.Player
-		err = json.Unmarshal([]byte(playerJSON), &player)
-		if err == nil {
+		if json.Unmarshal([]byte(playerJSON), &player) == nil {
 			r.logger.Debugf("Cache hit for player: %d", playerID)
 			return &player, nil
 		}
-		r.logger.Warnf("Failed to unmarshal player from cache: %v", err)
-	}
-	if err != redis.Nil {
-		r.logger.Errorf("Redis error on GetPlayer: %v", err)
 	}
 
-	// 2. 快取未命中，從資料庫讀取 (TODO)
+	// 2. 快取未命中，從資料庫讀取
 	r.logger.Debugf("Cache miss for player: %d. Fetching from DB.", playerID)
-	// TODO: 實現實際的數據庫查詢
-	// 這裡暫時返回一個默認玩家
-	player := &game.Player{
-		ID:       playerID,
-		Nickname: "Player" + fmt.Sprintf("%d", playerID),
-		Balance:  10000, // 默認餘額
-		Status:   game.PlayerStatusIdle,
+	query := `
+		SELECT u.id, u.nickname, u.status, w.balance
+		FROM users u
+		LEFT JOIN wallets w ON u.id = w.user_id AND w.currency = 'CNY'
+		WHERE u.id = $1
+	`
+	var po struct {
+		ID       int64
+		Nickname string
+		Status   int
+		Balance  *float64 // Use pointer to handle NULL from LEFT JOIN
+	}
+	err = r.data.db.QueryRow(ctx, query, playerID).Scan(&po.ID, &po.Nickname, &po.Status, &po.Balance)
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return nil, fmt.Errorf("player with id %d not found", playerID)
+		}
+		r.logger.Errorf("failed to get player from db: %v", err)
+		return nil, err
 	}
 
-	// 3. 將從資料庫讀取的數據寫入快取
+	balance := int64(0)
+	if po.Balance != nil {
+		balance = int64(*po.Balance * 100) // Assuming balance is stored as decimal, convert to cents
+	}
+
+	player := &game.Player{
+		ID:       po.ID,
+		Nickname: po.Nickname,
+		Balance:  balance,
+		Status:   game.PlayerStatusIdle, // Default status
+	}
+	if po.Status == 0 {
+		player.Status = game.PlayerStatusOffline
+	}
+
+	// 3. 將數據寫入快取
 	playerBytes, err := json.Marshal(player)
-	if err != nil {
-		r.logger.Warnf("Failed to marshal player for cache: %v", err)
-	} else {
-		err = r.data.redis.Set(ctx, cacheKey, playerBytes, 10*time.Minute) // 10分鐘過期
-		if err != nil {
-			r.logger.Warnf("Failed to set player cache: %v", err)
-		}
+	if err == nil {
+		r.data.redis.Set(ctx, cacheKey, playerBytes, 10*time.Minute)
 	}
 
 	return player, nil
@@ -88,12 +104,18 @@ func (r *gamePlayerRepo) GetPlayer(ctx context.Context, playerID int64) (*game.P
 // UpdatePlayerBalance 更新玩家餘額
 func (r *gamePlayerRepo) UpdatePlayerBalance(ctx context.Context, playerID int64, balance int64) error {
 	r.logger.Debugf("Updating player %d balance to %d", playerID, balance)
-	// TODO: 實現實際的數據庫更新
+	query := `UPDATE wallets SET balance = $1 WHERE user_id = $2 AND currency = 'CNY'`
+	// Convert balance from cents to decimal for DB
+	balanceDecimal := float64(balance) / 100.0
+	_, err := r.data.db.Exec(ctx, query, balanceDecimal, playerID)
+	if err != nil {
+		r.logger.Errorf("failed to update player balance: %v", err)
+		return err
+	}
 
 	// 更新成功後，使快取失效
 	cacheKey := fmt.Sprintf("player:%d", playerID)
-	err := r.data.redis.Del(ctx, cacheKey)
-	if err != nil {
+	if err := r.data.redis.Del(ctx, cacheKey); err != nil {
 		r.logger.Warnf("Failed to delete player cache on balance update: %v", err)
 	}
 
@@ -103,12 +125,26 @@ func (r *gamePlayerRepo) UpdatePlayerBalance(ctx context.Context, playerID int64
 // UpdatePlayerStatus 更新玩家狀態
 func (r *gamePlayerRepo) UpdatePlayerStatus(ctx context.Context, playerID int64, status game.PlayerStatus) error {
 	r.logger.Debugf("Updating player %d status to %s", playerID, status)
-	// TODO: 實現實際的數據庫更新
+	var statusInt int
+	switch status {
+	case game.PlayerStatusPlaying, game.PlayerStatusIdle:
+		statusInt = 1
+	case game.PlayerStatusOffline:
+		statusInt = 0
+	default:
+		statusInt = 1 // Default to active
+	}
+
+	query := `UPDATE users SET status = $1 WHERE id = $2`
+	_, err := r.data.db.Exec(ctx, query, statusInt, playerID)
+	if err != nil {
+		r.logger.Errorf("failed to update player status: %v", err)
+		return err
+	}
 
 	// 更新成功後，使快取失效
 	cacheKey := fmt.Sprintf("player:%d", playerID)
-	err := r.data.redis.Del(ctx, cacheKey)
-	if err != nil {
+	if err := r.data.redis.Del(ctx, cacheKey); err != nil {
 		r.logger.Warnf("Failed to delete player cache on status update: %v", err)
 	}
 
@@ -133,18 +169,28 @@ func (r *playerRepo) FindByUsername(ctx context.Context, username string) (*play
 		r.logger.Errorf("Redis error on FindByUsername: %v", err)
 	}
 
-	// 2. 快取未命中，從資料庫讀取 (TODO)
+	// 2. 快取未命中，從資料庫讀取
 	r.logger.Debugf("Cache miss for user: %s. Fetching from DB.", username)
-	// TODO: 實現真實的資料庫查詢
+	query := `SELECT id, username, password_hash, nickname, status FROM users WHERE username = $1`
+	var po struct {
+		ID           int64
+		Username     string
+		PasswordHash string
+		Nickname     string
+		Status       int
+	}
+	err = r.data.db.QueryRow(ctx, query, username).Scan(&po.ID, &po.Username, &po.PasswordHash, &po.Nickname, &po.Status)
 
-	// 為了演示，我們先返回一個固定的用戶數據
 	var p *player.Player
-	if username == "test" {
+	if err == nil {
 		p = &player.Player{
-			ID:           1,
-			Username:     "test",
-			PasswordHash: "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", // "password" 的 bcrypt hash
+			ID:           uint(po.ID),
+			Username:     po.Username,
+			PasswordHash: po.PasswordHash,
 		}
+	} else if err.Error() != "no rows in result set" {
+		r.logger.Errorf("failed to find user by username: %v", err)
+		return nil, err
 	}
 
 	// 3. 如果找到用戶，寫入快取
@@ -160,5 +206,5 @@ func (r *playerRepo) FindByUsername(ctx context.Context, username string) (*play
 		}
 	}
 
-	return p, nil // 在真實情境中，找不到用戶時 p 為 nil
+	return p, nil // 找不到用戶時 p 為 nil
 }
