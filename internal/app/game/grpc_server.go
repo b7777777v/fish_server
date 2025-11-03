@@ -8,6 +8,8 @@ import (
 	pb "github.com/b7777777v/fish_server/pkg/pb/v1"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // GameServer 實現了 pb.GameServer 接口
@@ -28,8 +30,7 @@ func NewGameServer(playerUsecase *player.PlayerUsecase) *GameServer {
 func (s *GameServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
 	token, err := s.playerUsecase.Login(ctx, req.GetUsername(), req.GetPassword())
 	if err != nil {
-		// TODO: 將內部錯誤轉換為 gRPC 狀態碼
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "login failed: %v", err)
 	}
 
 	return &pb.LoginResponse{Token: token}, nil

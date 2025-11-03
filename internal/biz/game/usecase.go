@@ -29,6 +29,13 @@ type GameRepo interface {
 	GetGameEvents(ctx context.Context, roomID string, limit int) ([]*GameEvent, error)
 }
 
+// InventoryRepo defines the persistence interface for game inventories.
+type InventoryRepo interface {
+	GetInventory(ctx context.Context, inventoryID string) (*Inventory, error)
+	SaveInventory(ctx context.Context, inventory *Inventory) error
+	GetAllInventories(ctx context.Context) (map[string]*Inventory, error)
+}
+
 // PlayerRepo 玩家數據倉庫接口
 type PlayerRepo interface {
 	GetPlayer(ctx context.Context, playerID int64) (*Player, error)
@@ -38,12 +45,14 @@ type PlayerRepo interface {
 
 // GameUsecase 遊戲用例
 type GameUsecase struct {
-	gameRepo    GameRepo
-	playerRepo  PlayerRepo
-	roomManager *RoomManager
-	spawner     *FishSpawner
-	mathModel   *MathModel
-	logger      logger.Logger
+	gameRepo         GameRepo
+	playerRepo       PlayerRepo
+	roomManager      *RoomManager
+	spawner          *FishSpawner
+	mathModel        *MathModel
+	inventoryManager *InventoryManager
+	rtpController    *RTPController
+	logger           logger.Logger
 }
 
 // NewGameUsecase 創建遊戲用例
@@ -53,15 +62,19 @@ func NewGameUsecase(
 	roomManager *RoomManager,
 	spawner *FishSpawner,
 	mathModel *MathModel,
+	inventoryManager *InventoryManager,
+	rtpController *RTPController,
 	logger logger.Logger,
 ) *GameUsecase {
 	return &GameUsecase{
-		gameRepo:    gameRepo,
-		playerRepo:  playerRepo,
-		roomManager: roomManager,
-		spawner:     spawner,
-		mathModel:   mathModel,
-		logger:      logger.With("component", "game_usecase"),
+		gameRepo:         gameRepo,
+		playerRepo:       playerRepo,
+		roomManager:      roomManager,
+		spawner:          spawner,
+		mathModel:        mathModel,
+		inventoryManager: inventoryManager,
+		rtpController:    rtpController,
+		logger:           logger.With("component", "game_usecase"),
 	}
 }
 
@@ -376,9 +389,9 @@ func (gu *GameUsecase) SpawnSpecialFish(ctx context.Context, roomID string, fish
 	return fish, nil
 }
 
-// GetMathModelStats 獲取數學模型統計
-func (gu *GameUsecase) GetMathModelStats(ctx context.Context) map[string]interface{} {
-	return gu.mathModel.GetModelStats()
+// GetMathModelConfig 獲取數學模型配置
+func (gu *GameUsecase) GetMathModelConfig(ctx context.Context) ModelConfig {
+	return gu.mathModel.GetModelConfig()
 }
 
 // UpdateRoomConfig 更新房間配置（管理員功能）

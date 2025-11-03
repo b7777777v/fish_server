@@ -2,6 +2,7 @@
 package data
 
 import (
+	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/google/wire"
 )
 
@@ -12,4 +13,8 @@ var ProviderSet = wire.NewSet(
 	NewGamePlayerRepo,
 	NewPlayerRepo,
 	NewWalletRepo,
+
+	// Add the new inventory repo provider
+	NewInMemoryInventoryRepo,
+	wire.Bind(new(game.InventoryRepo), new(*InMemoryInventoryRepo)),
 )

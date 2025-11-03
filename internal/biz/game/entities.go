@@ -128,13 +128,23 @@ const (
 
 // RoomConfig 房間配置
 type RoomConfig struct {
-	MinBet          int64   `json:"min_bet"`           // 最小下注
-	MaxBet          int64   `json:"max_bet"`           // 最大下注
+	MinBet               int64   `json:"min_bet"`           // 最小下注
+	MaxBet               int64   `json:"max_bet"`           // 最大下注
 	BulletCostMultiplier float64 `json:"bullet_cost_multiplier"` // 子彈成本倍數
-	FishSpawnRate   float64 `json:"fish_spawn_rate"`   // 魚類生成率
-	MaxFishCount    int32   `json:"max_fish_count"`    // 最大魚數量
-	RoomWidth       float64 `json:"room_width"`        // 房間寬度
-	RoomHeight      float64 `json:"room_height"`       // 房間高度
+	FishSpawnRate        float64 `json:"fish_spawn_rate"`       // 魚類生成率
+	MaxFishCount         int32   `json:"max_fish_count"`    // 最大魚數量
+	RoomWidth            float64 `json:"room_width"`        // 房間寬度
+	RoomHeight           float64 `json:"room_height"`       // 房間高度
+	TargetRTP            float64 `json:"target_rtp"`           // 目標RTP, e.g., 0.96 for 96%
+}
+
+// Inventory 遊戲庫存系統
+type Inventory struct {
+	ID         string    `json:"id"`         // 唯一標識, e.g., room_type_novice
+	TotalIn    int64     `json:"total_in"`    // 總投入 (所有玩家的總花費)
+	TotalOut   int64     `json:t:"total_out"`   // 總產出 (所有玩家的總贏得)
+	CurrentRTP float64   `json:"current_rtp"` // 當前實際RTP (TotalOut / TotalIn)
+	UpdatedAt  time.Time `json:"updated_at"`  // 最後更新時間
 }
 
 // GameEvent 遊戲事件

@@ -309,10 +309,15 @@ func (fs *FishSpawner) BatchSpawnFish(count int, config RoomConfig) []*Fish {
 	fishes := make([]*Fish, 0, count)
 	
 	for i := 0; i < count; i++ {
-		if fish := fs.TrySpawnFish(config); fish != nil {
-			fishes = append(fishes, fish)
+		// 隨機選擇魚類型
+		fishType := fs.selectRandomFishType()
+		if fishType == nil {
+			continue
 		}
-		
+		// 創建魚實例
+		fish := fs.createFish(fishType, config)
+		fishes = append(fishes, fish)
+
 		// 添加小延遲避免ID衝突
 		time.Sleep(1 * time.Millisecond)
 	}

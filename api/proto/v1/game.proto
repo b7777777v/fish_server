@@ -17,16 +17,19 @@ message Position {
 
 // 消息類型枚舉
 enum MessageType {
-  // 客戶端請求
-  FIRE_BULLET = 0;
-  SWITCH_CANNON = 1;
-  JOIN_ROOM = 2;
-  LEAVE_ROOM = 3;
-  HEARTBEAT = 4;
-  GET_ROOM_LIST = 5;
-  GET_PLAYER_INFO = 6;
-  
-  // 服務器響應
+  // 保留0為無效值
+  INVALID = 0;
+
+  // 客戶端請求 (1-9)
+  FIRE_BULLET = 1;
+  SWITCH_CANNON = 2;
+  JOIN_ROOM = 3;
+  LEAVE_ROOM = 4;
+  HEARTBEAT = 5;
+  GET_ROOM_LIST = 6;
+  GET_PLAYER_INFO = 7;
+
+  // 服務器響應 (10-19)
   FIRE_BULLET_RESPONSE = 10;
   SWITCH_CANNON_RESPONSE = 11;
   JOIN_ROOM_RESPONSE = 12;
@@ -34,15 +37,18 @@ enum MessageType {
   HEARTBEAT_RESPONSE = 14;
   ROOM_LIST_RESPONSE = 15;
   PLAYER_INFO_RESPONSE = 16;
-  
-  // 事件廣播
+
+  // 服務器端事件廣播 (20-39)
   BULLET_FIRED = 20;
   CANNON_SWITCHED = 21;
   FISH_SPAWNED = 22;
   FISH_DIED = 23;
   PLAYER_REWARD = 24;
-  
-  // 錯誤消息
+  WELCOME = 25;
+  PLAYER_JOINED = 26;
+  PLAYER_LEFT = 27;
+
+  // 錯誤消息 (99)
   ERROR = 99;
 }
 
@@ -62,7 +68,7 @@ message GameMessage {
     HeartbeatMessage heartbeat = 6;
     GetRoomListRequest get_room_list = 7;
     GetPlayerInfoRequest get_player_info = 8;
-    
+
     // 響應消息
     FireBulletResponse fire_bullet_response = 12;
     SwitchCannonResponse switch_cannon_response = 13;
@@ -71,14 +77,17 @@ message GameMessage {
     HeartbeatResponse heartbeat_response = 16;
     RoomListResponse room_list_response = 17;
     PlayerInfoResponse player_info_response = 18;
-    
+
     // 事件消息
     BulletFiredEvent bullet_fired = 22;
     CannonSwitchedEvent cannon_switched = 23;
     FishSpawnedEvent fish_spawned = 24;
     FishDiedEvent fish_died = 25;
     PlayerRewardEvent player_reward = 26;
-    
+    WelcomeMessage welcome = 27;
+    PlayerJoinedMessage player_joined = 28;
+    PlayerLeftMessage player_left = 29;
+
     // 錯誤消息
     ErrorMessage error = 99;
   }
@@ -152,6 +161,7 @@ message JoinRoomResponse {
   bool success = 1;
   string room_id = 2;
   int64 timestamp = 3;
+  int32 player_count = 4; // 新增：當前房間人數
 }
 
 // 離開房間響應
@@ -229,6 +239,25 @@ message PlayerRewardEvent {
   int64 reward = 2;
   int64 timestamp = 3;
 }
+
+// 新增：歡迎消息
+message WelcomeMessage {
+  string client_id = 1;
+  int64 server_time = 2;
+}
+
+// 新增：玩家加入房間事件
+message PlayerJoinedMessage {
+  string player_id = 1;
+  string room_id = 2;
+}
+
+// 新增：玩家離開房間事件
+message PlayerLeftMessage {
+  string player_id = 1;
+  string room_id = 2;
+}
+
 
 // ========================================
 // 輔助類型

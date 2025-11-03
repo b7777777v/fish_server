@@ -14,20 +14,24 @@ import (
 
 // RoomManager 房間管理器
 type RoomManager struct {
-	rooms   map[string]*Room
-	mu      sync.RWMutex
-	logger  logger.Logger
-	spawner *FishSpawner
-	mathModel *MathModel
+	rooms            map[string]*Room
+	mu               sync.RWMutex
+	logger           logger.Logger
+	spawner          *FishSpawner
+	mathModel        *MathModel
+	inventoryManager *InventoryManager
+	rtpController    *RTPController
 }
 
 // NewRoomManager 創建房間管理器
-func NewRoomManager(logger logger.Logger, spawner *FishSpawner, mathModel *MathModel) *RoomManager {
+func NewRoomManager(logger logger.Logger, spawner *FishSpawner, mathModel *MathModel, im *InventoryManager, rc *RTPController) *RoomManager {
 	return &RoomManager{
-		rooms:     make(map[string]*Room),
-		logger:    logger.With("component", "room_manager"),
-		spawner:   spawner,
-		mathModel: mathModel,
+		rooms:            make(map[string]*Room),
+		logger:           logger.With("component", "room_manager"),
+		spawner:          spawner,
+		mathModel:        mathModel,
+		inventoryManager: im,
+		rtpController:    rc,
 	}
 }
 
@@ -178,6 +182,9 @@ func (rm *RoomManager) FireBullet(roomID string, playerID int64, direction float
 	room.Bullets[bulletID] = bullet
 	room.UpdatedAt = time.Now()
 
+	// 將成本計入庫存系統
+	rm.inventoryManager.AddBet(room.Type, bullet.Cost)
+
 	rm.logger.Infof("Player %d fired bullet in room %s, cost: %d", playerID, roomID, bulletCost)
 	return bullet, nil
 }
@@ -207,33 +214,53 @@ func (rm *RoomManager) ProcessBulletHit(roomID string, bulletID int64, fishID in
 		return nil, fmt.Errorf("player not found")
 	}
 
-	// 使用數學模型計算命中結果
-	hitResult := rm.mathModel.CalculateHit(bullet, fish)
-	
-	// 更新子彈狀態
-	if hitResult.Success {
-		bullet.Status = BulletStatusHit
-		
-		// 對魚造成傷害
-		fish.Health -= hitResult.Damage
-		if fish.Health <= 0 {
-			fish.Status = FishStatusDead
-			// 給玩家獎勵
-			player.Balance += hitResult.Reward
-			rm.logger.Infof("Fish %d killed by player %d, reward: %d", fishID, player.ID, hitResult.Reward)
-			
-			// 從房間移除死魚
-			delete(room.Fishes, fishID)
-		}
-	} else {
-		bullet.Status = BulletStatusMissed
-	}
+	// 1. Calculate the potential outcome from the math model
+	potentialHit := rm.mathModel.CalculatePotentialHit(bullet, fish)
 
-	// 移除子彈
+	// Clean up bullet immediately
+	bullet.Status = BulletStatusHit
 	delete(room.Bullets, bulletID)
 	room.UpdatedAt = time.Now()
 
-	return hitResult, nil
+	// 2. If the hit is a potential kill, ask the RTP controller for approval
+	if potentialHit.Success { // Success from math model means a potential kill
+		approved := rm.rtpController.ApproveKill(room.Type, room.Config.TargetRTP, potentialHit.Reward)
+
+		if approved {
+			// 3a. Kill is approved: Grant the reward
+			fish.Status = FishStatusDead
+			delete(room.Fishes, fishID)
+
+			player.Balance += potentialHit.Reward
+			rm.inventoryManager.AddWin(room.Type, potentialHit.Reward)
+
+			rm.logger.Infof("RTP APPROVED kill. Player %d killed fish %d, reward: %d", player.ID, fishID, potentialHit.Reward)
+			return potentialHit, nil
+		} else {
+			// 3b. Kill is denied by RTP controller: Downgrade to non-lethal damage
+			fish.Health -= potentialHit.Damage
+			// Ensure fish survives, maybe with 1 HP
+			if fish.Health <= 0 {
+				fish.Health = 1
+			}
+
+			rm.logger.Infof("RTP DENIED kill. Player %d hit fish %d, but reward was not approved.", player.ID, fishID)
+
+			// Return a result indicating damage but no kill/reward
+			return &HitResult{
+				Success:    false,
+				Damage:     potentialHit.Damage,
+				Reward:     0,
+				IsCritical: potentialHit.IsCritical,
+				Multiplier: 0,
+			}, nil
+		}
+	} else {
+		// 4. Hit was not a potential kill from the start, just apply damage
+		fish.Health -= potentialHit.Damage
+		rm.logger.Debugf("Player %d hit fish %d, no kill. Damage: %d", player.ID, fishID, potentialHit.Damage)
+		return potentialHit, nil
+	}
 }
 
 // GetRoomList 獲取房間列表
@@ -330,6 +357,7 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 			MaxFishCount:         20,
 			RoomWidth:            1200,
 			RoomHeight:           800,
+			TargetRTP:            0.97, // 新手房RTP略高
 		},
 		RoomTypeIntermediate: {
 			MinBet:               100,  // 1元
@@ -339,6 +367,7 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 			MaxFishCount:         25,
 			RoomWidth:            1200,
 			RoomHeight:           800,
+			TargetRTP:            0.96,
 		},
 		RoomTypeAdvanced: {
 			MinBet:               1000,  // 10元
@@ -348,6 +377,7 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 			MaxFishCount:         30,
 			RoomWidth:            1200,
 			RoomHeight:           800,
+			TargetRTP:            0.95,
 		},
 		RoomTypeVIP: {
 			MinBet:               10000, // 100元
@@ -357,6 +387,7 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 			MaxFishCount:         35,
 			RoomWidth:            1200,
 			RoomHeight:           800,
+			TargetRTP:            0.94, // VIP房RTP略低
 		},
 	}
 	

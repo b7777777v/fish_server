@@ -70,6 +70,32 @@ func NewClient(conn *websocket.Conn, hub *Hub, logger logger.Logger) *Client {
 	}
 }
 
+// sendProtobuf 將 Protobuf 消息序列化後發送到客戶端
+func (c *Client) sendProtobuf(msg *pb.GameMessage) {
+	bytes, err := proto.Marshal(msg)
+	if err != nil {
+		c.logger.Errorf("Failed to marshal protobuf message: %v", err)
+		return
+	}
+	c.send <- bytes
+}
+
+// sendError 將錯誤消息發送到客戶端
+func (c *Client) sendError(message string) {
+	c.sendErrorPB(message)
+}
+
+// sendJSON 將 interface{} 序列化為 JSON 後發送到客戶端
+func (c *Client) sendJSON(v interface{}) {
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		c.logger.Errorf("Failed to marshal JSON message: %v", err)
+		c.sendError("Internal server error: could not serialize JSON response")
+		return
+	}
+	c.send <- bytes
+}
+
 // WebSocketHandler WebSocket 升級處理器
 type WebSocketHandler struct {
 	hub    *Hub
@@ -101,13 +127,9 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	roomID := r.URL.Query().Get("room_id")
 	
 	if playerID != "" {
-		// TODO: [Security] Implement JWT token validation.
-		// The current implementation is simplified for development and accepts player_id directly from the query parameters,
-		// which is insecure and should be replaced with a proper authentication mechanism.
-		// The token should be passed via query param or header, then validated here to extract the player's identity.
-
-		// 這裡應該驗證 JWT token 並解析玩家ID
-		// 簡化實現直接使用查詢參數
+		// [Security] This is a simplified implementation for development. In a production environment,
+		// proper authentication (e.g., JWT token validation) should be implemented here to securely
+		// extract the player's identity from the request.
 		client.ID = playerID
 		client.RoomID = roomID
 	}
@@ -152,10 +174,10 @@ func (c *Client) readPump() {
 		
 		// 處理不同類型的消息
 		switch messageType {
-		case websocket.TextMessage:
-			c.handleTextMessage(message)
 		case websocket.BinaryMessage:
 			c.handleBinaryMessage(message)
+		default:
+			c.logger.Warnf("Unknown message type: %d", messageType)
 		}
 	}
 }
@@ -204,35 +226,6 @@ func (c *Client) writePump() {
 	}
 }
 
-// handleTextMessage 處理文本消息（JSON 格式）
-// TODO: [Refactor] This server handles both JSON (text) and Protobuf (binary) messages.
-// The primary protocol should be Protobuf. This JSON handling logic might be for debugging or legacy purposes.
-// Consider unifying the protocol to only support Protobuf to reduce complexity and maintenance overhead.
-func (c *Client) handleTextMessage(message []byte) {
-	var msg map[string]interface{}
-	if err := json.Unmarshal(message, &msg); err != nil {
-		c.logger.Errorf("Failed to parse JSON message: %v", err)
-		return
-	}
-	
-	// 處理 JSON 格式的消息
-	msgType, ok := msg["type"].(string)
-	if !ok {
-		c.logger.Error("Message missing type field")
-		return
-	}
-	
-	switch msgType {
-	case "join_room":
-		c.handleJoinRoom(msg)
-	case "leave_room":
-		c.handleLeaveRoom(msg)
-	case "heartbeat":
-		c.handleHeartbeat(msg)
-	default:
-		c.logger.Warnf("Unknown message type: %s", msgType)
-	}
-}
 
 // handleBinaryMessage 處理二進制消息（Protobuf 格式）
 func (c *Client) handleBinaryMessage(message []byte) {
@@ -258,48 +251,6 @@ func (c *Client) handleBinaryMessage(message []byte) {
 	}
 }
 
-// handleJoinRoom 處理加入房間請求（JSON）
-func (c *Client) handleJoinRoom(msg map[string]interface{}) {
-	roomID, ok := msg["room_id"].(string)
-	if !ok {
-		c.sendError("Invalid room_id")
-		return
-	}
-	
-	c.RoomID = roomID
-	
-	// 通知 Hub 客戶端要加入房間
-	c.hub.joinRoom <- &JoinRoomMessage{
-		Client: c,
-		RoomID: roomID,
-	}
-}
-
-// handleLeaveRoom 處理離開房間請求（JSON）
-func (c *Client) handleLeaveRoom(msg map[string]interface{}) {
-	if c.RoomID == "" {
-		c.sendError("Not in any room")
-		return
-	}
-	
-	// 通知 Hub 客戶端要離開房間
-	c.hub.leaveRoom <- &LeaveRoomMessage{
-		Client: c,
-		RoomID: c.RoomID,
-	}
-	
-	c.RoomID = ""
-}
-
-// handleHeartbeat 處理心跳消息
-func (c *Client) handleHeartbeat(msg map[string]interface{}) {
-	response := map[string]interface{}{
-		"type":      "heartbeat_response",
-		"timestamp": time.Now().Unix(),
-	}
-	
-	c.sendJSON(response)
-}
 
 // handleFireBullet 處理開火請求
 func (c *Client) handleFireBullet(msg *pb.GameMessage) {
@@ -337,15 +288,21 @@ func (c *Client) handleSwitchCannon(msg *pb.GameMessage) {
 
 // handleJoinRoomPB 處理加入房間請求
 func (c *Client) handleJoinRoomPB(msg *pb.GameMessage) {
-	// TODO: [Implementation] The RoomID is hardcoded to "default".
-	// It should be parsed from the protobuf message `msg.GetJoinRoom().GetRoomId()`.
-	// Need to add nil checks for safety.
-
-	// 從 Protobuf 消息中解析房間ID
-	// 這裡需要根據實際的 Protobuf 定義來實現
+	joinRoomMsg := msg.GetJoinRoom()
+	if joinRoomMsg == nil {
+		c.sendErrorPB("Invalid JoinRoom message")
+		return
+	}
+	
+	roomID := joinRoomMsg.GetRoomId()
+	if roomID == "" {
+		c.sendErrorPB("Room ID cannot be empty")
+		return
+	}
+	
 	c.hub.joinRoom <- &JoinRoomMessage{
 		Client: c,
-		RoomID: "default", // 暫時使用默認值
+		RoomID: roomID,
 	}
 }
 
@@ -362,46 +319,7 @@ func (c *Client) handleLeaveRoomPB(msg *pb.GameMessage) {
 	}
 }
 
-// sendJSON 發送 JSON 消息
-func (c *Client) sendJSON(data interface{}) {
-	message, err := json.Marshal(data)
-	if err != nil {
-		c.logger.Errorf("Failed to marshal JSON: %v", err)
-		return
-	}
-	
-	select {
-	case c.send <- message:
-	default:
-		close(c.send)
-	}
-}
 
-// sendProtobuf 發送 Protobuf 消息
-func (c *Client) sendProtobuf(msg proto.Message) {
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		c.logger.Errorf("Failed to marshal protobuf: %v", err)
-		return
-	}
-	
-	select {
-	case c.send <- data:
-	default:
-		close(c.send)
-	}
-}
-
-// sendError 發送錯誤消息（JSON）
-func (c *Client) sendError(message string) {
-	errorMsg := map[string]interface{}{
-		"type":    "error",
-		"message": message,
-	}
-	c.sendJSON(errorMsg)
-}
-
-// sendErrorPB 發送錯誤消息
 func (c *Client) sendErrorPB(message string) {
 	errorMsg := &pb.GameMessage{
 		Type: pb.MessageType_ERROR,

@@ -30,10 +30,18 @@ func initApp(config *conf.Config) (*game.GameApp, func(), error) {
 	}
 	gameRepo := data.NewGameRepo(dataData, v)
 	playerRepo := data.NewGamePlayerRepo(dataData, v)
-	fishSpawner := game2.NewFishSpawnerProvider(v)
-	mathModel := game2.NewMathModelProvider(v)
-	roomManager := game2.NewRoomManagerProvider(v, fishSpawner, mathModel)
-	gameUsecase := game2.NewGameUsecaseProvider(gameRepo, playerRepo, roomManager, fishSpawner, mathModel, v)
+	fishSpawner := game2.NewFishSpawner(v)
+	mathModel := game2.NewMathModel(v)
+	inMemoryInventoryRepo := data.NewInMemoryInventoryRepo(v)
+	inventoryManager, err := game2.NewInventoryManager(inMemoryInventoryRepo, v)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	rtpController := game2.NewRTPController(inventoryManager, v)
+	roomManager := game2.NewRoomManager(v, fishSpawner, mathModel, inventoryManager, rtpController)
+	gameUsecase := game2.NewGameUsecase(gameRepo, playerRepo, roomManager, fishSpawner, mathModel, inventoryManager, rtpController, v)
 	gameApp := game.NewGameApp(gameUsecase, config, v)
 	return gameApp, func() {
 		cleanup2()

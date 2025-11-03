@@ -2,12 +2,13 @@ package game
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 	"time"
 
 	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
+	pb "github.com/b7777777v/fish_server/pkg/pb/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 // ========================================
@@ -162,14 +163,17 @@ func (h *Hub) handleRegister(client *Client) {
 	
 	h.logger.Infof("Client registered: %s (total: %d)", client.ID, len(h.clients))
 	
-	// 發送歡迎消息
-	welcomeMsg := map[string]interface{}{
-		"type":       "welcome",
-		"client_id":  client.ID,
-		"server_time": time.Now().Unix(),
-	}
-	client.sendJSON(welcomeMsg)
-}
+			// 發送歡迎消息
+			welcomeMsg := &pb.GameMessage{
+				Type: pb.MessageType_WELCOME,
+				Data: &pb.GameMessage_Welcome{
+					Welcome: &pb.WelcomeMessage{
+						ClientId:   client.ID,
+						ServerTime: time.Now().Unix(),
+					},
+				},
+			}
+			client.sendProtobuf(welcomeMsg)}
 
 // handleUnregister 處理客戶端註銷
 func (h *Hub) handleUnregister(client *Client) {
@@ -229,18 +233,26 @@ func (h *Hub) handleJoinRoom(msg *JoinRoomMessage) {
 	h.roomManagers[roomID].AddClient(client)
 	
 	// 發送加入成功消息
-	joinMsg := map[string]interface{}{
-		"type":    "room_joined",
-		"room_id": roomID,
-		"players": len(h.rooms[roomID]),
+	joinMsg := &pb.GameMessage{
+		Type: pb.MessageType_JOIN_ROOM_RESPONSE,
+		Data: &pb.GameMessage_JoinRoomResponse{
+			JoinRoomResponse: &pb.JoinRoomResponse{
+				RoomId:    roomID,
+				PlayerCount: int32(len(h.rooms[roomID])),
+			},
+		},
 	}
-	client.sendJSON(joinMsg)
+	client.sendProtobuf(joinMsg)
 	
 	// 通知房間其他玩家
-	playerJoinMsg := map[string]interface{}{
-		"type":      "player_joined",
-		"player_id": client.ID,
-		"room_id":   roomID,
+	playerJoinMsg := &pb.GameMessage{
+		Type: pb.MessageType_PLAYER_JOINED,
+		Data: &pb.GameMessage_PlayerJoined{
+			PlayerJoined: &pb.PlayerJoinedMessage{
+				PlayerId: client.ID,
+				RoomId:   roomID,
+			},
+		},
 	}
 	h.broadcastToRoom(roomID, playerJoinMsg, client)
 }
@@ -258,11 +270,15 @@ func (h *Hub) handleLeaveRoom(msg *LeaveRoomMessage) {
 	h.logger.Infof("Client %s left room %s", client.ID, roomID)
 	
 	// 發送離開成功消息
-	leaveMsg := map[string]interface{}{
-		"type":    "room_left",
-		"room_id": roomID,
+	leaveMsg := &pb.GameMessage{
+		Type: pb.MessageType_LEAVE_ROOM_RESPONSE,
+		Data: &pb.GameMessage_LeaveRoomResponse{
+			LeaveRoomResponse: &pb.LeaveRoomResponse{
+				RoomId: roomID,
+			},
+		},
 	}
-	client.sendJSON(leaveMsg)
+	client.sendProtobuf(leaveMsg)
 }
 
 // removeClientFromRoom 從房間移除客戶端
@@ -285,12 +301,16 @@ func (h *Hub) removeClientFromRoom(client *Client, roomID string) {
 				}
 			} else {
 				// 通知房間其他玩家
-				playerLeaveMsg := map[string]interface{}{
-					"type":      "player_left",
-					"player_id": client.ID,
-					"room_id":   roomID,
+				playerLeaveMsg := &pb.GameMessage{
+					Type: pb.MessageType_PLAYER_LEFT,
+					Data: &pb.GameMessage_PlayerLeft{
+						PlayerLeft: &pb.PlayerLeftMessage{
+							PlayerId: client.ID,
+							RoomId:   roomID,
+						},
+					},
 				}
-				h.broadcastToRoom(roomID, playerLeaveMsg, nil)
+				h.broadcastToRoom(roomID, playerLeaveMsg, client)
 			}
 		}
 	}
@@ -335,26 +355,14 @@ func (h *Hub) handleBroadcast(msg *BroadcastMessage) {
 	}
 }
 
-// broadcastToRoom 向房間廣播 JSON 消息
-func (h *Hub) broadcastToRoom(roomID string, message interface{}, exclude *Client) {
-	if room, ok := h.rooms[roomID]; ok {
-		data, err := json.Marshal(message)
-		if err != nil {
-			h.logger.Errorf("Failed to marshal broadcast message: %v", err)
-			return
-		}
-		
-		for client := range room {
-			if client != exclude {
-				select {
-				case client.send <- data:
-				default:
-					close(client.send)
-					delete(room, client)
-				}
-			}
-		}
+// broadcastToRoom 向房間廣播 Protobuf 消息
+func (h *Hub) broadcastToRoom(roomID string, message *pb.GameMessage, exclude *Client) {
+	bytes, err := proto.Marshal(message)
+	if err != nil {
+		h.logger.Errorf("Failed to marshal message for broadcast: %v", err)
+		return
 	}
+	h.broadcastToRoomBytes(roomID, bytes, exclude)
 }
 
 // broadcastToRoomBytes 向房間廣播字節消息
