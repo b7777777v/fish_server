@@ -76,6 +76,13 @@ func NewGameApp(
 	// 設置 HTTP 服務器
 	app.setupHTTPServer()
 
+	// 異步加載魚類數據到緩存
+	go func() {
+		if err := app.gameUsecase.LoadAndCacheFishTypes(context.Background()); err != nil {
+			app.logger.Errorf("Failed to load and cache fish types on startup: %v", err)
+		}
+	}()
+
 	return app
 }
 

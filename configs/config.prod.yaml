@@ -22,7 +22,12 @@ debug:
 data:
   database:
     driver: "postgres"
-    source: "${DATABASE_URL}?sslmode=require"
+    host: "${DB_HOST}"
+    port: ${DB_PORT}
+    user: "${DB_USER}"
+    password: "${DB_PASSWORD}"
+    dbname: "${DB_NAME}"
+    sslmode: "require"
     max_open_conns: 100
     max_idle_conns: 50
     conn_max_lifetime: "1h"

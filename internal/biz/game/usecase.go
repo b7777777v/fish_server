@@ -27,6 +27,10 @@ type GameRepo interface {
 	// 遊戲事件
 	SaveGameEvent(ctx context.Context, event *GameEvent) error
 	GetGameEvents(ctx context.Context, roomID string, limit int) ([]*GameEvent, error)
+
+	// 魚類類型
+	GetAllFishTypes(ctx context.Context) ([]*FishType, error)
+	SaveFishTypeCache(ctx context.Context, ft *FishType) error
 }
 
 // InventoryRepo defines the persistence interface for game inventories.
@@ -350,6 +354,25 @@ func (gu *GameUsecase) GetGameEvents(ctx context.Context, roomID string, limit i
 		limit = 50 // 默認限制
 	}
 	return gu.gameRepo.GetGameEvents(ctx, roomID, limit)
+}
+
+// LoadAndCacheFishTypes 從數據庫加載所有魚類類型並緩存到 Redis
+func (gu *GameUsecase) LoadAndCacheFishTypes(ctx context.Context) error {
+	fishTypes, err := gu.gameRepo.GetAllFishTypes(ctx)
+	if err != nil {
+		gu.logger.Errorf("Failed to get all fish types from DB: %v", err)
+		return err
+	}
+
+	for _, ft := range fishTypes {
+		if err := gu.gameRepo.SaveFishTypeCache(ctx, ft); err != nil {
+			// 即使單個失敗也繼續嘗試緩存其他的
+			gu.logger.Warnf("Failed to cache fish type %d: %v", ft.ID, err)
+		}
+	}
+
+	gu.logger.Infof("Successfully loaded and cached %d fish types.", len(fishTypes))
+	return nil
 }
 
 // ========================================

@@ -293,3 +293,41 @@ func (r *gameRepo) GetGameEvents(ctx context.Context, roomID string, limit int) 
 
 	return events, nil
 }
+
+// GetAllFishTypes 獲取所有魚類類型
+func (r *gameRepo) GetAllFishTypes(ctx context.Context) ([]*game.FishType, error) {
+	query := `SELECT id, name, size, base_health, base_value, base_speed, rarity, hit_rate, description FROM fish_types`
+	rows, err := r.data.db.Query(ctx, query)
+	if err != nil {
+		r.logger.Errorf("failed to get all fish types: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var fishTypes []*game.FishType
+	for rows.Next() {
+		ft := &game.FishType{}
+		if err := rows.Scan(&ft.ID, &ft.Name, &ft.Size, &ft.BaseHealth, &ft.BaseValue, &ft.BaseSpeed, &ft.Rarity, &ft.HitRate, &ft.Description); err != nil {
+			r.logger.Errorf("failed to scan fish type row: %v", err)
+			return nil, err
+		}
+		fishTypes = append(fishTypes, ft)
+	}
+
+	return fishTypes, nil
+}
+
+// SaveFishTypeCache 將魚類類型保存到快取
+func (r *gameRepo) SaveFishTypeCache(ctx context.Context, ft *game.FishType) error {
+	cacheKey := fmt.Sprintf("fish_type:%d", ft.ID)
+	ftBytes, err := json.Marshal(ft)
+	if err != nil {
+		r.logger.Warnf("Failed to marshal fish type for cache: %v", err)
+		return err
+	}
+
+	if err = r.data.redis.Set(ctx, cacheKey, ftBytes, 24*time.Hour); err != nil {
+		r.logger.Warnf("Failed to set fish type cache: %v", err)
+	}
+	return nil
+}
