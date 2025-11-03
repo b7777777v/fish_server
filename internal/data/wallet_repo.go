@@ -10,6 +10,7 @@ import (
 
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
+	"github.com/go-redis/redis/v8"
 )
 
 // WalletPO 是錢包的持久化對象
@@ -124,18 +125,27 @@ func (r *walletRepo) txDo2po(do *wallet.Transaction) (*TransactionPO, error) {
 }
 
 // FindByID 根據ID查詢錢包
-// TODO: [Cache] Implement cache-aside pattern using Redis for this function.
-// 1. Try to get the wallet from Redis using a key like `wallet:<id>`.
-// 2. If cache miss, query the database.
-// 3. After a successful DB query, store the result in Redis with an expiration (e.g., 5 minutes).
-// 4. The corresponding `Update` function must invalidate this cache key.
 func (r *walletRepo) FindByID(ctx context.Context, id uint) (*wallet.Wallet, error) {
-	// 準備SQL查詢
-	query := `SELECT id, user_id, balance, currency, status, created_at, updated_at FROM wallets WHERE id = $1`
+	// 1. 從 Redis 讀取快取
+	cacheKey := fmt.Sprintf("wallet:%d", id)
+	walletJSON, err := r.data.redis.Get(ctx, cacheKey)
+	if err == nil {
+		var w wallet.Wallet
+		if err = json.Unmarshal([]byte(walletJSON), &w); err == nil {
+			r.logger.Debugf("Cache hit for wallet: %d", id)
+			return &w, nil
+		}
+		r.logger.Warnf("Failed to unmarshal wallet from cache: %v", err)
+	}
+	if err != redis.Nil {
+		r.logger.Errorf("Redis error on FindByID: %v", err)
+	}
 
-	// 執行查詢
+	// 2. 快取未命中，從資料庫讀取
+	r.logger.Debugf("Cache miss for wallet: %d. Fetching from DB.", id)
+	query := `SELECT id, user_id, balance, currency, status, created_at, updated_at FROM wallets WHERE id = $1`
 	var po WalletPO
-	err := r.data.db.QueryRow(ctx, query, id).Scan(
+	err = r.data.db.QueryRow(ctx, query, id).Scan(
 		&po.ID, &po.UserID, &po.Balance, &po.Currency, &po.Status, &po.CreatedAt, &po.UpdatedAt,
 	)
 
@@ -147,22 +157,43 @@ func (r *walletRepo) FindByID(ctx context.Context, id uint) (*wallet.Wallet, err
 		return nil, err
 	}
 
-	return r.po2do(&po), nil
+	w := r.po2do(&po)
+
+	// 3. 將數據寫入快取
+	walletBytes, err := json.Marshal(w)
+	if err != nil {
+		r.logger.Warnf("Failed to marshal wallet for cache: %v", err)
+	} else {
+		if err = r.data.redis.Set(ctx, cacheKey, walletBytes, 5*time.Minute); err != nil {
+			r.logger.Warnf("Failed to set wallet cache: %v", err)
+		}
+	}
+
+	return w, nil
 }
 
 // FindByUserID 根據用戶ID查詢錢包
-// TODO: [Cache] Implement cache-aside pattern using Redis for this function.
-// 1. Try to get the wallet from Redis using a key like `wallet:user_id:{user_id}:currency:{currency}`.
-// 2. If cache miss, query the database.
-// 3. After a successful DB query, store the result in Redis with an expiration (e.g., 5 minutes).
-// 4. The corresponding `Update` function must invalidate this cache key.
 func (r *walletRepo) FindByUserID(ctx context.Context, userID uint, currency string) (*wallet.Wallet, error) {
-	// 準備SQL查詢
-	query := `SELECT id, user_id, balance, currency, status, created_at, updated_at FROM wallets WHERE user_id = $1 AND currency = $2`
+	// 1. 從 Redis 讀取快取
+	cacheKey := fmt.Sprintf("wallet:user_id:%d:currency:%s", userID, currency)
+	walletJSON, err := r.data.redis.Get(ctx, cacheKey)
+	if err == nil {
+		var w wallet.Wallet
+		if err = json.Unmarshal([]byte(walletJSON), &w); err == nil {
+			r.logger.Debugf("Cache hit for wallet by user_id: %d", userID)
+			return &w, nil
+		}
+		r.logger.Warnf("Failed to unmarshal wallet from cache: %v", err)
+	}
+	if err != redis.Nil {
+		r.logger.Errorf("Redis error on FindByUserID: %v", err)
+	}
 
-	// 執行查詢
+	// 2. 快取未命中，從資料庫讀取
+	r.logger.Debugf("Cache miss for wallet by user_id: %d. Fetching from DB.", userID)
+	query := `SELECT id, user_id, balance, currency, status, created_at, updated_at FROM wallets WHERE user_id = $1 AND currency = $2`
 	var po WalletPO
-	err := r.data.db.QueryRow(ctx, query, userID, currency).Scan(
+	err = r.data.db.QueryRow(ctx, query, userID, currency).Scan(
 		&po.ID, &po.UserID, &po.Balance, &po.Currency, &po.Status, &po.CreatedAt, &po.UpdatedAt,
 	)
 
@@ -174,7 +205,19 @@ func (r *walletRepo) FindByUserID(ctx context.Context, userID uint, currency str
 		return nil, err
 	}
 
-	return r.po2do(&po), nil
+	w := r.po2do(&po)
+
+	// 3. 將數據寫入快取
+	walletBytes, err := json.Marshal(w)
+	if err != nil {
+		r.logger.Warnf("Failed to marshal wallet for cache: %v", err)
+	} else {
+		if err = r.data.redis.Set(ctx, cacheKey, walletBytes, 5*time.Minute); err != nil {
+			r.logger.Warnf("Failed to set wallet cache: %v", err)
+		}
+	}
+
+	return w, nil
 }
 
 // Create 創建錢包
@@ -204,12 +247,6 @@ func (r *walletRepo) Create(ctx context.Context, w *wallet.Wallet) error {
 
 // Update 更新錢包
 func (r *walletRepo) Update(ctx context.Context, w *wallet.Wallet) error {
-	// TODO: [Cache] Implement cache invalidation after a successful DB update.
-	// After the wallet is updated in the database, the corresponding keys in Redis must be deleted.
-	// 1. Delete the cache key for `wallet:<id>`.
-	// 2. Delete the cache key for `wallet:user_id:{user_id}:currency:{currency}`.
-	// It's crucial to perform invalidation *after* the DB transaction is confirmed.
-
 	// 準備SQL查詢
 	query := `
 		UPDATE wallets 
@@ -239,6 +276,17 @@ func (r *walletRepo) Update(ctx context.Context, w *wallet.Wallet) error {
 
 	// 更新對象的 UpdatedAt 字段
 	w.UpdatedAt = updatedAt
+
+	// 操作成功後，使快取失效
+	cacheKeyByID := fmt.Sprintf("wallet:%d", w.ID)
+	if err := r.data.redis.Del(ctx, cacheKeyByID); err != nil {
+		r.logger.Warnf("Failed to delete wallet cache by id: %v", err)
+	}
+
+	cacheKeyByUserID := fmt.Sprintf("wallet:user_id:%d:currency:%s", w.UserID, w.Currency)
+	if err := r.data.redis.Del(ctx, cacheKeyByUserID); err != nil {
+		r.logger.Warnf("Failed to delete wallet cache by user id: %v", err)
+	}
 
 	return nil
 }
