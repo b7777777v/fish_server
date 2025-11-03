@@ -181,3 +181,82 @@ make clean
 ```
 
 ## 🤝 貢獻
+
+## API 接口文檔
+
+本文件概述了 `fish_server` 專案中的所有主要 API 接口，包括後台管理的 RESTful API、遊戲核心的 gRPC 服務以及客戶端與伺服器之間的 WebSocket 通訊協議。
+
+### Admin API (RESTful)
+
+此 API 主要用於後台管理、監控和數據查詢。所有端點都以 `/admin` 為前綴。
+
+| 方法 (Method) | 路徑 (Path)                      | 描述 (Description)                               |
+|---------------|----------------------------------|--------------------------------------------------|
+| `GET`         | `/`                              | 顯示 API 根信息                                  |
+| `GET`         | `/ping`                          | 簡單的 Ping-Pong 檢查                            |
+| `GET`         | `/admin/health`                  | 一般健康檢查                                     |
+| `GET`         | `/admin/health/live`             | Kubernetes 存活探測 (Liveness Probe)             |
+| `GET`         | `/admin/health/ready`            | Kubernetes 就緒探測 (Readiness Probe)            |
+| `GET`         | `/admin/status`                  | 獲取詳細的伺服器運行狀態 (記憶體、協程等)        |
+| `GET`         | `/admin/metrics`                 | 獲取 Prometheus 格式的詳細指標                   |
+| `GET`         | `/admin/env`                     | 獲取當前環境配置信息                           |
+| `GET`         | `/admin/players/:id`             | 獲取指定 ID 的玩家信息                           |
+| `GET`         | `/admin/players/:id/wallets`     | 獲取指定玩家的所有錢包                           |
+| `GET`         | `/admin/wallets/:id`             | 獲取指定 ID 的錢包信息                           |
+| `GET`         | `/admin/wallets/:id/transactions`| 獲取指定錢包的交易記錄                           |
+| `POST`        | `/admin/wallets/:id/freeze`      | 凍結指定錢包                                     |
+| `POST`        | `/admin/wallets/:id/unfreeze`    | 解凍指定錢包                                     |
+| `POST`        | `/admin/wallets/:id/deposit`     | 向指定錢包存款 (增加餘額)                        |
+| `POST`        | `/admin/wallets/:id/withdraw`    | 從指定錢包提款 (減少餘額)                        |
+| `GET`         | `/debug/pprof/*`                 | (可選) Go pprof 性能分析端點                     |
+
+### 遊戲服務 (gRPC)
+
+此服務用於需要後端驗證或處理的遊戲相關操作，例如登入。
+
+**服務名稱**: `v1.Game`
+
+| RPC 方法 (Method) | 請求 (Request)         | 回應 (Response)        | 描述 (Description) |
+|-------------------|------------------------|------------------------|--------------------|
+| `Login`           | `v1.LoginRequest`      | `v1.LoginResponse`     | 玩家帳號密碼登入   |
+
+### 遊戲客戶端通訊 (WebSocket)
+
+客戶端與遊戲伺服器之間的主要通訊方式。所有消息都封裝在 `v1.GameMessage` 中，通過 `MessageType` 枚舉來區分。
+
+#### 消息方向
+
+*   **C -> S**: 客戶端發送到伺服器
+*   **S -> C**: 伺服器發送到客戶端 (單播或廣播)
+
+#### 消息類型 (`v1.MessageType`)
+
+| 類型 (Type)                | 方向   | 數據結構 (Payload)             | 描述 (Description)                               |
+|----------------------------|--------|--------------------------------|--------------------------------------------------|
+| **客戶端請求**             |        |                                |                                                  |
+| `FIRE_BULLET`              | C -> S | `v1.FireBulletRequest`         | 玩家請求開火                                     |
+| `SWITCH_CANNON`            | C -> S | `v1.SwitchCannonRequest`       | 玩家請求切換砲台                                 |
+| `JOIN_ROOM`                | C -> S | `v1.JoinRoomRequest`           | 玩家請求加入房間                                 |
+| `LEAVE_ROOM`               | C -> S | `v1.LeaveRoomRequest`          | 玩家請求離開房間                                 |
+| `HEARTBEAT`                | C -> S | `v1.HeartbeatMessage`          | 客戶端發送心跳以保持連接                         |
+| `GET_ROOM_LIST`            | C -> S | `v1.GetRoomListRequest`        | 請求獲取當前可用的房間列表                       |
+| `GET_PLAYER_INFO`          | C -> S | `v1.GetPlayerInfoRequest`      | 請求獲取當前玩家的詳細信息                       |
+| **伺服器回應**             |        |                                |                                                  |
+| `FIRE_BULLET_RESPONSE`     | S -> C | `v1.FireBulletResponse`        | 對開火請求的回應 (成功、子彈 ID、花費)           |
+| `SWITCH_CANNON_RESPONSE`   | S -> C | `v1.SwitchCannonResponse`      | 對切換砲台請求的回應                             |
+| `JOIN_ROOM_RESPONSE`       | S -> C | `v1.JoinRoomResponse`          | 對加入房間請求的回應                             |
+| `LEAVE_ROOM_RESPONSE`      | S -> C | `v1.LeaveRoomResponse`         | 對離開房間請求的回應                             |
+| `HEARTBEAT_RESPONSE`       | S -> C | `v1.HeartbeatResponse`         | 對心跳請求的回應                                 |
+| `ROOM_LIST_RESPONSE`       | S -> C | `v1.RoomListResponse`          | 回應房間列表                                     |
+| `PLAYER_INFO_RESPONSE`     | S -> C | `v1.PlayerInfoResponse`        | 回應玩家詳細信息                                 |
+| **伺服器廣播事件**         |        |                                |                                                  |
+| `BULLET_FIRED`             | S -> C | `v1.BulletFiredEvent`          | 廣播房間內有玩家開火                             |
+| `CANNON_SWITCHED`          | S -> C | `v1.CannonSwitchedEvent`       | 廣播房間內有玩家切換砲台                         |
+| `FISH_SPAWNED`             | S -> C | `v1.FishSpawnedEvent`          | 廣播場景中生成了新的魚群                         |
+| `FISH_DIED`                | S -> C | `v1.FishDiedEvent`             | 廣播有魚被捕獲 (包含獎勵信息)                    |
+| `PLAYER_REWARD`            | S -> C | `v1.PlayerRewardEvent`         | 廣播玩家獲得獎勵 (可用於非捕魚獎勵)              |
+| `WELCOME`                  | S -> C | `v1.WelcomeMessage`            | 玩家成功連接後，伺服器發送的第一條歡迎消息       |
+| `PLAYER_JOINED`            | S -> C | `v1.PlayerJoinedMessage`       | 廣播有新玩家加入房間                             |
+| `PLAYER_LEFT`              | S -> C | `v1.PlayerLeftMessage`         | 廣播有玩家離開房間                               |
+| **錯誤**                   |        |                                |                                                  |
+| `ERROR`                    | S -> C | `v1.ErrorMessage`              | 當發生錯誤時，伺服器向客戶端發送錯誤信息         |
