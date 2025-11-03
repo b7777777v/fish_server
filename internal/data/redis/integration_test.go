@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -20,7 +21,7 @@ func TestRedisConfigIntegration(t *testing.T) {
 			DB:       0,
 		}
 		
-		log := logger.New(nil, "info", "console")
+		log := logger.New(os.Stdout, "info", "console")
 		
 		// 測試直接從 Redis 配置創建客戶端
 		client, err := NewClientFromRedis(redisConfig, log)
@@ -65,7 +66,7 @@ func TestRedisConfigIntegration(t *testing.T) {
 			DB:       2, // 使用數據庫 2
 		}
 		
-		log := logger.New(nil, "info", "console")
+		log := logger.New(os.Stdout, "info", "console")
 		
 		client1, err1 := NewClientFromRedis(redisConfig1, log)
 		client2, err2 := NewClientFromRedis(redisConfig2, log)
@@ -116,7 +117,7 @@ func TestRedisConfigIntegration(t *testing.T) {
 			DB:       0,
 		}
 		
-		log := logger.New(nil, "info", "console")
+		log := logger.New(os.Stdout, "info", "console")
 		
 		client, err := NewClientFromRedis(redisConfig, log)
 		if err != nil {

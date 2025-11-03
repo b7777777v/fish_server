@@ -32,6 +32,13 @@ func (m *MockGameRepo) SaveGameEvent(ctx context.Context, event *GameEvent) erro
 func (m *MockGameRepo) GetGameEvents(ctx context.Context, roomID string, limit int) ([]*GameEvent, error) {
 	return []*GameEvent{}, nil
 }
+func (m *MockGameRepo) GetAllFishTypes(ctx context.Context) ([]*FishType, error) {
+	// Return a default fish type for tests that might need it
+	return []*FishType{{ID: 1, Name: "Test Fish"}}, nil
+}
+func (m *MockGameRepo) SaveFishTypeCache(ctx context.Context, ft *FishType) error {
+	return nil
+}
 
 type MockPlayerRepo struct{}
 
