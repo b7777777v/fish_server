@@ -12,10 +12,9 @@ import (
 
 func main() {
 
-	configPath := "./configs/config.yaml"
-	if len(os.Args) > 1 {
-		configPath = os.Args[1]
-	}
+	// 傳入空字串，讓 NewConfig 根據環境變數自動選擇設定檔
+	// 例如，未設置時預設載入 config.dev.yaml
+	configPath := ""
 	// 在 app 啟動前，我們需要一個臨時的 logger
 	log := logger.New(os.Stdout, "info", "console")
 	// 加載配置

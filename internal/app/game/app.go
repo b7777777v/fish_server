@@ -50,17 +50,11 @@ func NewGameApp(
 	gameUsecase *game.GameUsecase,
 	config *conf.Config, // Changed: Accept full config
 	logger logger.Logger,
+	hub *Hub,
+	wsHandler *WebSocketHandler,
+	messageHandler *MessageHandler,
 ) *GameApp {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	// 創建 Hub
-	hub := NewHub(gameUsecase, logger)
-
-	// 創建 WebSocket 處理器
-	wsHandler := NewWebSocketHandler(hub, logger)
-
-	// 創建消息處理器
-	messageHandler := NewMessageHandler(gameUsecase, hub, logger)
 
 	app := &GameApp{
 		hub:            hub,

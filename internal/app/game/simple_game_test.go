@@ -8,7 +8,10 @@ import (
 	"time"
 
 	"github.com/b7777777v/fish_server/internal/biz/game"
+	"github.com/b7777777v/fish_server/internal/biz/player"
+	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
+	"github.com/b7777777v/fish_server/internal/pkg/token"
 	pb "github.com/b7777777v/fish_server/pkg/pb/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -92,6 +95,34 @@ func (r *MockInventoryRepo) GetAllInventories(ctx context.Context) (map[string]*
 	return inventoriesCopy, nil
 }
 
+type MockBizPlayerRepo struct {
+	mu        sync.Mutex
+	players   map[string]*player.Player
+	idCounter uint
+}
+
+func NewMockBizPlayerRepo() *MockBizPlayerRepo {
+	return &MockBizPlayerRepo{players: make(map[string]*player.Player)}
+}
+
+func (m *MockBizPlayerRepo) FindByUsername(ctx context.Context, username string) (*player.Player, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if p, ok := m.players[username]; ok {
+		return p, nil
+	}
+	return nil, nil // Return nil, nil for not found
+}
+
+func (m *MockBizPlayerRepo) Create(ctx context.Context, p *player.Player) (*player.Player, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.idCounter++
+	p.ID = m.idCounter
+	m.players[p.Username] = p
+	return p, nil
+}
+
 // ========================================
 // Test Main Function
 // ========================================
@@ -102,6 +133,12 @@ func TestSimpleGameComponents(t *testing.T) {
 	gameRepo := &MockGameRepo{}
 	playerRepo := &MockPlayerRepo{}
 	inventoryRepo := NewMockInventoryRepo()
+
+	// Setup for biz/player
+	bizPlayerRepo := NewMockBizPlayerRepo()
+	jwtConfig := &conf.JWT{Secret: "test-secret-for-test", Expire: 3600}
+	tokenHelper := token.NewTokenHelper(jwtConfig)
+	playerUsecase := player.NewPlayerUsecase(bizPlayerRepo, tokenHelper, log)
 
 	spawner := game.NewFishSpawner(log)
 	mathModel := game.NewMathModel(log)
@@ -114,7 +151,7 @@ func TestSimpleGameComponents(t *testing.T) {
 
 	// 2. Run tests for the app/game layer components
 	t.Run("Test Hub", func(t *testing.T) {
-		hub := NewHub(gameUsecase, log)
+		hub := NewHub(gameUsecase, playerUsecase, log)
 		go hub.Run()
 		defer hub.Stop()
 
@@ -138,7 +175,7 @@ func TestSimpleGameComponents(t *testing.T) {
 	})
 
 	t.Run("Test MessageHandler", func(t *testing.T) {
-		hub := NewHub(gameUsecase, log)
+		hub := NewHub(gameUsecase, playerUsecase, log)
 		go hub.Run()
 		defer hub.Stop()
 
@@ -177,7 +214,7 @@ func TestSimpleGameComponents(t *testing.T) {
 		_, err := gameUsecase.CreateRoom(context.Background(), "test_room_001", 4)
 		assert.NoError(t, err)
 
-		hub := NewHub(gameUsecase, log)
+		hub := NewHub(gameUsecase, playerUsecase, log)
 		go hub.Run()
 		defer hub.Stop()
 

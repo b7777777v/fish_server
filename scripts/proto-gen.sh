@@ -38,17 +38,33 @@ if [ -z "$PROTO_FILES" ]; then
     exit 0
 fi
 
-echo " Generating Go code from .proto files..."
+# --- JavaScript Generation ---
+JS_OUT_DIR="${PROJECT_ROOT}/js/generated"
+
+# 檢查 protoc-gen-js 是否安裝
+if ! command -v protoc-gen-js &> /dev/null; then
+    echo " protoc-gen-js is not installed. This is required for generating JavaScript client code."
+    echo "   Please install it globally via npm:"
+    echo "   npm install -g protoc-gen-js"
+    exit 1
+fi
+
+echo " Creating JavaScript output directory: ${JS_OUT_DIR}"
+mkdir -p "${JS_OUT_DIR}"
+
+echo " Generating Go and JavaScript code from .proto files..."
 
 # 執行 protoc 命令
-# --proto_path (-I): 指定 import 的搜索路徑。我們設為 api/，這樣在 proto 文件中可以 import "proto/v1/common.proto"
-# --go_out: 指定 Go 原始碼的輸出目錄。設為專案根目錄，protoc 會根據 go_package 創建路徑。
-# --go-grpc_out: 指定 gRPC 服務代碼的輸出目錄。
+# --js_out: 產生適用於瀏覽器的 JavaScript 檔案
+#    import_style=browser: 讓產生的 JS 檔案可以在瀏覽器中直接透過 <script> 標籤載入
+#    binary: 包含二進位序列化/反序列化的方法
 protoc \
     --proto_path="${PROTO_SRC_DIR}" \
     --go_out="${GO_OUT_DIR}" \
     --go-grpc_out="${GO_OUT_DIR}" \
+    --js_out=import_style=browser,binary:"${JS_OUT_DIR}" \
     ${PROTO_FILES}
 
 echo " Protobuf code generated successfully."
-echo "   Output directory: ${PROJECT_ROOT}/pkg/pb/v1"
+echo "   Go output directory: ${PROJECT_ROOT}/pkg/pb/v1"
+echo "   JavaScript output directory: ${JS_OUT_DIR}"

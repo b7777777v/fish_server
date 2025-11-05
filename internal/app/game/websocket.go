@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	pb "github.com/b7777777v/fish_server/pkg/pb/v1"
+	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -36,24 +36,24 @@ var upgrader = websocket.Upgrader{
 type Client struct {
 	// WebSocket 連接
 	conn *websocket.Conn
-	
+
 	// 客戶端信息
 	ID       string `json:"id"`
 	PlayerID int64  `json:"player_id"`
 	RoomID   string `json:"room_id"`
-	
+
 	// 消息通道
 	send chan []byte
-	
+
 	// Hub 引用
 	hub *Hub
-	
+
 	// 日誌記錄器
 	logger logger.Logger
-	
+
 	// 連接時間
 	connectedAt time.Time
-	
+
 	// 最後活動時間
 	lastActivity time.Time
 }
@@ -118,27 +118,36 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		h.logger.Errorf("WebSocket upgrade failed: %v", err)
 		return
 	}
-	
+
 	// 創建客戶端
 	client := NewClient(conn, h.hub, h.logger)
-	
+
 	// 從查詢參數獲取玩家信息
-	playerID := r.URL.Query().Get("player_id")
-	roomID := r.URL.Query().Get("room_id")
-	
-	if playerID != "" {
-		// [Security] This is a simplified implementation for development. In a production environment,
-		// proper authentication (e.g., JWT token validation) should be implemented here to securely
-		// extract the player's identity from the request.
-		client.ID = playerID
-		client.RoomID = roomID
+	playerUsername := r.URL.Query().Get("player_id")
+	if playerUsername == "" {
+		h.logger.Error("WebSocket connection rejected: player_id is required")
+		conn.Close()
+		return
 	}
-	
+
+	// 根據 player_id (username) 獲取或創建玩家
+	player, err := h.hub.playerUsecase.GetOrCreateByUsername(r.Context(), playerUsername)
+	if err != nil {
+		h.logger.Errorf("Failed to get or create player %s: %v", playerUsername, err)
+		conn.Close()
+		return
+	}
+
+	// 設置客戶端信息
+	client.ID = player.Username      // string ID
+	client.PlayerID = int64(player.ID) // numeric ID
+	client.RoomID = r.URL.Query().Get("room_id") // 可選的 room_id
+
 	// 註冊客戶端到 Hub
 	h.hub.register <- client
-	
+
 	h.logger.Infof("New WebSocket connection: player=%s, room=%s", client.ID, client.RoomID)
-	
+
 	// 啟動客戶端的讀寫 goroutines
 	go client.writePump()
 	go client.readPump()
@@ -150,7 +159,7 @@ func (c *Client) readPump() {
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()
-	
+
 	// 設置讀取限制
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -159,7 +168,7 @@ func (c *Client) readPump() {
 		c.lastActivity = time.Now()
 		return nil
 	})
-	
+
 	for {
 		// 讀取消息
 		messageType, message, err := c.conn.ReadMessage()
@@ -169,9 +178,9 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		
+
 		c.lastActivity = time.Now()
-		
+
 		// 處理不同類型的消息
 		switch messageType {
 		case websocket.BinaryMessage:
@@ -189,7 +198,7 @@ func (c *Client) writePump() {
 		ticker.Stop()
 		c.conn.Close()
 	}()
-	
+
 	for {
 		select {
 		case message, ok := <-c.send:
@@ -199,24 +208,24 @@ func (c *Client) writePump() {
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			
+
 			w, err := c.conn.NextWriter(websocket.BinaryMessage)
 			if err != nil {
 				return
 			}
 			w.Write(message)
-			
+
 			// 添加排隊的消息到當前寫入器
 			n := len(c.send)
 			for i := 0; i < n; i++ {
 				w.Write([]byte{'\n'})
 				w.Write(<-c.send)
 			}
-			
+
 			if err := w.Close(); err != nil {
 				return
 			}
-			
+
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -226,7 +235,6 @@ func (c *Client) writePump() {
 	}
 }
 
-
 // handleBinaryMessage 處理二進制消息（Protobuf 格式）
 func (c *Client) handleBinaryMessage(message []byte) {
 	// 解析 Protobuf 消息
@@ -235,7 +243,7 @@ func (c *Client) handleBinaryMessage(message []byte) {
 		c.logger.Errorf("Failed to parse protobuf message: %v", err)
 		return
 	}
-	
+
 	// 根據消息類型處理
 	switch gameMsg.Type {
 	case pb.MessageType_FIRE_BULLET:
@@ -246,11 +254,12 @@ func (c *Client) handleBinaryMessage(message []byte) {
 		c.handleJoinRoomPB(&gameMsg)
 	case pb.MessageType_LEAVE_ROOM:
 		c.handleLeaveRoomPB(&gameMsg)
+	case pb.MessageType_GET_PLAYER_INFO:
+		c.handleGetPlayerInfo(&gameMsg)
 	default:
 		c.logger.Warnf("Unknown protobuf message type: %v", gameMsg.Type)
 	}
 }
-
 
 // handleFireBullet 處理開火請求
 func (c *Client) handleFireBullet(msg *pb.GameMessage) {
@@ -258,7 +267,7 @@ func (c *Client) handleFireBullet(msg *pb.GameMessage) {
 		c.sendErrorPB("Not in any room")
 		return
 	}
-	
+
 	// 轉發到房間處理
 	c.hub.gameAction <- &GameActionMessage{
 		Client:    c,
@@ -275,7 +284,7 @@ func (c *Client) handleSwitchCannon(msg *pb.GameMessage) {
 		c.sendErrorPB("Not in any room")
 		return
 	}
-	
+
 	// 轉發到房間處理
 	c.hub.gameAction <- &GameActionMessage{
 		Client:    c,
@@ -293,13 +302,13 @@ func (c *Client) handleJoinRoomPB(msg *pb.GameMessage) {
 		c.sendErrorPB("Invalid JoinRoom message")
 		return
 	}
-	
+
 	roomID := joinRoomMsg.GetRoomId()
 	if roomID == "" {
 		c.sendErrorPB("Room ID cannot be empty")
 		return
 	}
-	
+
 	c.hub.joinRoom <- &JoinRoomMessage{
 		Client: c,
 		RoomID: roomID,
@@ -312,13 +321,38 @@ func (c *Client) handleLeaveRoomPB(msg *pb.GameMessage) {
 		c.sendErrorPB("Not in any room")
 		return
 	}
-	
+
 	c.hub.leaveRoom <- &LeaveRoomMessage{
 		Client: c,
 		RoomID: c.RoomID,
 	}
 }
 
+// handleGetPlayerInfo 處理獲取玩家資訊請求
+func (c *Client) handleGetPlayerInfo(msg *pb.GameMessage) {
+	c.logger.Infof("Handling GetPlayerInfo request for player %s", c.ID)
+
+	// TODO: 實際應用中應從 usecase/service 獲取真實玩家數據
+	// 這裡我們返回一個模擬的響應
+	playerInfo := &pb.PlayerInfoResponse{
+		PlayerId:  c.PlayerID, // 假設 c.PlayerID 已經在連接時被正確設置
+		Nickname:  "MockPlayer",
+		Balance:   10000,
+		Level:     10,
+		Exp:       500,
+		RoomId:    c.RoomID,
+		Timestamp: time.Now().Unix(),
+	}
+
+	responseMsg := &pb.GameMessage{
+		Type: pb.MessageType_PLAYER_INFO_RESPONSE,
+		Data: &pb.GameMessage_PlayerInfoResponse{
+			PlayerInfoResponse: playerInfo,
+		},
+	}
+
+	c.sendProtobuf(responseMsg)
+}
 
 func (c *Client) sendErrorPB(message string) {
 	errorMsg := &pb.GameMessage{

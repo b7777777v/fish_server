@@ -13,5 +13,5 @@ type Player struct {
 // PlayerRepo 定義了玩家數據倉庫的接口
 type PlayerRepo interface {
 	FindByUsername(ctx context.Context, username string) (*Player, error)
-	// 後續可以擴展其他方法，例如 Create, Update 等
+	Create(ctx context.Context, player *Player) (*Player, error)
 }

@@ -21,12 +21,7 @@ debug:
 data:
   database:
     driver: "postgres"
-    host: "localhost"
-    port: 5432
-    user: "user"
-    password: "password"
-    dbname: "fish_db"
-    sslmode: "disable"
+    source: "postgresql://user:password@localhost:5432/fish_db?sslmode=disable"
     max_open_conns: 25
     max_idle_conns: 10
     conn_max_lifetime: "5m"

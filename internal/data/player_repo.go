@@ -208,3 +208,27 @@ func (r *playerRepo) FindByUsername(ctx context.Context, username string) (*play
 
 	return p, nil // 找不到用戶時 p 為 nil
 }
+
+// Create 創建一個新玩家
+func (r *playerRepo) Create(ctx context.Context, p *player.Player) (*player.Player, error) {
+	// 在真實應用中，可能需要更複雜的預設值邏輯
+	// 這裡我們只插入必要的欄位，並讓資料庫使用預設值
+	query := `INSERT INTO users (username, nickname, password_hash, status) VALUES ($1, $2, $3, $4) RETURNING id`
+
+	// 為新用戶設置一個空的密碼雜湊和預設狀態
+	// 密碼為空，因此無法透過一般登入流程登入
+	emptyPasswordHash := ""
+	defaultStatus := 1 // 假設 1 為活躍狀態
+
+	var newID uint
+	err := r.data.db.QueryRow(ctx, query, p.Username, p.Username, emptyPasswordHash, defaultStatus).Scan(&newID)
+	if err != nil {
+		r.logger.Errorf("failed to create player: %v", err)
+		return nil, err
+	}
+
+	p.ID = newID
+	r.logger.Infof("Created new player %s with ID %d", p.Username, p.ID)
+
+	return p, nil
+}

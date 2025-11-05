@@ -63,3 +63,35 @@ func (uc *PlayerUsecase) Login(ctx context.Context, username, password string) (
 	uc.logger.Infof("player %s (ID: %d) logged in successfully", player.Username, player.ID)
 	return token, nil
 }
+
+// GetOrCreateByUsername 根據用戶名查找玩家，如果不存在則創建一個
+func (uc *PlayerUsecase) GetOrCreateByUsername(ctx context.Context, username string) (*Player, error) {
+	// 1. 嘗試查找用戶
+	player, err := uc.repo.FindByUsername(ctx, username)
+	if err != nil {
+		// 如果是資料庫本身錯誤，直接返回
+		uc.logger.Errorf("failed to find player by username %s: %v", username, err)
+		return nil, err
+	}
+
+	// 2. 如果用戶已存在，直接返回
+	if player != nil {
+		uc.logger.Debugf("Found existing player %s with ID %d", username, player.ID)
+		return player, nil
+	}
+
+	// 3. 如果用戶不存在，創建新用戶
+	uc.logger.Infof("Player %s not found, creating a new one.", username)
+	newPlayer := &Player{
+		Username: username,
+		// PasswordHash is left empty as this user is created on-the-fly
+	}
+
+	createdPlayer, err := uc.repo.Create(ctx, newPlayer)
+	if err != nil {
+		uc.logger.Errorf("failed to create new player %s: %v", username, err)
+		return nil, err
+	}
+
+	return createdPlayer, nil
+}

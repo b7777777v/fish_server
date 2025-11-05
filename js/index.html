@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>遊戲客戶端範例 (WebSocket)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        #controls,
+        #actions {
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 8px 12px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        #log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 400px;
+            overflow-y: scroll;
+            background-color: #f9f9f9;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding-bottom: 5px;
+            border-bottom: 1px dotted #eee;
+        }
+
+        .log-entry.sent {
+            color: blue;
+        }
+
+        .log-entry.received {
+            color: green;
+        }
+
+        .log-entry.error {
+            color: red;
+        }
+
+        .log-entry.system {
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>遊戲客戶端範例</h1>
+
+    <div id="controls">
+        <div>
+            <label for="playerIdInput">玩家ID: </label>
+            <input type="text" id="playerIdInput" value="player1">
+        </div>
+        <button id="connectBtn">連接到伺服器</button>
+        <button id="disconnectBtn" disabled>斷開連接</button>
+        <p>連接狀態: <span id="status">未連接</span></p>
+    </div>
+
+    <div id="actions" style="display: none;">
+        <h3>客戶端請求 (C -> S)</h3>
+        <button id="getRoomListBtn">獲取房間列表</button>
+        <button id="joinRoomBtn">加入房間 (ID: 101)</button>
+        <button id="getPlayerInfoBtn">獲取玩家資訊</button>
+        <button id="fireBulletBtn">開火</button>
+        <button id="switchCannonBtn">切換砲台 (ID: 2)</button>
+        <button id="leaveRoomBtn">離開房間</button>
+    </div>
+
+    <h3>通訊日誌</h3>
+    <div id="log"></div>
+
+        <script>var global = window; // Polyfill for 'global' object</script>
+    <script src="https://unpkg.com/google-protobuf@3.21.2/google-protobuf.js"></script>
+    <script src="generated/proto/v1/common_pb.js"></script>
+    <script src="generated/proto/v1/game_pb.js"></script>
+    <script src="game-client.js"></script>
+</body>
+
+</html>

@@ -9,9 +9,11 @@ package main
 import (
 	"github.com/b7777777v/fish_server/internal/app/game"
 	game2 "github.com/b7777777v/fish_server/internal/biz/game"
+	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/data"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
+	"github.com/b7777777v/fish_server/internal/pkg/token"
 )
 
 // Injectors from wire.go:
@@ -42,7 +44,14 @@ func initApp(config *conf.Config) (*game.GameApp, func(), error) {
 	rtpController := game2.NewRTPController(inventoryManager, v)
 	roomManager := game2.NewRoomManager(v, fishSpawner, mathModel, inventoryManager, rtpController)
 	gameUsecase := game2.NewGameUsecase(gameRepo, playerRepo, roomManager, fishSpawner, mathModel, inventoryManager, rtpController, v)
-	gameApp := game.NewGameApp(gameUsecase, config, v)
+	playerPlayerRepo := data.NewPlayerRepo(dataData, v)
+	jwt := config.JWT
+	tokenHelper := token.NewTokenHelper(jwt)
+	playerUsecase := player.NewPlayerUsecase(playerPlayerRepo, tokenHelper, v)
+	hub := game.NewHub(gameUsecase, playerUsecase, v)
+	webSocketHandler := game.NewWebSocketHandler(hub, v)
+	messageHandler := game.NewMessageHandler(gameUsecase, hub, v)
+	gameApp := game.NewGameApp(gameUsecase, config, v, hub, webSocketHandler, messageHandler)
 	return gameApp, func() {
 		cleanup2()
 		cleanup()

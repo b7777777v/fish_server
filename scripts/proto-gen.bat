@@ -46,15 +46,40 @@ if not defined PROTO_FILES (
 echo Generating for files:%PROTO_FILES%
 echo.
 
+REM --- JavaScript Generation ---
+set "JS_OUT_DIR=%PROJECT_ROOT%\js\generated"
+
+REM 檢查 protoc-gen-js.cmd 是否存在
+where protoc-gen-js.cmd >nul 2>nul
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: protoc-gen-js.cmd is not installed or not in your PATH.
+    echo This is required for generating JavaScript client code.
+    echo   Please install it globally via npm:
+    echo   npm install -g protoc-gen-js
+    echo.
+    exit /b 1
+)
+
+echo Creating JavaScript output directory: %JS_OUT_DIR%
+if not exist "%JS_OUT_DIR%" mkdir "%JS_OUT_DIR%"
+
+echo.
+echo Generating Go and JavaScript code from .proto files...
+echo.
+
 REM 執行 protoc 命令
 protoc ^
     --proto_path=%PROTO_SRC_DIR% ^
     --go_out=%GO_OUT_DIR% ^
     --go-grpc_out=%GO_OUT_DIR% ^
+    --js_out=import_style=browser,binary:"%JS_OUT_DIR%" ^
     %PROTO_FILES%
 
 echo.
 echo Protobuf code generated successfully.
+echo   Go output directory: %GO_OUT_DIR%\pkg\pb\v1
+echo   JavaScript output directory: %JS_OUT_DIR%
 echo.
 
 endlocal
