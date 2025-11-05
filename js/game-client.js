@@ -160,8 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 log(`玩家 ${bulletFired.getPlayerId()} 開火了，子彈ID: ${bulletFired.getBulletId()}`);
                 break;
             case MessageType.FISH_SPAWNED:
-                const fishSpawned = gameMessage.getFishSpawned();
-                log(`魚 ${fishSpawned.getFishId()} (類型: ${fishSpawned.getFishType()}) 出現了！`);
+                const fishSpawnedOld = gameMessage.getFishSpawned();
+                log(`魚 ${fishSpawnedOld.getFishId()} (類型: ${fishSpawnedOld.getFishType()}) 出現了！`);
                 break;
             case MessageType.FISH_DIED:
                 const fishDied = gameMessage.getFishDied();
@@ -194,6 +194,14 @@ document.addEventListener('DOMContentLoaded', () => {
             case MessageType.GET_PLAYER_INFO_RESPONSE:
                 const playerInfoResp = gameMessage.getPlayerInfoResponse();
                 log(`收到玩家資訊: ${JSON.stringify(playerInfoResp.toObject())}`);
+                break;
+            case MessageType.ROOM_STATE_UPDATE:
+                const roomStateUpdate = gameMessage.getRoomStateUpdate();
+                log(`🎮 房間狀態更新: ${roomStateUpdate.getFishesList().length} 條魚, ${roomStateUpdate.getBulletsList().length} 發子彈`);
+                break;
+            case MessageType.FISH_SPAWNED:
+                const fishSpawnedEvent = gameMessage.getFishSpawned();
+                log(`🐟 新魚出現: ID=${fishSpawnedEvent.getFishId()}, 類型=${fishSpawnedEvent.getFishType()}`);
                 break;
             // 在這裡添加更多 case 來處理其他消息類型
             default:

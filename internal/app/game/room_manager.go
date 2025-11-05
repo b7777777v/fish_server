@@ -3,11 +3,13 @@ package game
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	pb "github.com/b7777777v/fish_server/pkg/pb/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 // ========================================
@@ -39,6 +41,12 @@ type RoomManager struct {
 
 	// 遊戲狀態
 	gameState *GameState
+	
+	// 廣播狀態追蹤
+	lastBroadcast time.Time
+	lastFishCount int
+	lastBulletCount int
+	lastFishSpawn time.Time
 
 	// 日誌記錄器
 	logger logger.Logger
@@ -147,30 +155,49 @@ func NewGameState(roomID string) *GameState {
 
 // Run 啟動房間管理器主循環
 func (rm *RoomManager) Run() {
-	rm.logger.Infof("Room manager started for room: %s", rm.roomID)
+	rm.logger.Infof("Room manager started for room: %s, game state: %s", rm.roomID, rm.gameState.Status)
+
+	// 添加 recover 機制防止房間管理器崩潰
+	defer func() {
+		if r := recover(); r != nil {
+			rm.logger.Errorf("Room manager crashed with panic: %v", r)
+			// 嘗試重新啟動房間管理器
+			go rm.Run()
+		}
+	}()
 
 	for {
-		select {
-		case client := <-rm.addClient:
-			rm.handleAddClient(client)
+		func() {
+			// 為每個操作添加 recover
+			defer func() {
+				if r := recover(); r != nil {
+					rm.logger.Errorf("Recovered from panic in room manager operation: %v", r)
+				}
+			}()
 
-		case client := <-rm.removeClient:
-			rm.handleRemoveClient(client)
+			select {
+			case client := <-rm.addClient:
+				rm.handleAddClient(client)
 
-		case action := <-rm.gameAction:
-			rm.handleGameAction(action)
+			case client := <-rm.removeClient:
+				rm.handleRemoveClient(client)
 
-		case <-rm.gameLoopTicker.C:
-			rm.gameLoop()
+			case action := <-rm.gameAction:
+				rm.handleGameAction(action)
 
-		case <-rm.gameLoopStop:
-			rm.logger.Infof("Room manager stopping for room: %s", rm.roomID)
-			return
+			case <-rm.gameLoopTicker.C:
+				rm.logger.Debugf("Game loop ticker fired for room: %s", rm.roomID)
+				rm.gameLoop()
 
-		case <-rm.ctx.Done():
-			rm.logger.Infof("Room manager context cancelled for room: %s", rm.roomID)
-			return
-		}
+			case <-rm.gameLoopStop:
+				rm.logger.Infof("Room manager stopping for room: %s", rm.roomID)
+				return
+
+			case <-rm.ctx.Done():
+				rm.logger.Infof("Room manager context cancelled for room: %s", rm.roomID)
+				return
+			}
+		}()
 	}
 }
 
@@ -250,6 +277,25 @@ func (rm *RoomManager) handleRemoveClient(client *Client) {
 
 // handleGameAction 處理遊戲操作
 func (rm *RoomManager) handleGameAction(action *GameActionMessage) {
+	defer func() {
+		if r := recover(); r != nil {
+			rm.logger.Errorf("Recovered from panic in handleGameAction: %v", r)
+			if action.Client != nil {
+				action.Client.sendError("Error processing game action")
+			}
+		}
+	}()
+
+	if action == nil {
+		rm.logger.Warnf("Received nil game action")
+		return
+	}
+
+	if action.Client == nil {
+		rm.logger.Warnf("Received game action with nil client")
+		return
+	}
+
 	switch action.Action {
 	case "fire_bullet":
 		rm.handleFireBullet(action)
@@ -257,6 +303,7 @@ func (rm *RoomManager) handleGameAction(action *GameActionMessage) {
 		rm.handleSwitchCannon(action)
 	default:
 		rm.logger.Warnf("Unknown game action: %s", action.Action)
+		action.Client.sendError(fmt.Sprintf("Unknown action: %s", action.Action))
 	}
 }
 
@@ -363,8 +410,14 @@ func (rm *RoomManager) handleSwitchCannon(action *GameActionMessage) {
 // gameLoop 遊戲主循環
 func (rm *RoomManager) gameLoop() {
 	if rm.gameState.Status != "playing" {
+		// 記錄非運行狀態
+		rm.logger.Warnf("Game loop called but status is '%s' in room %s", rm.gameState.Status, rm.roomID)
 		return
 	}
+	
+	// 記錄遊戲循環執行（移除時間條件以確保能看到）
+	rm.logger.Infof("Game loop tick: %d fishes, %d bullets, %d players", 
+		len(rm.gameState.Fishes), len(rm.gameState.Bullets), len(rm.gameState.Players))
 
 	now := time.Now()
 	deltaTime := now.Sub(rm.gameState.LastUpdate).Seconds()
@@ -387,9 +440,12 @@ func (rm *RoomManager) gameLoop() {
 	// 更新時間戳
 	rm.gameState.LastUpdate = now
 
-	// 每秒廣播一次遊戲狀態
-	if int(now.Unix())%1 == 0 {
-		rm.broadcastGameState()
+	// 定期廣播遊戲狀態或當狀態發生變化時廣播
+	if now.Sub(rm.lastBroadcast) >= time.Second || len(rm.gameState.Fishes) != rm.lastFishCount || len(rm.gameState.Bullets) != rm.lastBulletCount {
+		rm.broadcastGameStateProtobuf()
+		rm.lastBroadcast = now
+		rm.lastFishCount = len(rm.gameState.Fishes)
+		rm.lastBulletCount = len(rm.gameState.Bullets)
 	}
 }
 
@@ -409,27 +465,16 @@ func (rm *RoomManager) updateBullets(deltaTime float64) {
 
 // updateFishes 更新魚類位置
 func (rm *RoomManager) updateFishes(deltaTime float64) {
-	// 從業務邏輯層獲取房間狀態
-	roomState, err := rm.gameUsecase.GetRoomState(rm.ctx, rm.roomID)
-	if err != nil {
-		return
-	}
-
-	// 同步魚類狀態
-	for _, fish := range roomState.Fishes {
-		fishInfo := &FishInfo{
-			ID:        fish.ID,
-			Type:      fish.Type.ID,
-			Position:  GamePosition{X: fish.Position.X, Y: fish.Position.Y},
-			Direction: fish.Direction,
-			Speed:     fish.Speed,
-			Health:    fish.Health,
-			MaxHealth: fish.MaxHealth,
-			Value:     fish.Value,
-			Status:    string(fish.Status),
-			SpawnTime: fish.SpawnTime,
+	// 更新現有魚類的位置
+	for _, fish := range rm.gameState.Fishes {
+		// 簡單的橫向移動
+		fish.Position.X -= fish.Speed * deltaTime
+		
+		// 如果魚游出屏幕左側，則移除
+		if fish.Position.X < -100 {
+			delete(rm.gameState.Fishes, fish.ID)
+			rm.logger.Debugf("Fish %d swam off screen and was removed", fish.ID)
 		}
-		rm.gameState.Fishes[fish.ID] = fishInfo
 	}
 }
 
@@ -513,9 +558,30 @@ func (rm *RoomManager) spawnFishes() {
 	}
 
 	// 每5秒嘗試生成一條魚
-	if time.Now().Unix()%5 == 0 {
-		// 這裡應該調用業務邏輯層生成魚類
-		// 暫時跳過實現
+	now := time.Now()
+	if now.Sub(rm.lastFishSpawn) >= 5*time.Second {
+		rm.lastFishSpawn = now
+		
+		// 創建模擬魚類
+		fishID := now.UnixNano()
+		fishInfo := &FishInfo{
+			ID:        fishID,
+			Type:      int32(1 + (fishID % 5)), // 魚類型 1-5
+			Position:  GamePosition{X: 1200, Y: float64(100 + (fishID % 500))}, // 從右側進入
+			Direction: 3.14, // 向左游
+			Speed:     float64(50 + (fishID % 100)), // 速度 50-150
+			Health:    int32(10 + (fishID % 90)), // 血量 10-100
+			MaxHealth: int32(10 + (fishID % 90)),
+			Value:     int64(100 + (fishID % 900)), // 價值 100-1000
+			Status:    "alive",
+			SpawnTime: now,
+		}
+		
+		rm.gameState.Fishes[fishID] = fishInfo
+		rm.logger.Infof("Spawned fish %d in room %s, total fishes: %d", fishID, rm.roomID, len(rm.gameState.Fishes))
+		
+		// 廣播魚類生成事件
+		rm.broadcastFishSpawned(fishInfo)
 	}
 }
 
@@ -533,15 +599,20 @@ func (rm *RoomManager) cleanupExpiredObjects() {
 
 // startGame 開始遊戲
 func (rm *RoomManager) startGame() {
+	rm.logger.Infof("Starting game in room: %s", rm.roomID)
 	rm.gameState.Status = "playing"
 	rm.gameState.GameStartTime = time.Now()
+	rm.logger.Infof("Game state changed to 'playing' for room: %s", rm.roomID)
 
-	// 創建業務邏輯層的房間
-	_, err := rm.gameUsecase.CreateRoom(rm.ctx, game.RoomTypeNovice, 4)
-	if err != nil {
-		rm.logger.Errorf("Failed to create game room: %v", err)
-		return
-	}
+	// 非阻塞地創建業務邏輯層的房間
+	go func() {
+		_, err := rm.gameUsecase.CreateRoom(rm.ctx, game.RoomTypeNovice, 4)
+		if err != nil {
+			rm.logger.Errorf("Failed to create game room: %v", err)
+		} else {
+			rm.logger.Infof("Successfully created business logic room: %s", rm.roomID)
+		}
+	}()
 
 	// 廣播遊戲開始事件
 	startEvent := map[string]interface{}{
@@ -600,4 +671,97 @@ func (rm *RoomManager) broadcastToRoom(message interface{}, exclude *Client) {
 	}
 
 	rm.hub.BroadcastToRoom(rm.roomID, data, exclude)
+}
+
+// broadcastGameStateProtobuf 使用 Protobuf 格式廣播遊戲狀態
+func (rm *RoomManager) broadcastGameStateProtobuf() {
+	// 轉換魚類信息到 Protobuf 格式
+	var fishInfos []*pb.FishInfo
+	for _, fish := range rm.gameState.Fishes {
+		fishInfos = append(fishInfos, &pb.FishInfo{
+			FishId:    fish.ID,
+			FishType:  fish.Type,
+			Position:  &pb.Position{X: fish.Position.X, Y: fish.Position.Y},
+			Direction: fish.Direction,
+			Speed:     fish.Speed,
+			Health:    fish.Health,
+			MaxHealth: fish.MaxHealth,
+			Value:     fish.Value,
+			Status:    fish.Status,
+			SpawnTime: fish.SpawnTime.Unix(),
+		})
+	}
+
+	// 轉換子彈信息到 Protobuf 格式
+	var bulletInfos []*pb.BulletInfo
+	for _, bullet := range rm.gameState.Bullets {
+		// 從玩家 ID 字符串獲取數字 ID
+		var playerID int64
+		if playerInfo, exists := rm.gameState.Players[bullet.PlayerID]; exists {
+			playerID = playerInfo.PlayerID
+		}
+		
+		bulletInfos = append(bulletInfos, &pb.BulletInfo{
+			BulletId:  bullet.ID,
+			PlayerId:  playerID,
+			Position:  &pb.Position{X: bullet.Position.X, Y: bullet.Position.Y},
+			Direction: bullet.Direction,
+			Speed:     bullet.Speed,
+			Power:     bullet.Power,
+			CreatedAt: bullet.CreatedAt.Unix(),
+		})
+	}
+
+	// 創建房間狀態更新消息
+	roomStateUpdate := &pb.RoomStateUpdate{
+		RoomId:       rm.roomID,
+		Fishes:       fishInfos,
+		Bullets:      bulletInfos,
+		PlayerCount:  int32(len(rm.gameState.Players)),
+		Timestamp:    time.Now().Unix(),
+		RoomStatus:   rm.gameState.Status,
+	}
+
+	// 創建 GameMessage
+	gameMessage := &pb.GameMessage{
+		Type: pb.MessageType_ROOM_STATE_UPDATE,
+		Data: &pb.GameMessage_RoomStateUpdate{
+			RoomStateUpdate: roomStateUpdate,
+		},
+	}
+
+	// 序列化並廣播
+	data, err := proto.Marshal(gameMessage)
+	if err != nil {
+		rm.logger.Errorf("Failed to marshal room state update: %v", err)
+		return
+	}
+
+	rm.hub.BroadcastToRoom(rm.roomID, data, nil)
+	rm.logger.Infof("Broadcasted room state update: %d fishes, %d bullets to room %s", len(fishInfos), len(bulletInfos), rm.roomID)
+}
+
+// broadcastFishSpawned 廣播魚類生成事件
+func (rm *RoomManager) broadcastFishSpawned(fish *FishInfo) {
+	fishSpawnedEvent := &pb.FishSpawnedEvent{
+		FishId:    fish.ID,
+		FishType:  fish.Type,
+		Position:  &pb.Position{X: fish.Position.X, Y: fish.Position.Y},
+		Timestamp: fish.SpawnTime.Unix(),
+	}
+
+	gameMessage := &pb.GameMessage{
+		Type: pb.MessageType_FISH_SPAWNED,
+		Data: &pb.GameMessage_FishSpawned{
+			FishSpawned: fishSpawnedEvent,
+		},
+	}
+
+	data, err := proto.Marshal(gameMessage)
+	if err != nil {
+		rm.logger.Errorf("Failed to marshal fish spawned event: %v", err)
+		return
+	}
+
+	rm.hub.BroadcastToRoom(rm.roomID, data, nil)
 }

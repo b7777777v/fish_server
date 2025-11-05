@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -156,6 +157,9 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 // readPump 從 WebSocket 連接讀取消息
 func (c *Client) readPump() {
 	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Errorf("Recovered from panic in readPump: %v", r)
+		}
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()
@@ -169,7 +173,24 @@ func (c *Client) readPump() {
 		return nil
 	})
 
+	// 消息處理統計
+	messageCount := 0
+	errorCount := 0
+	lastResetTime := time.Now()
+
 	for {
+		// 檢查錯誤率，如果太高則暫停處理
+		if time.Since(lastResetTime) > time.Minute {
+			if errorCount > 50 { // 每分鐘超過50個錯誤
+				c.logger.Warnf("High error rate detected: %d errors in the last minute", errorCount)
+				c.sendErrorPB("Too many errors, please check your message format")
+				time.Sleep(5 * time.Second) // 暫停5秒
+			}
+			messageCount = 0
+			errorCount = 0
+			lastResetTime = time.Now()
+		}
+
 		// 讀取消息
 		messageType, message, err := c.conn.ReadMessage()
 		if err != nil {
@@ -179,15 +200,32 @@ func (c *Client) readPump() {
 			break
 		}
 
+		messageCount++
 		c.lastActivity = time.Now()
 
 		// 處理不同類型的消息
-		switch messageType {
-		case websocket.BinaryMessage:
-			c.handleBinaryMessage(message)
-		default:
-			c.logger.Warnf("Unknown message type: %d", messageType)
-		}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					c.logger.Errorf("Recovered from panic while processing message: %v", r)
+					c.sendErrorPB("Error processing your message")
+					errorCount++
+				}
+			}()
+
+			switch messageType {
+			case websocket.BinaryMessage:
+				c.handleBinaryMessage(message)
+			case websocket.TextMessage:
+				c.logger.Warnf("Received text message, expected binary: %s", string(message))
+				c.sendErrorPB("Text messages not supported, please use binary format")
+				errorCount++
+			default:
+				c.logger.Warnf("Unknown message type: %d", messageType)
+				c.sendErrorPB(fmt.Sprintf("Unsupported message type: %d", messageType))
+				errorCount++
+			}
+		}()
 	}
 }
 
@@ -237,31 +275,86 @@ func (c *Client) writePump() {
 
 // handleBinaryMessage 處理二進制消息（Protobuf 格式）
 func (c *Client) handleBinaryMessage(message []byte) {
+	// 添加 recover 機制防止 panic 導致整個連接崩潰
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Errorf("Recovered from panic in handleBinaryMessage: %v", r)
+			c.sendErrorPB("Internal server error occurred while processing message")
+		}
+	}()
+
+	// 基本消息大小檢查
+	if len(message) == 0 {
+		c.logger.Warnf("Received empty message")
+		c.sendErrorPB("Empty message received")
+		return
+	}
+
+	if len(message) > 1024*1024 { // 1MB 限制
+		c.logger.Warnf("Received oversized message: %d bytes", len(message))
+		c.sendErrorPB("Message too large")
+		return
+	}
+
 	// 解析 Protobuf 消息
 	var gameMsg pb.GameMessage
 	if err := proto.Unmarshal(message, &gameMsg); err != nil {
 		c.logger.Errorf("Failed to parse protobuf message: %v", err)
+		c.sendErrorPB("Invalid message format")
 		return
 	}
 
-	// 根據消息類型處理
+	// 消息類型驗證
+	if gameMsg.Type == pb.MessageType_INVALID {
+		c.logger.Warnf("Received invalid message type")
+		c.sendErrorPB("Invalid message type")
+		return
+	}
+
+	// 添加消息處理超時機制
+	done := make(chan bool, 1)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				c.logger.Errorf("Recovered from panic in message handler: %v", r)
+				c.sendErrorPB("Error processing message")
+			}
+			done <- true
+		}()
+
+		c.handleMessageByType(&gameMsg)
+	}()
+
+	// 5秒超時
+	select {
+	case <-done:
+		// 處理完成
+	case <-time.After(5 * time.Second):
+		c.logger.Errorf("Message processing timeout for type: %v", gameMsg.Type)
+		c.sendErrorPB("Message processing timeout")
+	}
+}
+
+// handleMessageByType 根據消息類型處理消息
+func (c *Client) handleMessageByType(gameMsg *pb.GameMessage) {
 	switch gameMsg.Type {
 	case pb.MessageType_FIRE_BULLET:
-		c.handleFireBullet(&gameMsg)
+		c.handleFireBullet(gameMsg)
 	case pb.MessageType_SWITCH_CANNON:
-		c.handleSwitchCannon(&gameMsg)
+		c.handleSwitchCannon(gameMsg)
 	case pb.MessageType_JOIN_ROOM:
-		c.handleJoinRoomPB(&gameMsg)
+		c.handleJoinRoomPB(gameMsg)
 	case pb.MessageType_LEAVE_ROOM:
-		c.handleLeaveRoomPB(&gameMsg)
+		c.handleLeaveRoomPB(gameMsg)
 	case pb.MessageType_GET_PLAYER_INFO:
-		c.handleGetPlayerInfo(&gameMsg)
+		c.handleGetPlayerInfo(gameMsg)
 	case pb.MessageType_GET_ROOM_LIST:
-		c.handleGetRoomList(&gameMsg)
+		c.handleGetRoomList(gameMsg)
 	case pb.MessageType_HEARTBEAT:
-		c.handleHeartbeat(&gameMsg)
+		c.handleHeartbeat(gameMsg)
 	default:
 		c.logger.Warnf("Unknown protobuf message type: %v", gameMsg.Type)
+		c.sendErrorPB(fmt.Sprintf("Unsupported message type: %v", gameMsg.Type))
 	}
 }
 

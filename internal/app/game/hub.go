@@ -124,33 +124,51 @@ func (h *Hub) Run() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case client := <-h.register:
-			h.handleRegister(client)
-
-		case client := <-h.unregister:
-			h.handleUnregister(client)
-
-		case msg := <-h.joinRoom:
-			h.handleJoinRoom(msg)
-
-		case msg := <-h.leaveRoom:
-			h.handleLeaveRoom(msg)
-
-		case msg := <-h.gameAction:
-			h.handleGameAction(msg)
-
-		case msg := <-h.broadcast:
-			h.handleBroadcast(msg)
-
-		case <-ticker.C:
-			h.updateStats()
-
-		case <-h.ctx.Done():
-			h.logger.Info("Hub shutting down")
-			return
+	// 添加 recover 機制防止 Hub 崩潰
+	defer func() {
+		if r := recover(); r != nil {
+			h.logger.Errorf("Hub crashed with panic: %v", r)
+			// 重新啟動 Hub
+			go h.Run()
 		}
+	}()
+
+	for {
+		func() {
+			// 為每個操作添加 recover
+			defer func() {
+				if r := recover(); r != nil {
+					h.logger.Errorf("Recovered from panic in Hub operation: %v", r)
+				}
+			}()
+
+			select {
+			case client := <-h.register:
+				h.handleRegister(client)
+
+			case client := <-h.unregister:
+				h.handleUnregister(client)
+
+			case msg := <-h.joinRoom:
+				h.handleJoinRoom(msg)
+
+			case msg := <-h.leaveRoom:
+				h.handleLeaveRoom(msg)
+
+			case msg := <-h.gameAction:
+				h.handleGameAction(msg)
+
+			case msg := <-h.broadcast:
+				h.handleBroadcast(msg)
+
+			case <-ticker.C:
+				h.updateStats()
+
+			case <-h.ctx.Done():
+				h.logger.Info("Hub shutting down")
+				return
+			}
+		}()
 	}
 }
 
@@ -241,8 +259,10 @@ func (h *Hub) handleJoinRoom(msg *JoinRoomMessage) {
 		Type: pb.MessageType_JOIN_ROOM_RESPONSE,
 		Data: &pb.GameMessage_JoinRoomResponse{
 			JoinRoomResponse: &pb.JoinRoomResponse{
+				Success:     true,  // 明確設置 success 為 true
 				RoomId:      roomID,
 				PlayerCount: int32(len(h.rooms[roomID])),
+				Timestamp:   time.Now().Unix(),
 			},
 		},
 	}
