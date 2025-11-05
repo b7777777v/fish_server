@@ -21,45 +21,28 @@ var (
 
 // 設置測試環境
 func setupTestDB(t *testing.T) {
-	// 使用環境變量或默認值設置測試數據庫連接
-	dsn := os.Getenv("TEST_POSTGRES_DSN")
-	if dsn == "" {
-		// Try different common configurations
-		testDSNs := []string{
-			"host=localhost user=user password=password dbname=fish_db port=5432 sslmode=disable TimeZone=Asia/Shanghai", // docker-compose default
-			"host=localhost user=postgres password=postgres dbname=fish_test port=5432 sslmode=disable TimeZone=Asia/Shanghai", // postgres default
-			"host=localhost user=postgres password= dbname=fish_test port=5432 sslmode=disable TimeZone=Asia/Shanghai", // no password
-		}
-		
-		// Try to connect with each DSN
-		for _, testDSN := range testDSNs {
-			dbConfig := &conf.Database{
-				Driver: "postgres",
-				Source: testDSN,
-			}
-			client, err := NewClientFromDatabase(dbConfig, logger.New(os.Stdout, "error", "console"))
-			if err == nil {
-				client.Close()
-				dsn = testDSN
-				break
-			}
-		}
-		
-		if dsn == "" {
-			t.Skip("Skipping test: no accessible PostgreSQL database found. Please start PostgreSQL or set TEST_POSTGRES_DSN environment variable.")
-		}
-	}
-
 	// 創建日誌記錄器
 	testLogger = logger.New(os.Stdout, "info", "console")
 
-	// 創建客戶端
+	// 使用固定的測試數據庫配置
 	dbConfig := &conf.Database{
-		Driver: "postgres",
-		Source: dsn,
+		Driver:   "postgres",
+		Host:     "localhost",
+		Port:     5432,
+		User:     "user",
+		Password: "password",
+		DBName:   "fish_db",
+		SSLMode:  "disable",
 	}
+
+	// 嘗試連接數據庫
 	var err error
 	testClient, err = NewClientFromDatabase(dbConfig, testLogger)
+	if err != nil {
+		// 如果連接失敗，可以選擇跳過測試
+		t.Skipf("Skipping test: cannot connect to PostgreSQL database. Please ensure it is running and configured correctly. Error: %v", err)
+	}
+
 	require.NoError(t, err)
 	require.NotNil(t, testClient)
 

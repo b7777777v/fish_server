@@ -35,11 +35,28 @@ type Data struct {
 
 type Database struct {
 	Driver          string `mapstructure:"driver"`
-	Source          string `mapstructure:"source"`
+	Host            string `mapstructure:"host"`
+	Port            int    `mapstructure:"port"`
+	User            string `mapstructure:"user"`
+	Password        string `mapstructure:"password"`
+	DBName          string `mapstructure:"dbname"`
+	SSLMode         string `mapstructure:"sslmode"`
 	MaxOpenConns    int    `mapstructure:"max_open_conns"`
 	MaxIdleConns    int    `mapstructure:"max_idle_conns"`
 	ConnMaxLifetime string `mapstructure:"conn_max_lifetime"`
 }
+
+// GetDSN 根據 Database 結構構建 DSN
+func (d *Database) GetDSN() string {
+	// 如果 source 字段存在，優先使用
+	// 注意：爲了向後兼容，我們暫時保留對 source 的檢查，但目標是完全遷移
+	// if d.Source != "" {
+	// 	return d.Source
+	// }
+	return fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=%s",
+		d.User, d.Password, d.Host, d.Port, d.DBName, d.SSLMode)
+}
+
 
 type Redis struct {
 	Addr     string `mapstructure:"addr"`

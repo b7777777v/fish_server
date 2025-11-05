@@ -137,7 +137,7 @@ func TestRedisConfigIntegration(t *testing.T) {
 }
 
 func TestRedisConfigValidation(t *testing.T) {
-	log := logger.New(nil, "info", "console")
+	log := logger.New(os.Stdout, "info", "console")
 	
 	t.Run("驗證必填字段", func(t *testing.T) {
 		testCases := []struct {

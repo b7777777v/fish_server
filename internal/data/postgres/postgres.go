@@ -43,14 +43,15 @@ func NewClientFromDatabase(dbConfig *conf.Database, logger logger.Logger) (*Clie
 		logger.Error("database config is nil")
 		return nil, fmt.Errorf("database config is nil")
 	}
-	
-	if dbConfig.Source == "" {
-		logger.Error("database source is empty")
-		return nil, fmt.Errorf("database source is empty")
+
+	dsn := dbConfig.GetDSN()
+	if dsn == "" {
+		logger.Error("database DSN is empty")
+		return nil, fmt.Errorf("database DSN is empty")
 	}
-	
+
 	// 創建連接池配置
-	poolConfig, err := pgxpool.ParseConfig(dbConfig.Source)
+	poolConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		logger.Errorf("failed to parse postgres config: %v", err)
 		return nil, err

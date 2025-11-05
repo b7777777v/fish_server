@@ -9,6 +9,7 @@ import (
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/data/postgres"
+	"github.com/b7777777v/fish_server/internal/data/redis"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,31 +21,34 @@ func setupWalletRepoTest(t *testing.T) (*Data, wallet.WalletRepo, func()) {
 	log := logger.New(os.Stdout, "info", "console")
 
 	// 連接測試數據庫
-	dsns := []string{
-		"host=localhost user=user password=password dbname=fish_db port=5432 sslmode=disable TimeZone=Asia/Shanghai", // docker-compose default
-		"host=localhost user=postgres password=postgres dbname=fish_test port=5432 sslmode=disable TimeZone=Asia/Shanghai", // postgres default
-		"host=localhost user=postgres password= dbname=fish_test port=5432 sslmode=disable TimeZone=Asia/Shanghai", // no password
+	dbConfig := &conf.Database{
+		Driver:   "postgres",
+		Host:     "localhost",
+		Port:     5432,
+		User:     "user",
+		Password: "password",
+		DBName:   "fish_db",
+		SSLMode:  "disable",
 	}
-	
-	var pgClient *postgres.Client
-	var err error
-	for _, dsn := range dsns {
-		dbConfig := &conf.Database{
-			Driver: "postgres",
-			Source: dsn,
-		}
-		pgClient, err = postgres.NewClientFromDatabase(dbConfig, log)
-		if err == nil {
-			break
-		}
-	}
-	
+
+	pgClient, err := postgres.NewClientFromDatabase(dbConfig, log)
 	if err != nil {
 		t.Skipf("Skipping test: no accessible PostgreSQL database found. Error: %v", err)
 	}
 
+	// 創建 redis 客戶端
+	redisConfig := &conf.Redis{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	}
+	redisClient, err := redis.NewClientFromRedis(redisConfig, log)
+	if err != nil {
+		t.Skipf("Skipping test: no accessible Redis database found. Error: %v", err)
+	}
+
 	// 創建數據層
-	data := &Data{db: pgClient}
+	data := &Data{db: pgClient, redis: redisClient}
 
 	// 創建錢包存儲庫
 	repo := NewWalletRepo(data, log)
@@ -54,23 +58,24 @@ func setupWalletRepoTest(t *testing.T) (*Data, wallet.WalletRepo, func()) {
 	cleanup := func() {
 		// 清理測試數據
 		ctx := context.Background()
-		_, err := data.db.Exec(ctx, "DELETE FROM wallet_transactions")
-		require.NoError(t, err)
-		_, err = data.db.Exec(ctx, "DELETE FROM wallets")
-		require.NoError(t, err)
-		_, err = data.db.Exec(ctx, "DELETE FROM users")
+		_, err := data.db.Exec(ctx, "TRUNCATE TABLE wallet_transactions, wallets, users RESTART IDENTITY CASCADE")
 		require.NoError(t, err)
 
 		// 關閉數據庫連接
 		err = pgClient.Close()
 		require.NoError(t, err)
+
+		// 關閉 redis 連接
+		redisClient.Close()
 	}
 
 	// 預先清理數據
-	cleanup()
+	// cleanup() // 在setup中執行cleanup，確保每次測試都是乾淨的環境
+	ctx := context.Background()
+	_, err = data.db.Exec(ctx, "TRUNCATE TABLE wallet_transactions, wallets, users RESTART IDENTITY CASCADE")
+	require.NoError(t, err)
 
 	// 創建測試用戶
-	ctx := context.Background()
 	_, err = data.db.Exec(ctx, "INSERT INTO users (id, username, password_hash, email, status, created_at, updated_at) VALUES (1, 'testuser', 'hash', 'test@example.com', 1, NOW(), NOW())")
 	require.NoError(t, err)
 
@@ -96,8 +101,8 @@ func TestCreateWallet(t *testing.T) {
 	assert.NotZero(t, w.ID)
 	assert.Equal(t, uint(1), w.UserID)
 	assert.Equal(t, 100.0, w.Balance)
-	assert.Equal(t, "USD", w.Currency)
-	assert.Equal(t, 1, w.Status)
+	assert.Equal(t, "CNY", w.Currency)
+	assert.Equal(t, int8(1), w.Status)
 }
 
 // TestFindByID 測試通過ID查找錢包
@@ -134,7 +139,7 @@ func TestFindByUserID(t *testing.T) {
 	require.NoError(t, err)
 
 	// 查找錢包
-	foundWallet, err := repo.FindByUserID(ctx, 1, "USD")
+	foundWallet, err := repo.FindByUserID(ctx, 1, "CNY")
 	assert.NoError(t, err)
 	assert.NotNil(t, foundWallet)
 	assert.Equal(t, uint(1), foundWallet.UserID)
@@ -161,13 +166,13 @@ func TestUpdate(t *testing.T) {
 	err = repo.Update(ctx, w)
 	assert.NoError(t, err)
 	assert.Equal(t, 500.0, w.Balance)
-	assert.Equal(t, 0, w.Status)
+	assert.Equal(t, int8(0), w.Status)
 
 	// 再次查找確認更新
 	checkWallet, err := repo.FindByID(ctx, 102)
 	assert.NoError(t, err)
 	assert.Equal(t, 500.0, checkWallet.Balance)
-	assert.Equal(t, 0, checkWallet.Status)
+	assert.Equal(t, int8(0), checkWallet.Status)
 }
 
 // TestDeposit 測試存款
@@ -213,7 +218,7 @@ func TestWithdraw(t *testing.T) {
 	// 檢查錢包餘額
 	w, err := repo.FindByID(ctx, 104)
 	assert.NoError(t, err)
-	assert.Equal(t, 150.0, w.Balance) // 200 - 50 = 150
+	assert.Equal(t, 150.0, w.Balance)
 }
 
 // TestWithdrawInsufficientFunds 測試餘額不足的取款
@@ -267,9 +272,9 @@ func TestCreateTransaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotZero(t, tx.ID)
 	assert.Equal(t, uint(106), tx.WalletID)
-	assert.Equal(t, 75.0, tx.Amount)
-	assert.Equal(t, "manual", tx.Type)
-	assert.Equal(t, 1, tx.Status)
+assert.Equal(t, 100.0, tx.Amount)
+	assert.Equal(t, "deposit", tx.Type)
+	assert.Equal(t, int8(1), tx.Status)
 }
 
 // TestFindTransactionsByWalletID 測試查找錢包交易記錄

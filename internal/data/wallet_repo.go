@@ -347,7 +347,7 @@ func (r *walletRepo) FindTransactionsByWalletID(ctx context.Context, walletID ui
 			id, wallet_id, amount, balance_before, balance_after, 
 			type, status, reference_id, description, metadata, 
 			created_at, updated_at 
-		FROM transaction 
+		FROM wallet_transactions 
 		WHERE wallet_id = $1 
 		ORDER BY created_at DESC 
 		LIMIT $2 OFFSET $3
@@ -479,7 +479,7 @@ func (r *walletRepo) Withdraw(ctx context.Context, walletID uint, amount float64
 	var w WalletPO
 	query := `
 		SELECT id, user_id, balance, status, created_at, updated_at 
-		FROM wallet 
+		FROM wallets 
 		WHERE id = $1 
 		FOR UPDATE
 	`
@@ -518,7 +518,7 @@ func (r *walletRepo) Withdraw(ctx context.Context, walletID uint, amount float64
 
 	// 保存錢包
 	updateQuery := `
-		UPDATE wallet 
+		UPDATE wallets 
 		SET balance = $1, updated_at = $2 
 		WHERE id = $3
 	`
@@ -539,7 +539,7 @@ func (r *walletRepo) Withdraw(ctx context.Context, walletID uint, amount float64
 	// 創建交易記錄
 	now := time.Now()
 	txInsertQuery := `
-		INSERT INTO transaction (
+		INSERT INTO wallet_transactions (
 			wallet_id, amount, balance_before, balance_after, 
 			type, status, reference_id, description, metadata, 
 			created_at, updated_at

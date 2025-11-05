@@ -12,7 +12,12 @@ server:
 data:
   database:
     driver: "postgres"
-    source: "postgresql://user:password@postgres:5432/fish_db?sslmode=disable"
+    host: "postgres"
+    port: 5432
+    user: "user"
+    password: "password"
+    dbname: "fish_db"
+    sslmode: "disable"
   redis:
     addr: "redis:6379"
     password: ""
