@@ -46,14 +46,17 @@ const (
 	MessageType_ROOM_LIST_RESPONSE     MessageType = 15
 	MessageType_PLAYER_INFO_RESPONSE   MessageType = 16
 	// 服務器端事件廣播 (20-39)
-	MessageType_BULLET_FIRED    MessageType = 20
-	MessageType_CANNON_SWITCHED MessageType = 21
-	MessageType_FISH_SPAWNED    MessageType = 22
-	MessageType_FISH_DIED       MessageType = 23
-	MessageType_PLAYER_REWARD   MessageType = 24
-	MessageType_WELCOME         MessageType = 25
-	MessageType_PLAYER_JOINED   MessageType = 26
-	MessageType_PLAYER_LEFT     MessageType = 27
+	MessageType_BULLET_FIRED      MessageType = 20
+	MessageType_CANNON_SWITCHED   MessageType = 21
+	MessageType_FISH_SPAWNED      MessageType = 22
+	MessageType_FISH_DIED         MessageType = 23
+	MessageType_PLAYER_REWARD     MessageType = 24
+	MessageType_WELCOME           MessageType = 25
+	MessageType_PLAYER_JOINED     MessageType = 26
+	MessageType_PLAYER_LEFT       MessageType = 27
+	MessageType_ROOM_STATE_UPDATE MessageType = 28
+	MessageType_FORMATION_SPAWNED MessageType = 29
+	MessageType_FORMATION_UPDATED MessageType = 30
 	// 錯誤消息 (99)
 	MessageType_ERROR MessageType = 99
 )
@@ -84,6 +87,9 @@ var (
 		25: "WELCOME",
 		26: "PLAYER_JOINED",
 		27: "PLAYER_LEFT",
+		28: "ROOM_STATE_UPDATE",
+		29: "FORMATION_SPAWNED",
+		30: "FORMATION_UPDATED",
 		99: "ERROR",
 	}
 	MessageType_value = map[string]int32{
@@ -110,6 +116,9 @@ var (
 		"WELCOME":                25,
 		"PLAYER_JOINED":          26,
 		"PLAYER_LEFT":            27,
+		"ROOM_STATE_UPDATE":      28,
+		"FORMATION_SPAWNED":      29,
+		"FORMATION_UPDATED":      30,
 		"ERROR":                  99,
 	}
 )
@@ -222,6 +231,9 @@ type GameMessage struct {
 	//	*GameMessage_Welcome
 	//	*GameMessage_PlayerJoined
 	//	*GameMessage_PlayerLeft
+	//	*GameMessage_RoomStateUpdate
+	//	*GameMessage_FormationSpawned
+	//	*GameMessage_FormationUpdated
 	//	*GameMessage_Error
 	Data          isGameMessage_Data `protobuf_oneof:"data"`
 	unknownFields protoimpl.UnknownFields
@@ -470,6 +482,33 @@ func (x *GameMessage) GetPlayerLeft() *PlayerLeftMessage {
 	return nil
 }
 
+func (x *GameMessage) GetRoomStateUpdate() *RoomStateUpdate {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_RoomStateUpdate); ok {
+			return x.RoomStateUpdate
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetFormationSpawned() *FormationSpawnedEvent {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_FormationSpawned); ok {
+			return x.FormationSpawned
+		}
+	}
+	return nil
+}
+
+func (x *GameMessage) GetFormationUpdated() *FormationUpdatedEvent {
+	if x != nil {
+		if x, ok := x.Data.(*GameMessage_FormationUpdated); ok {
+			return x.FormationUpdated
+		}
+	}
+	return nil
+}
+
 func (x *GameMessage) GetError() *ErrorMessage {
 	if x != nil {
 		if x, ok := x.Data.(*GameMessage_Error); ok {
@@ -574,6 +613,18 @@ type GameMessage_PlayerLeft struct {
 	PlayerLeft *PlayerLeftMessage `protobuf:"bytes,29,opt,name=player_left,json=playerLeft,proto3,oneof"`
 }
 
+type GameMessage_RoomStateUpdate struct {
+	RoomStateUpdate *RoomStateUpdate `protobuf:"bytes,30,opt,name=room_state_update,json=roomStateUpdate,proto3,oneof"`
+}
+
+type GameMessage_FormationSpawned struct {
+	FormationSpawned *FormationSpawnedEvent `protobuf:"bytes,31,opt,name=formation_spawned,json=formationSpawned,proto3,oneof"`
+}
+
+type GameMessage_FormationUpdated struct {
+	FormationUpdated *FormationUpdatedEvent `protobuf:"bytes,32,opt,name=formation_updated,json=formationUpdated,proto3,oneof"`
+}
+
 type GameMessage_Error struct {
 	// 錯誤消息
 	Error *ErrorMessage `protobuf:"bytes,99,opt,name=error,proto3,oneof"`
@@ -622,6 +673,12 @@ func (*GameMessage_Welcome) isGameMessage_Data() {}
 func (*GameMessage_PlayerJoined) isGameMessage_Data() {}
 
 func (*GameMessage_PlayerLeft) isGameMessage_Data() {}
+
+func (*GameMessage_RoomStateUpdate) isGameMessage_Data() {}
+
+func (*GameMessage_FormationSpawned) isGameMessage_Data() {}
+
+func (*GameMessage_FormationUpdated) isGameMessage_Data() {}
 
 func (*GameMessage_Error) isGameMessage_Data() {}
 
@@ -1943,6 +2000,697 @@ func (x *PlayerLeftMessage) GetRoomId() string {
 	return ""
 }
 
+// 魚類信息
+type FishInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FishId        int64                  `protobuf:"varint,1,opt,name=fish_id,json=fishId,proto3" json:"fish_id,omitempty"`
+	FishType      int32                  `protobuf:"varint,2,opt,name=fish_type,json=fishType,proto3" json:"fish_type,omitempty"`
+	Position      *Position              `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"`
+	Direction     float64                `protobuf:"fixed64,4,opt,name=direction,proto3" json:"direction,omitempty"`
+	Speed         float64                `protobuf:"fixed64,5,opt,name=speed,proto3" json:"speed,omitempty"`
+	Health        int32                  `protobuf:"varint,6,opt,name=health,proto3" json:"health,omitempty"`
+	MaxHealth     int32                  `protobuf:"varint,7,opt,name=max_health,json=maxHealth,proto3" json:"max_health,omitempty"`
+	Value         int64                  `protobuf:"varint,8,opt,name=value,proto3" json:"value,omitempty"`
+	Status        string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	SpawnTime     int64                  `protobuf:"varint,10,opt,name=spawn_time,json=spawnTime,proto3" json:"spawn_time,omitempty"`
+	InFormation   bool                   `protobuf:"varint,11,opt,name=in_formation,json=inFormation,proto3" json:"in_formation,omitempty"`
+	FormationId   string                 `protobuf:"bytes,12,opt,name=formation_id,json=formationId,proto3" json:"formation_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FishInfo) Reset() {
+	*x = FishInfo{}
+	mi := &file_proto_v1_game_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FishInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FishInfo) ProtoMessage() {}
+
+func (x *FishInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FishInfo.ProtoReflect.Descriptor instead.
+func (*FishInfo) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *FishInfo) GetFishId() int64 {
+	if x != nil {
+		return x.FishId
+	}
+	return 0
+}
+
+func (x *FishInfo) GetFishType() int32 {
+	if x != nil {
+		return x.FishType
+	}
+	return 0
+}
+
+func (x *FishInfo) GetPosition() *Position {
+	if x != nil {
+		return x.Position
+	}
+	return nil
+}
+
+func (x *FishInfo) GetDirection() float64 {
+	if x != nil {
+		return x.Direction
+	}
+	return 0
+}
+
+func (x *FishInfo) GetSpeed() float64 {
+	if x != nil {
+		return x.Speed
+	}
+	return 0
+}
+
+func (x *FishInfo) GetHealth() int32 {
+	if x != nil {
+		return x.Health
+	}
+	return 0
+}
+
+func (x *FishInfo) GetMaxHealth() int32 {
+	if x != nil {
+		return x.MaxHealth
+	}
+	return 0
+}
+
+func (x *FishInfo) GetValue() int64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+func (x *FishInfo) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *FishInfo) GetSpawnTime() int64 {
+	if x != nil {
+		return x.SpawnTime
+	}
+	return 0
+}
+
+func (x *FishInfo) GetInFormation() bool {
+	if x != nil {
+		return x.InFormation
+	}
+	return false
+}
+
+func (x *FishInfo) GetFormationId() string {
+	if x != nil {
+		return x.FormationId
+	}
+	return ""
+}
+
+// 子彈信息
+type BulletInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BulletId      int64                  `protobuf:"varint,1,opt,name=bullet_id,json=bulletId,proto3" json:"bullet_id,omitempty"`
+	PlayerId      int64                  `protobuf:"varint,2,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
+	Position      *Position              `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"`
+	Direction     float64                `protobuf:"fixed64,4,opt,name=direction,proto3" json:"direction,omitempty"`
+	Speed         float64                `protobuf:"fixed64,5,opt,name=speed,proto3" json:"speed,omitempty"`
+	Power         int32                  `protobuf:"varint,6,opt,name=power,proto3" json:"power,omitempty"`
+	Cost          int64                  `protobuf:"varint,7,opt,name=cost,proto3" json:"cost,omitempty"`
+	Status        string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BulletInfo) Reset() {
+	*x = BulletInfo{}
+	mi := &file_proto_v1_game_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BulletInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BulletInfo) ProtoMessage() {}
+
+func (x *BulletInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BulletInfo.ProtoReflect.Descriptor instead.
+func (*BulletInfo) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *BulletInfo) GetBulletId() int64 {
+	if x != nil {
+		return x.BulletId
+	}
+	return 0
+}
+
+func (x *BulletInfo) GetPlayerId() int64 {
+	if x != nil {
+		return x.PlayerId
+	}
+	return 0
+}
+
+func (x *BulletInfo) GetPosition() *Position {
+	if x != nil {
+		return x.Position
+	}
+	return nil
+}
+
+func (x *BulletInfo) GetDirection() float64 {
+	if x != nil {
+		return x.Direction
+	}
+	return 0
+}
+
+func (x *BulletInfo) GetSpeed() float64 {
+	if x != nil {
+		return x.Speed
+	}
+	return 0
+}
+
+func (x *BulletInfo) GetPower() int32 {
+	if x != nil {
+		return x.Power
+	}
+	return 0
+}
+
+func (x *BulletInfo) GetCost() int64 {
+	if x != nil {
+		return x.Cost
+	}
+	return 0
+}
+
+func (x *BulletInfo) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *BulletInfo) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+// 魚群陣型信息
+type FormationInfo struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	FormationId    string                 `protobuf:"bytes,1,opt,name=formation_id,json=formationId,proto3" json:"formation_id,omitempty"`
+	FormationType  string                 `protobuf:"bytes,2,opt,name=formation_type,json=formationType,proto3" json:"formation_type,omitempty"`
+	FishIds        []int64                `protobuf:"varint,3,rep,packed,name=fish_ids,json=fishIds,proto3" json:"fish_ids,omitempty"`
+	CenterPosition *Position              `protobuf:"bytes,4,opt,name=center_position,json=centerPosition,proto3" json:"center_position,omitempty"`
+	Direction      float64                `protobuf:"fixed64,5,opt,name=direction,proto3" json:"direction,omitempty"`
+	Speed          float64                `protobuf:"fixed64,6,opt,name=speed,proto3" json:"speed,omitempty"`
+	Status         string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	Progress       float64                `protobuf:"fixed64,8,opt,name=progress,proto3" json:"progress,omitempty"`
+	RouteId        string                 `protobuf:"bytes,9,opt,name=route_id,json=routeId,proto3" json:"route_id,omitempty"`
+	RouteName      string                 `protobuf:"bytes,10,opt,name=route_name,json=routeName,proto3" json:"route_name,omitempty"`
+	CreatedAt      int64                  `protobuf:"varint,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Size           *FormationSize         `protobuf:"bytes,12,opt,name=size,proto3" json:"size,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *FormationInfo) Reset() {
+	*x = FormationInfo{}
+	mi := &file_proto_v1_game_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FormationInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FormationInfo) ProtoMessage() {}
+
+func (x *FormationInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FormationInfo.ProtoReflect.Descriptor instead.
+func (*FormationInfo) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *FormationInfo) GetFormationId() string {
+	if x != nil {
+		return x.FormationId
+	}
+	return ""
+}
+
+func (x *FormationInfo) GetFormationType() string {
+	if x != nil {
+		return x.FormationType
+	}
+	return ""
+}
+
+func (x *FormationInfo) GetFishIds() []int64 {
+	if x != nil {
+		return x.FishIds
+	}
+	return nil
+}
+
+func (x *FormationInfo) GetCenterPosition() *Position {
+	if x != nil {
+		return x.CenterPosition
+	}
+	return nil
+}
+
+func (x *FormationInfo) GetDirection() float64 {
+	if x != nil {
+		return x.Direction
+	}
+	return 0
+}
+
+func (x *FormationInfo) GetSpeed() float64 {
+	if x != nil {
+		return x.Speed
+	}
+	return 0
+}
+
+func (x *FormationInfo) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *FormationInfo) GetProgress() float64 {
+	if x != nil {
+		return x.Progress
+	}
+	return 0
+}
+
+func (x *FormationInfo) GetRouteId() string {
+	if x != nil {
+		return x.RouteId
+	}
+	return ""
+}
+
+func (x *FormationInfo) GetRouteName() string {
+	if x != nil {
+		return x.RouteName
+	}
+	return ""
+}
+
+func (x *FormationInfo) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *FormationInfo) GetSize() *FormationSize {
+	if x != nil {
+		return x.Size
+	}
+	return nil
+}
+
+// 陣型大小
+type FormationSize struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Width         float64                `protobuf:"fixed64,1,opt,name=width,proto3" json:"width,omitempty"`
+	Height        float64                `protobuf:"fixed64,2,opt,name=height,proto3" json:"height,omitempty"`
+	Depth         float64                `protobuf:"fixed64,3,opt,name=depth,proto3" json:"depth,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FormationSize) Reset() {
+	*x = FormationSize{}
+	mi := &file_proto_v1_game_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FormationSize) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FormationSize) ProtoMessage() {}
+
+func (x *FormationSize) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FormationSize.ProtoReflect.Descriptor instead.
+func (*FormationSize) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *FormationSize) GetWidth() float64 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *FormationSize) GetHeight() float64 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *FormationSize) GetDepth() float64 {
+	if x != nil {
+		return x.Depth
+	}
+	return 0
+}
+
+// 房間狀態更新
+type RoomStateUpdate struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Fishes        []*FishInfo            `protobuf:"bytes,2,rep,name=fishes,proto3" json:"fishes,omitempty"`
+	Bullets       []*BulletInfo          `protobuf:"bytes,3,rep,name=bullets,proto3" json:"bullets,omitempty"`
+	Formations    []*FormationInfo       `protobuf:"bytes,4,rep,name=formations,proto3" json:"formations,omitempty"`
+	PlayerCount   int32                  `protobuf:"varint,5,opt,name=player_count,json=playerCount,proto3" json:"player_count,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	RoomStatus    string                 `protobuf:"bytes,7,opt,name=room_status,json=roomStatus,proto3" json:"room_status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomStateUpdate) Reset() {
+	*x = RoomStateUpdate{}
+	mi := &file_proto_v1_game_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomStateUpdate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomStateUpdate) ProtoMessage() {}
+
+func (x *RoomStateUpdate) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomStateUpdate.ProtoReflect.Descriptor instead.
+func (*RoomStateUpdate) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RoomStateUpdate) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomStateUpdate) GetFishes() []*FishInfo {
+	if x != nil {
+		return x.Fishes
+	}
+	return nil
+}
+
+func (x *RoomStateUpdate) GetBullets() []*BulletInfo {
+	if x != nil {
+		return x.Bullets
+	}
+	return nil
+}
+
+func (x *RoomStateUpdate) GetFormations() []*FormationInfo {
+	if x != nil {
+		return x.Formations
+	}
+	return nil
+}
+
+func (x *RoomStateUpdate) GetPlayerCount() int32 {
+	if x != nil {
+		return x.PlayerCount
+	}
+	return 0
+}
+
+func (x *RoomStateUpdate) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+func (x *RoomStateUpdate) GetRoomStatus() string {
+	if x != nil {
+		return x.RoomStatus
+	}
+	return ""
+}
+
+// 魚群陣型生成事件
+type FormationSpawnedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Formation     *FormationInfo         `protobuf:"bytes,2,opt,name=formation,proto3" json:"formation,omitempty"`
+	Fishes        []*FishInfo            `protobuf:"bytes,3,rep,name=fishes,proto3" json:"fishes,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FormationSpawnedEvent) Reset() {
+	*x = FormationSpawnedEvent{}
+	mi := &file_proto_v1_game_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FormationSpawnedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FormationSpawnedEvent) ProtoMessage() {}
+
+func (x *FormationSpawnedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FormationSpawnedEvent.ProtoReflect.Descriptor instead.
+func (*FormationSpawnedEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *FormationSpawnedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *FormationSpawnedEvent) GetFormation() *FormationInfo {
+	if x != nil {
+		return x.Formation
+	}
+	return nil
+}
+
+func (x *FormationSpawnedEvent) GetFishes() []*FishInfo {
+	if x != nil {
+		return x.Fishes
+	}
+	return nil
+}
+
+func (x *FormationSpawnedEvent) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 魚群陣型更新事件
+type FormationUpdatedEvent struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	FormationId    string                 `protobuf:"bytes,2,opt,name=formation_id,json=formationId,proto3" json:"formation_id,omitempty"`
+	CenterPosition *Position              `protobuf:"bytes,3,opt,name=center_position,json=centerPosition,proto3" json:"center_position,omitempty"`
+	Direction      float64                `protobuf:"fixed64,4,opt,name=direction,proto3" json:"direction,omitempty"`
+	Progress       float64                `protobuf:"fixed64,5,opt,name=progress,proto3" json:"progress,omitempty"`
+	Fishes         []*FishInfo            `protobuf:"bytes,6,rep,name=fishes,proto3" json:"fishes,omitempty"`
+	Timestamp      int64                  `protobuf:"varint,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *FormationUpdatedEvent) Reset() {
+	*x = FormationUpdatedEvent{}
+	mi := &file_proto_v1_game_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FormationUpdatedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FormationUpdatedEvent) ProtoMessage() {}
+
+func (x *FormationUpdatedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_game_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FormationUpdatedEvent.ProtoReflect.Descriptor instead.
+func (*FormationUpdatedEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *FormationUpdatedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *FormationUpdatedEvent) GetFormationId() string {
+	if x != nil {
+		return x.FormationId
+	}
+	return ""
+}
+
+func (x *FormationUpdatedEvent) GetCenterPosition() *Position {
+	if x != nil {
+		return x.CenterPosition
+	}
+	return nil
+}
+
+func (x *FormationUpdatedEvent) GetDirection() float64 {
+	if x != nil {
+		return x.Direction
+	}
+	return 0
+}
+
+func (x *FormationUpdatedEvent) GetProgress() float64 {
+	if x != nil {
+		return x.Progress
+	}
+	return 0
+}
+
+func (x *FormationUpdatedEvent) GetFishes() []*FishInfo {
+	if x != nil {
+		return x.Fishes
+	}
+	return nil
+}
+
+func (x *FormationUpdatedEvent) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
 // 房間信息
 type RoomInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1958,7 +2706,7 @@ type RoomInfo struct {
 
 func (x *RoomInfo) Reset() {
 	*x = RoomInfo{}
-	mi := &file_proto_v1_game_proto_msgTypes[24]
+	mi := &file_proto_v1_game_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1970,7 +2718,7 @@ func (x *RoomInfo) String() string {
 func (*RoomInfo) ProtoMessage() {}
 
 func (x *RoomInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_game_proto_msgTypes[24]
+	mi := &file_proto_v1_game_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1983,7 +2731,7 @@ func (x *RoomInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomInfo.ProtoReflect.Descriptor instead.
 func (*RoomInfo) Descriptor() ([]byte, []int) {
-	return file_proto_v1_game_proto_rawDescGZIP(), []int{24}
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *RoomInfo) GetRoomId() string {
@@ -2040,7 +2788,7 @@ type ErrorMessage struct {
 
 func (x *ErrorMessage) Reset() {
 	*x = ErrorMessage{}
-	mi := &file_proto_v1_game_proto_msgTypes[25]
+	mi := &file_proto_v1_game_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2052,7 +2800,7 @@ func (x *ErrorMessage) String() string {
 func (*ErrorMessage) ProtoMessage() {}
 
 func (x *ErrorMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_game_proto_msgTypes[25]
+	mi := &file_proto_v1_game_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2065,7 +2813,7 @@ func (x *ErrorMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorMessage.ProtoReflect.Descriptor instead.
 func (*ErrorMessage) Descriptor() ([]byte, []int) {
-	return file_proto_v1_game_proto_rawDescGZIP(), []int{25}
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ErrorMessage) GetMessage() string {
@@ -2100,7 +2848,7 @@ type LoginRequest struct {
 
 func (x *LoginRequest) Reset() {
 	*x = LoginRequest{}
-	mi := &file_proto_v1_game_proto_msgTypes[26]
+	mi := &file_proto_v1_game_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2112,7 +2860,7 @@ func (x *LoginRequest) String() string {
 func (*LoginRequest) ProtoMessage() {}
 
 func (x *LoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_game_proto_msgTypes[26]
+	mi := &file_proto_v1_game_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2125,7 +2873,7 @@ func (x *LoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
 func (*LoginRequest) Descriptor() ([]byte, []int) {
-	return file_proto_v1_game_proto_rawDescGZIP(), []int{26}
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *LoginRequest) GetUsername() string {
@@ -2152,7 +2900,7 @@ type LoginResponse struct {
 
 func (x *LoginResponse) Reset() {
 	*x = LoginResponse{}
-	mi := &file_proto_v1_game_proto_msgTypes[27]
+	mi := &file_proto_v1_game_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2164,7 +2912,7 @@ func (x *LoginResponse) String() string {
 func (*LoginResponse) ProtoMessage() {}
 
 func (x *LoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_game_proto_msgTypes[27]
+	mi := &file_proto_v1_game_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2177,7 +2925,7 @@ func (x *LoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
 func (*LoginResponse) Descriptor() ([]byte, []int) {
-	return file_proto_v1_game_proto_rawDescGZIP(), []int{27}
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *LoginResponse) GetToken() string {
@@ -2194,7 +2942,7 @@ const file_proto_v1_game_proto_rawDesc = "" +
 	"\x13proto/v1/game.proto\x12\x02v1\"&\n" +
 	"\bPosition\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
-	"\x01y\x18\x02 \x01(\x01R\x01y\"\xdc\v\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\"\xb3\r\n" +
 	"\vGameMessage\x12#\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x0f.v1.MessageTypeR\x04type\x128\n" +
 	"\vfire_bullet\x18\x02 \x01(\v2\x15.v1.FireBulletRequestH\x00R\n" +
@@ -2221,7 +2969,10 @@ const file_proto_v1_game_proto_rawDesc = "" +
 	"\awelcome\x18\x1b \x01(\v2\x12.v1.WelcomeMessageH\x00R\awelcome\x12>\n" +
 	"\rplayer_joined\x18\x1c \x01(\v2\x17.v1.PlayerJoinedMessageH\x00R\fplayerJoined\x128\n" +
 	"\vplayer_left\x18\x1d \x01(\v2\x15.v1.PlayerLeftMessageH\x00R\n" +
-	"playerLeft\x12(\n" +
+	"playerLeft\x12A\n" +
+	"\x11room_state_update\x18\x1e \x01(\v2\x13.v1.RoomStateUpdateH\x00R\x0froomStateUpdate\x12H\n" +
+	"\x11formation_spawned\x18\x1f \x01(\v2\x19.v1.FormationSpawnedEventH\x00R\x10formationSpawned\x12H\n" +
+	"\x11formation_updated\x18  \x01(\v2\x19.v1.FormationUpdatedEventH\x00R\x10formationUpdated\x12(\n" +
 	"\x05error\x18c \x01(\v2\x10.v1.ErrorMessageH\x00R\x05errorB\x06\n" +
 	"\x04data\"q\n" +
 	"\x11FireBulletRequest\x12\x1c\n" +
@@ -2313,7 +3064,79 @@ const file_proto_v1_game_proto_rawDesc = "" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"I\n" +
 	"\x11PlayerLeftMessage\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"\xa7\x01\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"\xe8\x02\n" +
+	"\bFishInfo\x12\x17\n" +
+	"\afish_id\x18\x01 \x01(\x03R\x06fishId\x12\x1b\n" +
+	"\tfish_type\x18\x02 \x01(\x05R\bfishType\x12(\n" +
+	"\bposition\x18\x03 \x01(\v2\f.v1.PositionR\bposition\x12\x1c\n" +
+	"\tdirection\x18\x04 \x01(\x01R\tdirection\x12\x14\n" +
+	"\x05speed\x18\x05 \x01(\x01R\x05speed\x12\x16\n" +
+	"\x06health\x18\x06 \x01(\x05R\x06health\x12\x1d\n" +
+	"\n" +
+	"max_health\x18\a \x01(\x05R\tmaxHealth\x12\x14\n" +
+	"\x05value\x18\b \x01(\x03R\x05value\x12\x16\n" +
+	"\x06status\x18\t \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"spawn_time\x18\n" +
+	" \x01(\x03R\tspawnTime\x12!\n" +
+	"\fin_formation\x18\v \x01(\bR\vinFormation\x12!\n" +
+	"\fformation_id\x18\f \x01(\tR\vformationId\"\x85\x02\n" +
+	"\n" +
+	"BulletInfo\x12\x1b\n" +
+	"\tbullet_id\x18\x01 \x01(\x03R\bbulletId\x12\x1b\n" +
+	"\tplayer_id\x18\x02 \x01(\x03R\bplayerId\x12(\n" +
+	"\bposition\x18\x03 \x01(\v2\f.v1.PositionR\bposition\x12\x1c\n" +
+	"\tdirection\x18\x04 \x01(\x01R\tdirection\x12\x14\n" +
+	"\x05speed\x18\x05 \x01(\x01R\x05speed\x12\x14\n" +
+	"\x05power\x18\x06 \x01(\x05R\x05power\x12\x12\n" +
+	"\x04cost\x18\a \x01(\x03R\x04cost\x12\x16\n" +
+	"\x06status\x18\b \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\t \x01(\x03R\tcreatedAt\"\x93\x03\n" +
+	"\rFormationInfo\x12!\n" +
+	"\fformation_id\x18\x01 \x01(\tR\vformationId\x12%\n" +
+	"\x0eformation_type\x18\x02 \x01(\tR\rformationType\x12\x19\n" +
+	"\bfish_ids\x18\x03 \x03(\x03R\afishIds\x125\n" +
+	"\x0fcenter_position\x18\x04 \x01(\v2\f.v1.PositionR\x0ecenterPosition\x12\x1c\n" +
+	"\tdirection\x18\x05 \x01(\x01R\tdirection\x12\x14\n" +
+	"\x05speed\x18\x06 \x01(\x01R\x05speed\x12\x16\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x12\x1a\n" +
+	"\bprogress\x18\b \x01(\x01R\bprogress\x12\x19\n" +
+	"\broute_id\x18\t \x01(\tR\arouteId\x12\x1d\n" +
+	"\n" +
+	"route_name\x18\n" +
+	" \x01(\tR\trouteName\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\v \x01(\x03R\tcreatedAt\x12%\n" +
+	"\x04size\x18\f \x01(\v2\x11.v1.FormationSizeR\x04size\"S\n" +
+	"\rFormationSize\x12\x14\n" +
+	"\x05width\x18\x01 \x01(\x01R\x05width\x12\x16\n" +
+	"\x06height\x18\x02 \x01(\x01R\x06height\x12\x14\n" +
+	"\x05depth\x18\x03 \x01(\x01R\x05depth\"\x8f\x02\n" +
+	"\x0fRoomStateUpdate\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12$\n" +
+	"\x06fishes\x18\x02 \x03(\v2\f.v1.FishInfoR\x06fishes\x12(\n" +
+	"\abullets\x18\x03 \x03(\v2\x0e.v1.BulletInfoR\abullets\x121\n" +
+	"\n" +
+	"formations\x18\x04 \x03(\v2\x11.v1.FormationInfoR\n" +
+	"formations\x12!\n" +
+	"\fplayer_count\x18\x05 \x01(\x05R\vplayerCount\x12\x1c\n" +
+	"\ttimestamp\x18\x06 \x01(\x03R\ttimestamp\x12\x1f\n" +
+	"\vroom_status\x18\a \x01(\tR\n" +
+	"roomStatus\"\xa5\x01\n" +
+	"\x15FormationSpawnedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\tformation\x18\x02 \x01(\v2\x11.v1.FormationInfoR\tformation\x12$\n" +
+	"\x06fishes\x18\x03 \x03(\v2\f.v1.FishInfoR\x06fishes\x12\x1c\n" +
+	"\ttimestamp\x18\x04 \x01(\x03R\ttimestamp\"\x88\x02\n" +
+	"\x15FormationUpdatedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12!\n" +
+	"\fformation_id\x18\x02 \x01(\tR\vformationId\x125\n" +
+	"\x0fcenter_position\x18\x03 \x01(\v2\f.v1.PositionR\x0ecenterPosition\x12\x1c\n" +
+	"\tdirection\x18\x04 \x01(\x01R\tdirection\x12\x1a\n" +
+	"\bprogress\x18\x05 \x01(\x01R\bprogress\x12$\n" +
+	"\x06fishes\x18\x06 \x03(\v2\f.v1.FishInfoR\x06fishes\x12\x1c\n" +
+	"\ttimestamp\x18\a \x01(\x03R\ttimestamp\"\xa7\x01\n" +
 	"\bRoomInfo\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -2330,7 +3153,7 @@ const file_proto_v1_game_proto_rawDesc = "" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"%\n" +
 	"\rLoginResponse\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token*\xdc\x03\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token*\xa1\x04\n" +
 	"\vMessageType\x12\v\n" +
 	"\aINVALID\x10\x00\x12\x0f\n" +
 	"\vFIRE_BULLET\x10\x01\x12\x11\n" +
@@ -2356,7 +3179,10 @@ const file_proto_v1_game_proto_rawDesc = "" +
 	"\rPLAYER_REWARD\x10\x18\x12\v\n" +
 	"\aWELCOME\x10\x19\x12\x11\n" +
 	"\rPLAYER_JOINED\x10\x1a\x12\x0f\n" +
-	"\vPLAYER_LEFT\x10\x1b\x12\t\n" +
+	"\vPLAYER_LEFT\x10\x1b\x12\x15\n" +
+	"\x11ROOM_STATE_UPDATE\x10\x1c\x12\x15\n" +
+	"\x11FORMATION_SPAWNED\x10\x1d\x12\x15\n" +
+	"\x11FORMATION_UPDATED\x10\x1e\x12\t\n" +
 	"\x05ERROR\x10c24\n" +
 	"\x04Game\x12,\n" +
 	"\x05Login\x12\x10.v1.LoginRequest\x1a\x11.v1.LoginResponseB\x0eZ\fpkg/pb/v1;v1b\x06proto3"
@@ -2374,37 +3200,44 @@ func file_proto_v1_game_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_v1_game_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_proto_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_proto_v1_game_proto_goTypes = []any{
-	(MessageType)(0),             // 0: v1.MessageType
-	(*Position)(nil),             // 1: v1.Position
-	(*GameMessage)(nil),          // 2: v1.GameMessage
-	(*FireBulletRequest)(nil),    // 3: v1.FireBulletRequest
-	(*SwitchCannonRequest)(nil),  // 4: v1.SwitchCannonRequest
-	(*JoinRoomRequest)(nil),      // 5: v1.JoinRoomRequest
-	(*LeaveRoomRequest)(nil),     // 6: v1.LeaveRoomRequest
-	(*HeartbeatMessage)(nil),     // 7: v1.HeartbeatMessage
-	(*GetRoomListRequest)(nil),   // 8: v1.GetRoomListRequest
-	(*GetPlayerInfoRequest)(nil), // 9: v1.GetPlayerInfoRequest
-	(*FireBulletResponse)(nil),   // 10: v1.FireBulletResponse
-	(*SwitchCannonResponse)(nil), // 11: v1.SwitchCannonResponse
-	(*JoinRoomResponse)(nil),     // 12: v1.JoinRoomResponse
-	(*LeaveRoomResponse)(nil),    // 13: v1.LeaveRoomResponse
-	(*HeartbeatResponse)(nil),    // 14: v1.HeartbeatResponse
-	(*RoomListResponse)(nil),     // 15: v1.RoomListResponse
-	(*PlayerInfoResponse)(nil),   // 16: v1.PlayerInfoResponse
-	(*BulletFiredEvent)(nil),     // 17: v1.BulletFiredEvent
-	(*CannonSwitchedEvent)(nil),  // 18: v1.CannonSwitchedEvent
-	(*FishSpawnedEvent)(nil),     // 19: v1.FishSpawnedEvent
-	(*FishDiedEvent)(nil),        // 20: v1.FishDiedEvent
-	(*PlayerRewardEvent)(nil),    // 21: v1.PlayerRewardEvent
-	(*WelcomeMessage)(nil),       // 22: v1.WelcomeMessage
-	(*PlayerJoinedMessage)(nil),  // 23: v1.PlayerJoinedMessage
-	(*PlayerLeftMessage)(nil),    // 24: v1.PlayerLeftMessage
-	(*RoomInfo)(nil),             // 25: v1.RoomInfo
-	(*ErrorMessage)(nil),         // 26: v1.ErrorMessage
-	(*LoginRequest)(nil),         // 27: v1.LoginRequest
-	(*LoginResponse)(nil),        // 28: v1.LoginResponse
+	(MessageType)(0),              // 0: v1.MessageType
+	(*Position)(nil),              // 1: v1.Position
+	(*GameMessage)(nil),           // 2: v1.GameMessage
+	(*FireBulletRequest)(nil),     // 3: v1.FireBulletRequest
+	(*SwitchCannonRequest)(nil),   // 4: v1.SwitchCannonRequest
+	(*JoinRoomRequest)(nil),       // 5: v1.JoinRoomRequest
+	(*LeaveRoomRequest)(nil),      // 6: v1.LeaveRoomRequest
+	(*HeartbeatMessage)(nil),      // 7: v1.HeartbeatMessage
+	(*GetRoomListRequest)(nil),    // 8: v1.GetRoomListRequest
+	(*GetPlayerInfoRequest)(nil),  // 9: v1.GetPlayerInfoRequest
+	(*FireBulletResponse)(nil),    // 10: v1.FireBulletResponse
+	(*SwitchCannonResponse)(nil),  // 11: v1.SwitchCannonResponse
+	(*JoinRoomResponse)(nil),      // 12: v1.JoinRoomResponse
+	(*LeaveRoomResponse)(nil),     // 13: v1.LeaveRoomResponse
+	(*HeartbeatResponse)(nil),     // 14: v1.HeartbeatResponse
+	(*RoomListResponse)(nil),      // 15: v1.RoomListResponse
+	(*PlayerInfoResponse)(nil),    // 16: v1.PlayerInfoResponse
+	(*BulletFiredEvent)(nil),      // 17: v1.BulletFiredEvent
+	(*CannonSwitchedEvent)(nil),   // 18: v1.CannonSwitchedEvent
+	(*FishSpawnedEvent)(nil),      // 19: v1.FishSpawnedEvent
+	(*FishDiedEvent)(nil),         // 20: v1.FishDiedEvent
+	(*PlayerRewardEvent)(nil),     // 21: v1.PlayerRewardEvent
+	(*WelcomeMessage)(nil),        // 22: v1.WelcomeMessage
+	(*PlayerJoinedMessage)(nil),   // 23: v1.PlayerJoinedMessage
+	(*PlayerLeftMessage)(nil),     // 24: v1.PlayerLeftMessage
+	(*FishInfo)(nil),              // 25: v1.FishInfo
+	(*BulletInfo)(nil),            // 26: v1.BulletInfo
+	(*FormationInfo)(nil),         // 27: v1.FormationInfo
+	(*FormationSize)(nil),         // 28: v1.FormationSize
+	(*RoomStateUpdate)(nil),       // 29: v1.RoomStateUpdate
+	(*FormationSpawnedEvent)(nil), // 30: v1.FormationSpawnedEvent
+	(*FormationUpdatedEvent)(nil), // 31: v1.FormationUpdatedEvent
+	(*RoomInfo)(nil),              // 32: v1.RoomInfo
+	(*ErrorMessage)(nil),          // 33: v1.ErrorMessage
+	(*LoginRequest)(nil),          // 34: v1.LoginRequest
+	(*LoginResponse)(nil),         // 35: v1.LoginResponse
 }
 var file_proto_v1_game_proto_depIdxs = []int32{
 	0,  // 0: v1.GameMessage.type:type_name -> v1.MessageType
@@ -2430,18 +3263,32 @@ var file_proto_v1_game_proto_depIdxs = []int32{
 	22, // 20: v1.GameMessage.welcome:type_name -> v1.WelcomeMessage
 	23, // 21: v1.GameMessage.player_joined:type_name -> v1.PlayerJoinedMessage
 	24, // 22: v1.GameMessage.player_left:type_name -> v1.PlayerLeftMessage
-	26, // 23: v1.GameMessage.error:type_name -> v1.ErrorMessage
-	1,  // 24: v1.FireBulletRequest.position:type_name -> v1.Position
-	25, // 25: v1.RoomListResponse.rooms:type_name -> v1.RoomInfo
-	1,  // 26: v1.BulletFiredEvent.position:type_name -> v1.Position
-	1,  // 27: v1.FishSpawnedEvent.position:type_name -> v1.Position
-	27, // 28: v1.Game.Login:input_type -> v1.LoginRequest
-	28, // 29: v1.Game.Login:output_type -> v1.LoginResponse
-	29, // [29:30] is the sub-list for method output_type
-	28, // [28:29] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	29, // 23: v1.GameMessage.room_state_update:type_name -> v1.RoomStateUpdate
+	30, // 24: v1.GameMessage.formation_spawned:type_name -> v1.FormationSpawnedEvent
+	31, // 25: v1.GameMessage.formation_updated:type_name -> v1.FormationUpdatedEvent
+	33, // 26: v1.GameMessage.error:type_name -> v1.ErrorMessage
+	1,  // 27: v1.FireBulletRequest.position:type_name -> v1.Position
+	32, // 28: v1.RoomListResponse.rooms:type_name -> v1.RoomInfo
+	1,  // 29: v1.BulletFiredEvent.position:type_name -> v1.Position
+	1,  // 30: v1.FishSpawnedEvent.position:type_name -> v1.Position
+	1,  // 31: v1.FishInfo.position:type_name -> v1.Position
+	1,  // 32: v1.BulletInfo.position:type_name -> v1.Position
+	1,  // 33: v1.FormationInfo.center_position:type_name -> v1.Position
+	28, // 34: v1.FormationInfo.size:type_name -> v1.FormationSize
+	25, // 35: v1.RoomStateUpdate.fishes:type_name -> v1.FishInfo
+	26, // 36: v1.RoomStateUpdate.bullets:type_name -> v1.BulletInfo
+	27, // 37: v1.RoomStateUpdate.formations:type_name -> v1.FormationInfo
+	27, // 38: v1.FormationSpawnedEvent.formation:type_name -> v1.FormationInfo
+	25, // 39: v1.FormationSpawnedEvent.fishes:type_name -> v1.FishInfo
+	1,  // 40: v1.FormationUpdatedEvent.center_position:type_name -> v1.Position
+	25, // 41: v1.FormationUpdatedEvent.fishes:type_name -> v1.FishInfo
+	34, // 42: v1.Game.Login:input_type -> v1.LoginRequest
+	35, // 43: v1.Game.Login:output_type -> v1.LoginResponse
+	43, // [43:44] is the sub-list for method output_type
+	42, // [42:43] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_proto_v1_game_proto_init() }
@@ -2472,6 +3319,9 @@ func file_proto_v1_game_proto_init() {
 		(*GameMessage_Welcome)(nil),
 		(*GameMessage_PlayerJoined)(nil),
 		(*GameMessage_PlayerLeft)(nil),
+		(*GameMessage_RoomStateUpdate)(nil),
+		(*GameMessage_FormationSpawned)(nil),
+		(*GameMessage_FormationUpdated)(nil),
 		(*GameMessage_Error)(nil),
 	}
 	type x struct{}
@@ -2480,7 +3330,7 @@ func file_proto_v1_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_v1_game_proto_rawDesc), len(file_proto_v1_game_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   28,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

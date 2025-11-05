@@ -47,6 +47,9 @@ enum MessageType {
   WELCOME = 25;
   PLAYER_JOINED = 26;
   PLAYER_LEFT = 27;
+  ROOM_STATE_UPDATE = 28;
+  FORMATION_SPAWNED = 29;
+  FORMATION_UPDATED = 30;
 
   // 錯誤消息 (99)
   ERROR = 99;
@@ -87,6 +90,9 @@ message GameMessage {
     WelcomeMessage welcome = 27;
     PlayerJoinedMessage player_joined = 28;
     PlayerLeftMessage player_left = 29;
+    RoomStateUpdate room_state_update = 30;
+    FormationSpawnedEvent formation_spawned = 31;
+    FormationUpdatedEvent formation_updated = 32;
 
     // 錯誤消息
     ErrorMessage error = 99;
@@ -256,6 +262,88 @@ message PlayerJoinedMessage {
 message PlayerLeftMessage {
   string player_id = 1;
   string room_id = 2;
+}
+
+// 魚類信息
+message FishInfo {
+  int64 fish_id = 1;
+  int32 fish_type = 2;
+  Position position = 3;
+  double direction = 4;
+  double speed = 5;
+  int32 health = 6;
+  int32 max_health = 7;
+  int64 value = 8;
+  string status = 9;
+  int64 spawn_time = 10;
+  bool in_formation = 11;
+  string formation_id = 12;
+}
+
+// 子彈信息
+message BulletInfo {
+  int64 bullet_id = 1;
+  int64 player_id = 2;
+  Position position = 3;
+  double direction = 4;
+  double speed = 5;
+  int32 power = 6;
+  int64 cost = 7;
+  string status = 8;
+  int64 created_at = 9;
+}
+
+// 魚群陣型信息
+message FormationInfo {
+  string formation_id = 1;
+  string formation_type = 2;
+  repeated int64 fish_ids = 3;
+  Position center_position = 4;
+  double direction = 5;
+  double speed = 6;
+  string status = 7;
+  double progress = 8;
+  string route_id = 9;
+  string route_name = 10;
+  int64 created_at = 11;
+  FormationSize size = 12;
+}
+
+// 陣型大小
+message FormationSize {
+  double width = 1;
+  double height = 2;
+  double depth = 3;
+}
+
+// 房間狀態更新
+message RoomStateUpdate {
+  string room_id = 1;
+  repeated FishInfo fishes = 2;
+  repeated BulletInfo bullets = 3;
+  repeated FormationInfo formations = 4;
+  int32 player_count = 5;
+  int64 timestamp = 6;
+  string room_status = 7;
+}
+
+// 魚群陣型生成事件
+message FormationSpawnedEvent {
+  string room_id = 1;
+  FormationInfo formation = 2;
+  repeated FishInfo fishes = 3;
+  int64 timestamp = 4;
+}
+
+// 魚群陣型更新事件
+message FormationUpdatedEvent {
+  string room_id = 1;
+  string formation_id = 2;
+  Position center_position = 3;
+  double direction = 4;
+  double progress = 5;
+  repeated FishInfo fishes = 6;
+  int64 timestamp = 7;
 }
 
 

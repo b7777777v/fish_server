@@ -13,19 +13,23 @@ import (
 
 // FishSpawner 魚類生成器
 type FishSpawner struct {
-	fishTypes    []FishType
-	logger       logger.Logger
-	lastSpawnTime time.Time
-	rng          *rand.Rand
+	fishTypes         []FishType
+	logger            logger.Logger
+	lastSpawnTime     time.Time
+	lastFormationTime time.Time
+	rng               *rand.Rand
+	formationManager  *FishFormationManager
 }
 
 // NewFishSpawner 創建魚類生成器
-func NewFishSpawner(logger logger.Logger) *FishSpawner {
+func NewFishSpawner(logger logger.Logger, roomConfig RoomConfig) *FishSpawner {
 	spawner := &FishSpawner{
-		fishTypes:     getDefaultFishTypes(),
-		logger:        logger.With("component", "fish_spawner"),
-		lastSpawnTime: time.Now(),
-		rng:          rand.New(rand.NewSource(time.Now().UnixNano())),
+		fishTypes:         getDefaultFishTypes(),
+		logger:            logger.With("component", "fish_spawner"),
+		lastSpawnTime:     time.Now(),
+		lastFormationTime: time.Now(),
+		rng:               rand.New(rand.NewSource(time.Now().UnixNano())),
+		formationManager:  NewFishFormationManager(logger, roomConfig),
 	}
 	
 	return spawner
@@ -341,4 +345,195 @@ func (fs *FishSpawner) GetFishTypesBySize(size string) []FishType {
 func (fs *FishSpawner) UpdateSpawnRate(roomID string, newRate float64) {
 	fs.logger.Infof("Updated spawn rate for room %s: %f", roomID, newRate)
 	// 這裡可以添加房間特定的生成率邏輯
+}
+
+// TrySpawnFormation 嘗試生成魚群陣型
+func (fs *FishSpawner) TrySpawnFormation(config RoomConfig) *FishFormation {
+	now := time.Now()
+	
+	// 檢查陣型生成間隔（陣型生成頻率較低）
+	if now.Sub(fs.lastFormationTime) < time.Duration(30)*time.Second {
+		return nil
+	}
+	
+	// 隨機決定是否生成陣型（較低概率）
+	if fs.rng.Float64() > 0.15 { // 15%概率生成陣型
+		return nil
+	}
+	
+	// 隨機選擇陣型類型
+	formationTypes := []FishFormationType{
+		FormationTypeV, FormationTypeLine, FormationTypeCircle,
+		FormationTypeTriangle, FormationTypeDiamond, FormationTypeWave,
+	}
+	formationType := formationTypes[fs.rng.Intn(len(formationTypes))]
+	
+	// 根據陣型類型決定魚的數量
+	var fishCount int
+	switch formationType {
+	case FormationTypeV:
+		fishCount = 5 + fs.rng.Intn(8) // 5-12條魚
+	case FormationTypeLine:
+		fishCount = 4 + fs.rng.Intn(6) // 4-9條魚
+	case FormationTypeCircle:
+		fishCount = 6 + fs.rng.Intn(10) // 6-15條魚
+	case FormationTypeTriangle:
+		fishCount = 6 + fs.rng.Intn(9) // 6-14條魚
+	case FormationTypeDiamond:
+		fishCount = 5 + fs.rng.Intn(7) // 5-11條魚
+	case FormationTypeWave:
+		fishCount = 8 + fs.rng.Intn(12) // 8-19條魚
+	default:
+		fishCount = 5 + fs.rng.Intn(8)
+	}
+	
+	// 生成魚群（偏向相同類型或相似大小的魚）
+	fishes := fs.generateFormationFishes(fishCount, config)
+	if len(fishes) < 3 {
+		return nil
+	}
+	
+	// 隨機選擇路線
+	route := fs.formationManager.GetRandomRoute()
+	if route == nil {
+		return nil
+	}
+	
+	// 創建陣型
+	formation := fs.formationManager.CreateFormation(formationType, fishes, route.ID)
+	if formation != nil {
+		fs.formationManager.StartFormation(formation.ID)
+		fs.lastFormationTime = now
+		fs.logger.Infof("Spawned formation: type=%s, fish_count=%d, route=%s", 
+			formationType, len(fishes), route.Name)
+	}
+	
+	return formation
+}
+
+// generateFormationFishes 生成陣型用的魚群
+func (fs *FishSpawner) generateFormationFishes(count int, config RoomConfig) []*Fish {
+	fishes := make([]*Fish, 0, count)
+	
+	// 隨機選擇主要魚類型（陣型中大部分魚使用相同類型）
+	primaryFishType := fs.selectFormationFishType()
+	if primaryFishType == nil {
+		return fishes
+	}
+	
+	// 70%使用主要魚類型，30%使用相似大小的其他魚類型
+	for i := 0; i < count; i++ {
+		var fishType *FishType
+		
+		if fs.rng.Float64() < 0.7 {
+			fishType = primaryFishType
+		} else {
+			// 選擇相同大小的其他魚類型
+			sameSizeFishes := fs.GetFishTypesBySize(primaryFishType.Size)
+			if len(sameSizeFishes) > 0 {
+				fishType = &sameSizeFishes[fs.rng.Intn(len(sameSizeFishes))]
+			} else {
+				fishType = primaryFishType
+			}
+		}
+		
+		fish := fs.createFormationFish(fishType, config)
+		fishes = append(fishes, fish)
+		
+		// 添加小延遲避免ID衝突
+		time.Sleep(1 * time.Millisecond)
+	}
+	
+	return fishes
+}
+
+// selectFormationFishType 選擇陣型用的魚類型（偏向小型和中型魚）
+func (fs *FishSpawner) selectFormationFishType() *FishType {
+	// 陣型更傾向於使用小型和中型魚
+	preferredSizes := []string{"small", "medium"}
+	var candidates []FishType
+	
+	for _, fishType := range fs.fishTypes {
+		for _, size := range preferredSizes {
+			if fishType.Size == size {
+				candidates = append(candidates, fishType)
+			}
+		}
+	}
+	
+	if len(candidates) == 0 {
+		return fs.selectRandomFishType()
+	}
+	
+	return &candidates[fs.rng.Intn(len(candidates))]
+}
+
+// createFormationFish 創建陣型用的魚實例
+func (fs *FishSpawner) createFormationFish(fishType *FishType, config RoomConfig) *Fish {
+	// 陣型魚的初始位置會被陣型管理器重新設置，這裡使用臨時位置
+	position := Position{X: -100, Y: config.RoomHeight / 2}
+	
+	// 減少屬性變化，讓陣型魚更統一
+	healthVariation := 0.9 + fs.rng.Float64()*0.2 // 90%-110%
+	valueVariation := 0.95 + fs.rng.Float64()*0.1 // 95%-105%
+	speedVariation := 0.95 + fs.rng.Float64()*0.1 // 95%-105%
+	
+	health := int32(float64(fishType.BaseHealth) * healthVariation)
+	value := int64(float64(fishType.BaseValue) * valueVariation)
+	speed := fishType.BaseSpeed * speedVariation
+	
+	fish := &Fish{
+		ID:        time.Now().UnixNano() + int64(fs.rng.Intn(1000)),
+		Type:      *fishType,
+		Position:  position,
+		Direction: 0, // 會被陣型管理器設置
+		Speed:     speed,
+		Health:    health,
+		MaxHealth: health,
+		Value:     value,
+		SpawnTime: time.Now(),
+		Status:    FishStatusAlive,
+	}
+	
+	return fish
+}
+
+// GetFormationManager 獲取陣型管理器
+func (fs *FishSpawner) GetFormationManager() *FishFormationManager {
+	return fs.formationManager
+}
+
+// UpdateFormations 更新所有陣型
+func (fs *FishSpawner) UpdateFormations(deltaTime float64) {
+	if fs.formationManager != nil {
+		fs.formationManager.UpdateFormations(deltaTime)
+	}
+}
+
+// SpawnSpecialFormation 生成特殊陣型（用於特殊事件）
+func (fs *FishSpawner) SpawnSpecialFormation(formationType FishFormationType, routeID string, fishTypeIDs []int32, config RoomConfig) *FishFormation {
+	var fishes []*Fish
+	
+	// 根據指定的魚類型創建魚群
+	for _, fishTypeID := range fishTypeIDs {
+		fish := fs.SpawnSpecificFish(fishTypeID, config)
+		if fish != nil {
+			fishes = append(fishes, fish)
+		}
+	}
+	
+	if len(fishes) < 3 {
+		fs.logger.Warn("Not enough fishes for special formation")
+		return nil
+	}
+	
+	// 創建特殊陣型
+	formation := fs.formationManager.CreateFormation(formationType, fishes, routeID)
+	if formation != nil {
+		fs.formationManager.StartFormation(formation.ID)
+		fs.logger.Infof("Spawned special formation: type=%s, fish_count=%d", 
+			formationType, len(fishes))
+	}
+	
+	return formation
 }

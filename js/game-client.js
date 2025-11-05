@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
             heartbeatInterval = setInterval(() => {
                 const heartbeatMsg = new proto.v1.GameMessage();
                 heartbeatMsg.setType(MessageType.HEARTBEAT);
-                const heartbeatPayload = new proto.v1.HeartbeatRequest();
+                const heartbeatPayload = new proto.v1.HeartbeatMessage();
                 heartbeatPayload.setTimestamp(Date.now());
                 heartbeatMsg.setHeartbeat(heartbeatPayload);
                 sendMessage(heartbeatMsg);
@@ -146,14 +146,14 @@ document.addEventListener('DOMContentLoaded', () => {
             case MessageType.JOIN_ROOM_RESPONSE:
                 const joinRoomResp = gameMessage.getJoinRoomResponse();
                 if (joinRoomResp.getSuccess()) {
-                    log(`成功加入房間 ${joinRoomResp.getRoom().getId()}。`);
+                    log(`成功加入房間 ${joinRoomResp.getRoomId()}，當前人數: ${joinRoomResp.getPlayerCount()}`);
                 } else {
-                    log(`加入房間失敗: ${joinRoomResp.getError().getMessage()}`, 'error');
+                    log(`加入房間失敗`, 'error');
                 }
                 break;
             case MessageType.PLAYER_JOINED:
                 const playerJoined = gameMessage.getPlayerJoined();
-                log(`玩家 ${playerJoined.getPlayer().getName()} (ID: ${playerJoined.getPlayer().getId()}) 加入了房間。`);
+                log(`玩家 ${playerJoined.getPlayerId()} 加入了房間 ${playerJoined.getRoomId()}。`);
                 break;
             case MessageType.BULLET_FIRED:
                 const bulletFired = gameMessage.getBulletFired();
@@ -161,15 +161,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case MessageType.FISH_SPAWNED:
                 const fishSpawned = gameMessage.getFishSpawned();
-                log(`魚 ${fishSpawned.getFish().getId()} (類型: ${fishSpawned.getFish().getFishTypeId()}) 出現了！`);
+                log(`魚 ${fishSpawned.getFishId()} (類型: ${fishSpawned.getFishType()}) 出現了！`);
                 break;
             case MessageType.FISH_DIED:
                 const fishDied = gameMessage.getFishDied();
-                log(`魚 ${fishDied.getFishId()} 被捕獲！玩家 ${fishDied.getPlayerId()} 獲得獎勵 ${fishDied.getReward().getGold()} 金幣。`);
+                log(`魚 ${fishDied.getFishId()} 被捕獲！玩家 ${fishDied.getPlayerId()} 獲得獎勵 ${fishDied.getReward()} 金幣。`);
                 break;
             case MessageType.PLAYER_REWARD:
                 const playerReward = gameMessage.getPlayerReward();
-                log(`玩家 ${playerReward.getPlayerId()} 獲得獎勵: ${playerReward.getReward().getGold()} 金幣。`);
+                log(`玩家 ${playerReward.getPlayerId()} 獲得獎勵: ${playerReward.getReward()} 金幣。`);
                 break;
             case MessageType.PLAYER_LEFT:
                 const playerLeft = gameMessage.getPlayerLeft();
@@ -186,9 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
             case MessageType.SWITCH_CANNON_RESPONSE:
                 const switchCannonResp = gameMessage.getSwitchCannonResponse();
                 if (switchCannonResp.getSuccess()) {
-                    log(`成功切換砲台至 ${switchCannonResp.getCannonId()}。`);
+                    log(`成功切換砲台類型: ${switchCannonResp.getCannonType()}, 等級: ${switchCannonResp.getLevel()}, 威力: ${switchCannonResp.getPower()}`);
                 } else {
-                    log(`切換砲台失敗: ${switchCannonResp.getError().getMessage()}`, 'error');
+                    log(`切換砲台失敗`, 'error');
                 }
                 break;
             case MessageType.GET_PLAYER_INFO_RESPONSE:
@@ -232,8 +232,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const gameMessage = new proto.v1.GameMessage();
         gameMessage.setType(MessageType.FIRE_BULLET);
         const fireBulletReq = new proto.v1.FireBulletRequest();
-        fireBulletReq.setAngle(Math.random() * 360); // 隨機角度
-        fireBulletReq.setTimestamp(Date.now());
+        fireBulletReq.setDirection(Math.random() * 2 * Math.PI); // 隨機方向 (弧度)
+        fireBulletReq.setPower(Math.floor(Math.random() * 100) + 1); // 隨機威力 1-100
+        const position = new proto.v1.Position();
+        position.setX(Math.random() * 800); // 隨機 X 位置
+        position.setY(Math.random() * 600); // 隨機 Y 位置
+        fireBulletReq.setPosition(position);
         gameMessage.setFireBullet(fireBulletReq);
         sendMessage(gameMessage);
     });
@@ -242,7 +246,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const gameMessage = new proto.v1.GameMessage();
         gameMessage.setType(MessageType.SWITCH_CANNON);
         const switchCannonReq = new proto.v1.SwitchCannonRequest();
-        switchCannonReq.setCannonId(2); // 假設切換到砲台 ID 為 2
+        switchCannonReq.setCannonType(2); // 假設切換到砲台類型為 2
+        switchCannonReq.setLevel(1); // 砲台等級為 1
         gameMessage.setSwitchCannon(switchCannonReq);
         sendMessage(gameMessage);
     });

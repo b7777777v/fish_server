@@ -140,7 +140,19 @@ func TestSimpleGameComponents(t *testing.T) {
 	tokenHelper := token.NewTokenHelper(jwtConfig)
 	playerUsecase := player.NewPlayerUsecase(bizPlayerRepo, tokenHelper, log)
 
-	spawner := game.NewFishSpawner(log)
+	// Create a test room config
+	testRoomConfig := game.RoomConfig{
+		MinBet:               1,
+		MaxBet:               100,
+		BulletCostMultiplier: 1.0,
+		FishSpawnRate:        0.3,
+		MaxFishCount:         20,
+		RoomWidth:            1200,
+		RoomHeight:           800,
+		TargetRTP:            0.96,
+	}
+
+	spawner := game.NewFishSpawner(log, testRoomConfig)
 	mathModel := game.NewMathModel(log)
 	inventoryManager, err := game.NewInventoryManager(inventoryRepo, log)
 	assert.NoError(t, err)
@@ -211,7 +223,7 @@ func TestSimpleGameComponents(t *testing.T) {
 		// Create a fresh usecase for this test to avoid state leakage
 		roomManager := game.NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
 		gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
-		_, err := gameUsecase.CreateRoom(context.Background(), "test_room_001", 4)
+		room, err := gameUsecase.CreateRoom(context.Background(), "test_room_001", 4)
 		assert.NoError(t, err)
 
 		hub := NewHub(gameUsecase, playerUsecase, log)
@@ -231,14 +243,15 @@ func TestSimpleGameComponents(t *testing.T) {
 		hub.register <- client
 		time.Sleep(50 * time.Millisecond)
 
+		// Use the actual room ID from the created room
 		joinMsg := &pb.GameMessage{
 			Type: pb.MessageType_JOIN_ROOM,
-			Data: &pb.GameMessage_JoinRoom{JoinRoom: &pb.JoinRoomRequest{RoomId: "test_room_001"}},
+			Data: &pb.GameMessage_JoinRoom{JoinRoom: &pb.JoinRoomRequest{RoomId: room.ID}},
 		}
 
 		messageHandler.HandleMessage(client, joinMsg)
 		time.Sleep(100 * time.Millisecond)
-		assert.Equal(t, "test_room_001", client.RoomID)
+		assert.Equal(t, room.ID, client.RoomID)
 
 		leaveMsg := &pb.GameMessage{
 			Type: pb.MessageType_LEAVE_ROOM,

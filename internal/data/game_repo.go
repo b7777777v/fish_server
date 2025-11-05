@@ -241,7 +241,15 @@ func (r *gameRepo) SaveGameEvent(ctx context.Context, event *game.GameEvent) err
 		VALUES ($1, $2, $3, $4, $5)
 	`
 
-	_, err = r.data.db.Exec(ctx, query, event.RoomID, event.PlayerID, event.Type, dataBytes, event.Timestamp)
+	// 如果 PlayerID 為 0，則插入 NULL 到 user_id 欄位
+	var userID interface{}
+	if event.PlayerID != 0 {
+		userID = event.PlayerID
+	} else {
+		userID = nil
+	}
+
+	_, err = r.data.db.Exec(ctx, query, event.RoomID, userID, event.Type, dataBytes, event.Timestamp)
 	if err != nil {
 		r.logger.Errorf("failed to save game event: %v", err)
 		return err

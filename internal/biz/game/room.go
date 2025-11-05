@@ -305,6 +305,10 @@ func (rm *RoomManager) updateRoom(room *Room) {
 	defer rm.mu.Unlock()
 
 	now := time.Now()
+	deltaTime := 0.1 // 100ms
+	
+	// 更新魚群陣型
+	rm.spawner.UpdateFormations(deltaTime)
 	
 	// 更新魚的位置
 	for _, fish := range room.Fishes {
@@ -323,6 +327,16 @@ func (rm *RoomManager) updateRoom(room *Room) {
 		if fish := rm.spawner.TrySpawnFish(room.Config); fish != nil {
 			room.Fishes[fish.ID] = fish
 		}
+	}
+	
+	// 嘗試生成魚群陣型
+	if formation := rm.spawner.TrySpawnFormation(room.Config); formation != nil {
+		// 將陣型中的魚添加到房間
+		for _, fish := range formation.Fishes {
+			room.Fishes[fish.ID] = fish
+		}
+		rm.logger.Infof("Spawned formation in room %s: %s with %d fishes", 
+			room.ID, formation.Type, len(formation.Fishes))
 	}
 	
 	room.UpdatedAt = now
@@ -392,4 +406,159 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 	}
 	
 	return configs[roomType]
+}
+
+// ========================================
+// 魚群陣型管理相關方法
+// ========================================
+
+// SpawnFormationInRoom 在指定房間生成魚群陣型
+func (rm *RoomManager) SpawnFormationInRoom(roomID string, formationType FishFormationType, routeID string) (*FishFormation, error) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+
+	room, exists := rm.rooms[roomID]
+	if !exists {
+		return nil, fmt.Errorf("room not found: %s", roomID)
+	}
+
+	formation := rm.spawner.TrySpawnFormation(room.Config)
+	if formation == nil {
+		return nil, fmt.Errorf("failed to spawn formation")
+	}
+
+	// 將陣型中的魚添加到房間
+	for _, fish := range formation.Fishes {
+		room.Fishes[fish.ID] = fish
+	}
+
+	rm.logger.Infof("Manually spawned formation in room %s: %s", roomID, formation.Type)
+	return formation, nil
+}
+
+// SpawnSpecialFormationInRoom 在房間生成特殊陣型
+func (rm *RoomManager) SpawnSpecialFormationInRoom(roomID string, formationType FishFormationType, routeID string, fishTypeIDs []int32) (*FishFormation, error) {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+
+	room, exists := rm.rooms[roomID]
+	if !exists {
+		return nil, fmt.Errorf("room not found: %s", roomID)
+	}
+
+	formation := rm.spawner.SpawnSpecialFormation(formationType, routeID, fishTypeIDs, room.Config)
+	if formation == nil {
+		return nil, fmt.Errorf("failed to spawn special formation")
+	}
+
+	// 將陣型中的魚添加到房間
+	for _, fish := range formation.Fishes {
+		room.Fishes[fish.ID] = fish
+	}
+
+	rm.logger.Infof("Spawned special formation in room %s: %s with %d fishes", 
+		roomID, formation.Type, len(formation.Fishes))
+	return formation, nil
+}
+
+// GetFormationsInRoom 獲取房間中的所有陣型
+func (rm *RoomManager) GetFormationsInRoom(roomID string) ([]*FishFormation, error) {
+	room, exists := rm.rooms[roomID]
+	if !exists {
+		return nil, fmt.Errorf("room not found: %s", roomID)
+	}
+
+	formations := rm.spawner.GetFormationManager().GetAllFormations()
+	
+	// 篩選出該房間中的陣型（通過檢查魚是否在房間中）
+	var roomFormations []*FishFormation
+	for _, formation := range formations {
+		for _, fish := range formation.Fishes {
+			if _, exists := room.Fishes[fish.ID]; exists {
+				roomFormations = append(roomFormations, formation)
+				break
+			}
+		}
+	}
+
+	return roomFormations, nil
+}
+
+// StopFormationInRoom 停止房間中的指定陣型
+func (rm *RoomManager) StopFormationInRoom(roomID string, formationID string) error {
+	_, exists := rm.rooms[roomID]
+	if !exists {
+		return fmt.Errorf("room not found: %s", roomID)
+	}
+
+	success := rm.spawner.GetFormationManager().StopFormation(formationID)
+	if !success {
+		return fmt.Errorf("formation not found or failed to stop: %s", formationID)
+	}
+
+	rm.logger.Infof("Stopped formation %s in room %s", formationID, roomID)
+	return nil
+}
+
+// GetAvailableRoutes 獲取可用的路線列表
+func (rm *RoomManager) GetAvailableRoutes() []*FishRoute {
+	return rm.spawner.GetFormationManager().GetAllRoutes()
+}
+
+// GetRoutesByType 根據類型獲取路線
+func (rm *RoomManager) GetRoutesByType(routeType FishRouteType) []*FishRoute {
+	return rm.spawner.GetFormationManager().GetRoutesByType(routeType)
+}
+
+// CreateCustomRoute 創建自定義路線
+func (rm *RoomManager) CreateCustomRoute(id, name string, points []Position, routeType FishRouteType, difficulty float64, looping bool) (*FishRoute, error) {
+	route := rm.spawner.GetFormationManager().CreateCustomRoute(id, name, points, routeType, difficulty, looping)
+	if route == nil {
+		return nil, fmt.Errorf("failed to create route")
+	}
+	
+	rm.logger.Infof("Created custom route: %s", route.Name)
+	return route, nil
+}
+
+// RemoveCustomRoute 移除自定義路線
+func (rm *RoomManager) RemoveCustomRoute(routeID string) error {
+	success := rm.spawner.GetFormationManager().RemoveRoute(routeID)
+	if !success {
+		return fmt.Errorf("failed to remove route: %s", routeID)
+	}
+	
+	rm.logger.Infof("Removed custom route: %s", routeID)
+	return nil
+}
+
+// GetFormationStatistics 獲取陣型統計信息
+func (rm *RoomManager) GetFormationStatistics(roomID string) (map[string]interface{}, error) {
+	formations, err := rm.GetFormationsInRoom(roomID)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := map[string]interface{}{
+		"total_formations": len(formations),
+		"formations_by_type": make(map[FishFormationType]int),
+		"formations_by_status": make(map[FormationStatus]int),
+		"total_formation_fishes": 0,
+	}
+
+	formationsByType := make(map[FishFormationType]int)
+	formationsByStatus := make(map[FormationStatus]int)
+	totalFishes := 0
+
+	for _, formation := range formations {
+		formationsByType[formation.Type]++
+		formationsByStatus[formation.Status]++
+		totalFishes += len(formation.Fishes)
+	}
+
+	stats["formations_by_type"] = formationsByType
+	stats["formations_by_status"] = formationsByStatus
+	stats["total_formation_fishes"] = totalFishes
+
+	return stats, nil
 }

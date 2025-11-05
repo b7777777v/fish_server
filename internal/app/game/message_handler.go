@@ -226,19 +226,40 @@ func (mh *MessageHandler) handleJoinRoom(client *Client, message *pb.GameMessage
 		RoomID: roomID,
 	}
 	
+	// 獲取房間信息以獲取正確的玩家數量
+	room, err := mh.gameUsecase.GetRoom(ctx, roomID)
+	if err != nil {
+		mh.logger.Errorf("Failed to get room info after join: %v", err)
+	}
+	
+	playerCount := int32(1)
+	if room != nil {
+		playerCount = int32(len(room.Players))
+	}
+	
 	// 發送響應
 	response := &pb.GameMessage{
 		Type: pb.MessageType_JOIN_ROOM_RESPONSE,
 		Data: &pb.GameMessage_JoinRoomResponse{
 			JoinRoomResponse: &pb.JoinRoomResponse{
-				Success:   true,
-				RoomId:    roomID,
-				Timestamp: time.Now().Unix(),
+				Success:     true,
+				RoomId:      roomID,
+				Timestamp:   time.Now().Unix(),
+				PlayerCount: playerCount,
 			},
 		},
 	}
 	
 	client.sendProtobuf(response)
+	
+	// 立即發送一次房間狀態更新
+	go mh.broadcastRoomState(roomID)
+	
+	// 如果這是房間的第一個玩家，啟動定期狀態更新
+	if playerCount == 1 {
+		go mh.StartRoomStateUpdates(roomID)
+		mh.logger.Infof("Started room state updates for room %s", roomID)
+	}
 	
 	mh.logger.Infof("Player %d joined room %s", client.PlayerID, roomID)
 }
@@ -396,4 +417,190 @@ func (mh *MessageHandler) broadcastGlobal(message *pb.GameMessage) {
 	}
 	
 	mh.hub.BroadcastGlobal(data)
+}
+
+// ========================================
+// 房間狀態推送功能
+// ========================================
+
+// broadcastRoomState 廣播房間狀態更新
+func (mh *MessageHandler) broadcastRoomState(roomID string) {
+	room, err := mh.gameUsecase.GetRoom(context.Background(), roomID)
+	if err != nil {
+		mh.logger.Errorf("Failed to get room %s: %v", roomID, err)
+		return
+	}
+
+	// 轉換魚類信息
+	var fishInfos []*pb.FishInfo
+	for _, fish := range room.Fishes {
+		fishInfo := &pb.FishInfo{
+			FishId:      fish.ID,
+			FishType:    fish.Type.ID,
+			Position:    &pb.Position{X: fish.Position.X, Y: fish.Position.Y},
+			Direction:   fish.Direction,
+			Speed:       fish.Speed,
+			Health:      fish.Health,
+			MaxHealth:   fish.MaxHealth,
+			Value:       fish.Value,
+			Status:      string(fish.Status),
+			SpawnTime:   fish.SpawnTime.Unix(),
+			InFormation: false, // 默认值，稍后会更新
+			FormationId: "",
+		}
+		fishInfos = append(fishInfos, fishInfo)
+	}
+
+	// 轉換子彈信息
+	var bulletInfos []*pb.BulletInfo
+	for _, bullet := range room.Bullets {
+		bulletInfo := &pb.BulletInfo{
+			BulletId:  bullet.ID,
+			PlayerId:  bullet.PlayerID,
+			Position:  &pb.Position{X: bullet.Position.X, Y: bullet.Position.Y},
+			Direction: bullet.Direction,
+			Speed:     bullet.Speed,
+			Power:     bullet.Power,
+			Cost:      bullet.Cost,
+			Status:    string(bullet.Status),
+			CreatedAt: bullet.CreatedAt.Unix(),
+		}
+		bulletInfos = append(bulletInfos, bulletInfo)
+	}
+
+	// 獲取並轉換魚群陣型信息
+	var formationInfos []*pb.FormationInfo
+	formations, err := mh.gameUsecase.GetFormationsInRoom(context.Background(), roomID)
+	if err == nil {
+		for _, formation := range formations {
+			var fishIds []int64
+			for _, fish := range formation.Fishes {
+				fishIds = append(fishIds, fish.ID)
+				
+				// 更新魚類的陣型信息
+				for _, fishInfo := range fishInfos {
+					if fishInfo.FishId == fish.ID {
+						fishInfo.InFormation = true
+						fishInfo.FormationId = formation.ID
+					}
+				}
+			}
+
+			formationInfo := &pb.FormationInfo{
+				FormationId:     formation.ID,
+				FormationType:   string(formation.Type),
+				FishIds:         fishIds,
+				CenterPosition:  &pb.Position{X: formation.Position.X, Y: formation.Position.Y},
+				Direction:       formation.Direction,
+				Speed:           formation.Speed,
+				Status:          string(formation.Status),
+				Progress:        formation.Progress,
+				RouteId:         formation.Route.ID,
+				RouteName:       formation.Route.Name,
+				CreatedAt:       formation.CreatedAt.Unix(),
+				Size: &pb.FormationSize{
+					Width:  formation.Size.Width,
+					Height: formation.Size.Height,
+					Depth:  formation.Size.Depth,
+				},
+			}
+			formationInfos = append(formationInfos, formationInfo)
+		}
+	}
+
+	// 創建房間狀態更新消息
+	roomStateUpdate := &pb.GameMessage{
+		Type: pb.MessageType_ROOM_STATE_UPDATE,
+		Data: &pb.GameMessage_RoomStateUpdate{
+			RoomStateUpdate: &pb.RoomStateUpdate{
+				RoomId:      roomID,
+				Fishes:      fishInfos,
+				Bullets:     bulletInfos,
+				Formations:  formationInfos,
+				PlayerCount: int32(len(room.Players)),
+				Timestamp:   time.Now().Unix(),
+				RoomStatus:  string(room.Status),
+			},
+		},
+	}
+
+	// 廣播給房間內所有玩家
+	mh.broadcastToRoom(roomID, roomStateUpdate, nil)
+}
+
+// broadcastFormationSpawned 廣播魚群陣型生成事件
+func (mh *MessageHandler) BroadcastFormationSpawned(roomID string, formation *game.FishFormation) {
+	var fishInfos []*pb.FishInfo
+	for _, fish := range formation.Fishes {
+		fishInfo := &pb.FishInfo{
+			FishId:      fish.ID,
+			FishType:    fish.Type.ID,
+			Position:    &pb.Position{X: fish.Position.X, Y: fish.Position.Y},
+			Direction:   fish.Direction,
+			Speed:       fish.Speed,
+			Health:      fish.Health,
+			MaxHealth:   fish.MaxHealth,
+			Value:       fish.Value,
+			Status:      string(fish.Status),
+			SpawnTime:   fish.SpawnTime.Unix(),
+			InFormation: true,
+			FormationId: formation.ID,
+		}
+		fishInfos = append(fishInfos, fishInfo)
+	}
+
+	formationInfo := &pb.FormationInfo{
+		FormationId:     formation.ID,
+		FormationType:   string(formation.Type),
+		CenterPosition:  &pb.Position{X: formation.Position.X, Y: formation.Position.Y},
+		Direction:       formation.Direction,
+		Speed:           formation.Speed,
+		Status:          string(formation.Status),
+		Progress:        formation.Progress,
+		RouteId:         formation.Route.ID,
+		RouteName:       formation.Route.Name,
+		CreatedAt:       formation.CreatedAt.Unix(),
+		Size: &pb.FormationSize{
+			Width:  formation.Size.Width,
+			Height: formation.Size.Height,
+			Depth:  formation.Size.Depth,
+		},
+	}
+
+	message := &pb.GameMessage{
+		Type: pb.MessageType_FORMATION_SPAWNED,
+		Data: &pb.GameMessage_FormationSpawned{
+			FormationSpawned: &pb.FormationSpawnedEvent{
+				RoomId:    roomID,
+				Formation: formationInfo,
+				Fishes:    fishInfos,
+				Timestamp: time.Now().Unix(),
+			},
+		},
+	}
+
+	mh.broadcastToRoom(roomID, message, nil)
+	mh.logger.Infof("Broadcasted formation spawned: %s in room %s", formation.Type, roomID)
+}
+
+// StartRoomStateUpdates 開始定期房間狀態更新
+func (mh *MessageHandler) StartRoomStateUpdates(roomID string) {
+	go func() {
+		ticker := time.NewTicker(2 * time.Second) // 每2秒更新一次
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				// 檢查房間是否還存在
+				_, err := mh.gameUsecase.GetRoom(context.Background(), roomID)
+				if err != nil {
+					mh.logger.Infof("Room %s no longer exists, stopping state updates", roomID)
+					return
+				}
+				
+				mh.broadcastRoomState(roomID)
+			}
+		}
+	}()
 }

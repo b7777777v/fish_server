@@ -32,7 +32,8 @@ func initApp(config *conf.Config) (*game.GameApp, func(), error) {
 	}
 	gameRepo := data.NewGameRepo(dataData, v)
 	playerRepo := data.NewGamePlayerRepo(dataData, v)
-	fishSpawner := game2.NewFishSpawner(v)
+	roomConfig := game2.NewDefaultRoomConfig()
+	fishSpawner := game2.NewFishSpawner(v, roomConfig)
 	mathModel := game2.NewMathModel(v)
 	inMemoryInventoryRepo := data.NewInMemoryInventoryRepo(v)
 	inventoryManager, err := game2.NewInventoryManager(inMemoryInventoryRepo, v)

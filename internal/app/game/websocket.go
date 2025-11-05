@@ -256,6 +256,10 @@ func (c *Client) handleBinaryMessage(message []byte) {
 		c.handleLeaveRoomPB(&gameMsg)
 	case pb.MessageType_GET_PLAYER_INFO:
 		c.handleGetPlayerInfo(&gameMsg)
+	case pb.MessageType_GET_ROOM_LIST:
+		c.handleGetRoomList(&gameMsg)
+	case pb.MessageType_HEARTBEAT:
+		c.handleHeartbeat(&gameMsg)
 	default:
 		c.logger.Warnf("Unknown protobuf message type: %v", gameMsg.Type)
 	}
@@ -366,6 +370,64 @@ func (c *Client) sendErrorPB(message string) {
 		},
 	}
 	c.sendProtobuf(errorMsg)
+}
+
+// handleGetRoomList 處理獲取房間列表請求
+func (c *Client) handleGetRoomList(msg *pb.GameMessage) {
+	// 創建模擬房間列表
+	roomList := []*pb.RoomInfo{
+		{
+			RoomId:      "101",
+			Name:        "初級房間",
+			Type:        "normal",
+			PlayerCount: 2,
+			MaxPlayers:  4,
+			Status:      "active",
+		},
+		{
+			RoomId:      "102",
+			Name:        "中級房間",
+			Type:        "medium",
+			PlayerCount: 1,
+			MaxPlayers:  4,
+			Status:      "active",
+		},
+		{
+			RoomId:      "103",
+			Name:        "高級房間",
+			Type:        "hard",
+			PlayerCount: 0,
+			MaxPlayers:  4,
+			Status:      "active",
+		},
+	}
+
+	responseMsg := &pb.GameMessage{
+		Type: pb.MessageType_ROOM_LIST_RESPONSE,
+		Data: &pb.GameMessage_RoomListResponse{
+			RoomListResponse: &pb.RoomListResponse{
+				Rooms:     roomList,
+				Timestamp: time.Now().Unix(),
+			},
+		},
+	}
+
+	c.sendProtobuf(responseMsg)
+}
+
+// handleHeartbeat 處理心跳請求
+func (c *Client) handleHeartbeat(msg *pb.GameMessage) {
+	responseMsg := &pb.GameMessage{
+		Type: pb.MessageType_HEARTBEAT_RESPONSE,
+		Data: &pb.GameMessage_HeartbeatResponse{
+			HeartbeatResponse: &pb.HeartbeatResponse{
+				ServerTime: time.Now().Unix(),
+				Timestamp:  time.Now().Unix(),
+			},
+		},
+	}
+
+	c.sendProtobuf(responseMsg)
 }
 
 // GetConnectionInfo 獲取連接信息

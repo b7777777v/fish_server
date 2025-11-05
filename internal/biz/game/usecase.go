@@ -106,11 +106,12 @@ func (gu *GameUsecase) CreateRoom(ctx context.Context, roomType RoomType, maxPla
 		return nil, err
 	}
 	
-	// 記錄事件
+	// 記錄事件（魚類生成事件不關聯特定玩家，所以不設置 PlayerID）
 	event := &GameEvent{
 		ID:        time.Now().UnixNano(),
 		Type:      EventFishSpawn,
 		RoomID:    room.ID,
+		PlayerID:  0, // 系統事件，不關聯玩家
 		Data:      map[string]interface{}{"initial_fish_count": len(initialFishes)},
 		Timestamp: time.Now(),
 	}
@@ -429,4 +430,28 @@ func (gu *GameUsecase) UpdateRoomConfig(ctx context.Context, roomID string, conf
 	
 	// 保存到數據庫
 	return gu.gameRepo.SaveRoom(ctx, room)
+}
+
+// GetRoom 獲取房間詳細信息
+func (gu *GameUsecase) GetRoom(ctx context.Context, roomID string) (*Room, error) {
+	room, err := gu.roomManager.GetRoom(roomID)
+	if err != nil {
+		gu.logger.Errorf("Failed to get room %s: %v", roomID, err)
+		return nil, err
+	}
+	
+	gu.logger.Debugf("Retrieved room: %s", roomID)
+	return room, nil
+}
+
+// GetFormationsInRoom 獲取房間中的陣型
+func (gu *GameUsecase) GetFormationsInRoom(ctx context.Context, roomID string) ([]*FishFormation, error) {
+	formations, err := gu.roomManager.GetFormationsInRoom(roomID)
+	if err != nil {
+		gu.logger.Errorf("Failed to get formations in room %s: %v", roomID, err)
+		return nil, err
+	}
+	
+	gu.logger.Debugf("Retrieved %d formations from room: %s", len(formations), roomID)
+	return formations, nil
 }
