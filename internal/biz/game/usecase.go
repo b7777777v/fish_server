@@ -129,24 +129,39 @@ func (gu *GameUsecase) JoinRoom(ctx context.Context, roomID string, playerID int
 		gu.logger.Errorf("Failed to get player %d: %v", playerID, err)
 		return err
 	}
-	
+
 	// 檢查玩家餘額
 	if player.Balance < 100 { // 最小餘額要求
 		return fmt.Errorf("insufficient balance to join room")
 	}
-	
+
 	// 加入房間
 	if err := gu.roomManager.JoinRoom(roomID, player); err != nil {
 		gu.logger.Errorf("Failed to join room %s: %v", roomID, err)
 		return err
 	}
-	
+
+	// 檢查是否為第一個玩家，若是則初始化魚群
+	room, err := gu.roomManager.GetRoom(roomID)
+	if err != nil {
+		gu.logger.Errorf("Failed to get room after join: %v", err)
+		// 即使獲取房間失敗，也繼續執行，不影響加入流程
+	} else {
+		if len(room.Players) == 1 {
+			gu.logger.Infof("First player in room %s, initializing fishes.", roomID)
+			initialFishes := gu.spawner.BatchSpawnFish(15, room.Config) // 生成15條初始魚
+			for _, fish := range initialFishes {
+				room.Fishes[fish.ID] = fish
+			}
+		}
+	}
+
 	// 更新玩家狀態
 	if err := gu.playerRepo.UpdatePlayerStatus(ctx, playerID, PlayerStatusPlaying); err != nil {
 		gu.logger.Errorf("Failed to update player status: %v", err)
 		return err
 	}
-	
+
 	// 記錄事件
 	event := &GameEvent{
 		ID:        time.Now().UnixNano(),
@@ -157,7 +172,7 @@ func (gu *GameUsecase) JoinRoom(ctx context.Context, roomID string, playerID int
 		Timestamp: time.Now(),
 	}
 	gu.gameRepo.SaveGameEvent(ctx, event)
-	
+
 	gu.logger.Infof("Player %d joined room %s", playerID, roomID)
 	return nil
 }
@@ -263,65 +278,75 @@ func (gu *GameUsecase) HitFish(ctx context.Context, roomID string, bulletID int6
 		gu.logger.Errorf("Failed to process bullet hit: %v", err)
 		return nil, err
 	}
-	
-	room, _ := gu.roomManager.GetRoom(roomID)
-	if room == nil {
-		return hitResult, nil
-	}
-	
-	// 如果命中成功，更新相關數據
+
+	// 如果命中成功，異步更新資料庫
 	if hitResult.Success {
-		// 查找子彈所屬玩家
-		var playerID int64
-		for _, bullet := range room.Bullets {
-			if bullet.ID == bulletID {
-				playerID = bullet.PlayerID
-				break
+		go func() {
+			room, err := gu.roomManager.GetRoom(roomID)
+			if err != nil {
+				gu.logger.Errorf("Failed to get room for persisting hit result: %v", err)
+				return
 			}
-		}
-		
-		if playerID > 0 {
-			// 更新玩家餘額到數據庫
-			if player, exists := room.Players[playerID]; exists && hitResult.Reward > 0 {
-				gu.playerRepo.UpdatePlayerBalance(ctx, playerID, player.Balance)
+
+			// 查找子彈所屬玩家
+			var playerID int64
+			for _, bullet := range room.Bullets {
+				if bullet.ID == bulletID {
+					playerID = bullet.PlayerID
+					break
+				}
 			}
-			
-			// 記錄命中事件
-			event := &GameEvent{
-				ID:       time.Now().UnixNano(),
-				Type:     EventBulletHit,
-				RoomID:   roomID,
-				PlayerID: playerID,
-				Data: map[string]interface{}{
-					"bullet_id":    bulletID,
-					"fish_id":      fishID,
-					"damage":       hitResult.Damage,
-					"reward":       hitResult.Reward,
-					"is_critical":  hitResult.IsCritical,
-					"multiplier":   hitResult.Multiplier,
-				},
-				Timestamp: time.Now(),
-			}
-			gu.gameRepo.SaveGameEvent(ctx, event)
-			
-			// 如果魚死亡，記錄魚死亡事件
-			if hitResult.Reward > 0 {
-				fishEvent := &GameEvent{
-					ID:       time.Now().UnixNano() + 1,
-					Type:     EventFishDie,
+
+			if playerID > 0 {
+				// 更新玩家餘額到數據庫
+				if player, exists := room.Players[playerID]; exists && hitResult.Reward > 0 {
+					// 使用新的 context，避免原始 context 被取消
+					persistCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					gu.playerRepo.UpdatePlayerBalance(persistCtx, playerID, player.Balance)
+				}
+
+				// 記錄命中事件
+				event := &GameEvent{
+					ID:       time.Now().UnixNano(),
+					Type:     EventBulletHit,
 					RoomID:   roomID,
 					PlayerID: playerID,
 					Data: map[string]interface{}{
-						"fish_id": fishID,
-						"reward":  hitResult.Reward,
+						"bullet_id":    bulletID,
+						"fish_id":      fishID,
+						"damage":       hitResult.Damage,
+						"reward":       hitResult.Reward,
+						"is_critical":  hitResult.IsCritical,
+						"multiplier":   hitResult.Multiplier,
 					},
 					Timestamp: time.Now(),
 				}
-				gu.gameRepo.SaveGameEvent(ctx, fishEvent)
+				persistCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				gu.gameRepo.SaveGameEvent(persistCtx, event)
+
+				// 如果魚死亡，記錄魚死亡事件
+				if hitResult.Reward > 0 {
+					fishEvent := &GameEvent{
+						ID:       time.Now().UnixNano() + 1,
+						Type:     EventFishDie,
+						RoomID:   roomID,
+						PlayerID: playerID,
+						Data: map[string]interface{}{
+							"fish_id": fishID,
+							"reward":  hitResult.Reward,
+						},
+						Timestamp: time.Now(),
+					}
+					persistCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					gu.gameRepo.SaveGameEvent(persistCtx, fishEvent)
+				}
 			}
-		}
+		}()
 	}
-	
+
 	return hitResult, nil
 }
 
