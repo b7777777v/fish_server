@@ -78,7 +78,25 @@ func (c *Client) sendProtobuf(msg *pb.GameMessage) {
 		c.logger.Errorf("Failed to marshal protobuf message: %v", err)
 		return
 	}
-	c.send <- bytes
+	
+	// 使用非阻塞發送避免阻塞房間管理器
+	select {
+	case c.send <- bytes:
+		// 成功發送
+	default:
+		c.logger.Warnf("Client %s send channel full, dropping protobuf message", c.ID)
+		// 嘗試清空一些舊消息
+		select {
+		case <-c.send:
+			// 丟棄一個舊消息，然後重試
+			select {
+			case c.send <- bytes:
+			default:
+				c.logger.Errorf("Client %s send channel still full after cleanup", c.ID)
+			}
+		default:
+		}
+	}
 }
 
 // sendError 將錯誤消息發送到客戶端
@@ -94,7 +112,25 @@ func (c *Client) sendJSON(v interface{}) {
 		c.sendError("Internal server error: could not serialize JSON response")
 		return
 	}
-	c.send <- bytes
+	
+	// 使用非阻塞發送避免阻塞房間管理器
+	select {
+	case c.send <- bytes:
+		// 成功發送
+	default:
+		c.logger.Warnf("Client %s send channel full, dropping message", c.ID)
+		// 嘗試清空一些舊消息
+		select {
+		case <-c.send:
+			// 丟棄一個舊消息，然後重試
+			select {
+			case c.send <- bytes:
+			default:
+				c.logger.Errorf("Client %s send channel still full after cleanup", c.ID)
+			}
+		default:
+		}
+	}
 }
 
 // WebSocketHandler WebSocket 升級處理器

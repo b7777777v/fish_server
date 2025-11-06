@@ -106,7 +106,7 @@ func NewHub(gameUsecase *game.GameUsecase, playerUsecase *player.PlayerUsecase, 
 		joinRoom:      make(chan *JoinRoomMessage),
 		leaveRoom:     make(chan *LeaveRoomMessage),
 		gameAction:    make(chan *GameActionMessage),
-		broadcast:     make(chan *BroadcastMessage),
+		broadcast:     make(chan *BroadcastMessage, 100), // 添加緩衝區避免阻塞
 		logger:        logger.With("component", "hub"),
 		stats: &HubStats{
 			StartTime: time.Now(),
@@ -298,7 +298,9 @@ func (h *Hub) handleLeaveRoom(msg *LeaveRoomMessage) {
 		Type: pb.MessageType_LEAVE_ROOM_RESPONSE,
 		Data: &pb.GameMessage_LeaveRoomResponse{
 			LeaveRoomResponse: &pb.LeaveRoomResponse{
-				RoomId: roomID,
+				Success:   true,  // 明確設置 success 為 true
+				RoomId:    roomID,
+				Timestamp: time.Now().Unix(),
 			},
 		},
 	}
@@ -391,20 +393,28 @@ func (h *Hub) broadcastToRoom(roomID string, message *pb.GameMessage, exclude *C
 
 // broadcastToRoomBytes 向房間廣播字節消息
 func (h *Hub) broadcastToRoomBytes(roomID string, message []byte, exclude *Client) {
+	h.logger.Debugf("Broadcasting %d bytes to room %s", len(message), roomID)
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	if room, ok := h.rooms[roomID]; ok {
+		sentCount := 0
+		totalClients := len(room)
 		for client := range room {
 			if client != exclude {
 				select {
 				case client.send <- message:
+					sentCount++
 				default:
+					h.logger.Warnf("Failed to send message to client %s, channel full", client.ID)
 					close(client.send)
 					delete(room, client)
 				}
 			}
 		}
+		h.logger.Debugf("Sent message to %d/%d clients in room %s", sentCount, totalClients, roomID)
+	} else {
+		h.logger.Warnf("Room %s not found for broadcast", roomID)
 	}
 }
 
@@ -449,10 +459,20 @@ func (h *Hub) GetRoomClients(roomID string) []*Client {
 
 // BroadcastToRoom 向房間廣播消息（外部接口）
 func (h *Hub) BroadcastToRoom(roomID string, message []byte, exclude *Client) {
-	h.broadcast <- &BroadcastMessage{
+	broadcastMsg := &BroadcastMessage{
 		RoomID:  roomID,
 		Message: message,
 		Exclude: exclude,
+	}
+	
+	// 使用非阻塞發送避免阻塞房間管理器
+	select {
+	case h.broadcast <- broadcastMsg:
+		// 成功發送
+	default:
+		h.logger.Warnf("Broadcast channel full, dropping message for room %s", roomID)
+		// 如果緩衝區滿了，嘗試直接廣播（繞過 channel）
+		h.broadcastToRoomBytes(roomID, message, exclude)
 	}
 }
 

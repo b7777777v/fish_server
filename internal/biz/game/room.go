@@ -144,26 +144,29 @@ func (rm *RoomManager) LeaveRoom(roomID string, playerID int64) error {
 
 // FireBullet 玩家開火
 func (rm *RoomManager) FireBullet(roomID string, playerID int64, direction float64, power int32) (*Bullet, error) {
-	rm.mu.Lock()
-	defer rm.mu.Unlock()
-
+	// First check room and player existence with read lock
+	rm.mu.RLock()
 	room, exists := rm.rooms[roomID]
 	if !exists {
+		rm.mu.RUnlock()
 		return nil, fmt.Errorf("room not found: %s", roomID)
 	}
 
 	player, playerExists := room.Players[playerID]
 	if !playerExists {
+		rm.mu.RUnlock()
 		return nil, fmt.Errorf("player not in room")
 	}
 
-	// 計算子彈成本
+	// Calculate bullet cost
 	bulletCost := int64(float64(power) * room.Config.BulletCostMultiplier)
 	if player.Balance < bulletCost {
+		rm.mu.RUnlock()
 		return nil, fmt.Errorf("insufficient balance")
 	}
+	rm.mu.RUnlock()
 
-	// 創建子彈
+	// Create bullet outside of lock
 	bulletID := time.Now().UnixNano()
 	bullet := &Bullet{
 		ID:        bulletID,
@@ -177,14 +180,39 @@ func (rm *RoomManager) FireBullet(roomID string, playerID int64, direction float
 		Status:    BulletStatusFlying,
 	}
 
-	// 扣除玩家餘額
+	// Now acquire write lock for the actual modifications
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+
+	// Double-check room and player still exist
+	room, exists = rm.rooms[roomID]
+	if !exists {
+		return nil, fmt.Errorf("room not found: %s", roomID)
+	}
+
+	player, playerExists = room.Players[playerID]
+	if !playerExists {
+		return nil, fmt.Errorf("player not in room")
+	}
+
+	// Final balance check
+	if player.Balance < bulletCost {
+		return nil, fmt.Errorf("insufficient balance")
+	}
+
+	// Apply changes
 	player.Balance -= bulletCost
 	room.Bullets[bulletID] = bullet
 	room.UpdatedAt = time.Now()
 
-	// 將成本計入庫存系統
+	// Release lock before external calls
+	rm.mu.Unlock()
+
+	// 將成本計入庫存系統 (external call without lock)
 	rm.inventoryManager.AddBet(room.Type, bullet.Cost)
 
+	// Re-acquire lock briefly for logging
+	rm.mu.Lock()
 	rm.logger.Infof("Player %d fired bullet in room %s, cost: %d", playerID, roomID, bulletCost)
 	return bullet, nil
 }
@@ -301,42 +329,54 @@ func (rm *RoomManager) startRoomGameLoop(room *Room) {
 
 // updateRoom 更新房間狀態
 func (rm *RoomManager) updateRoom(room *Room) {
-	rm.mu.Lock()
-	defer rm.mu.Unlock()
-
 	now := time.Now()
 	deltaTime := 0.1 // 100ms
 	
-	// 更新魚群陣型
+	// Update formations outside of lock (they have their own synchronization)
 	rm.spawner.UpdateFormations(deltaTime)
 	
-	// 更新魚的位置
+	// Try spawn formation outside of lock
+	newFormation := rm.spawner.TrySpawnFormation(room.Config)
+	
+	// Try spawn fish outside of lock
+	var newFish *Fish
+	rm.mu.RLock()
+	fishCount := len(room.Fishes)
+	maxFish := int(room.Config.MaxFishCount)
+	rm.mu.RUnlock()
+	
+	if fishCount < maxFish {
+		newFish = rm.spawner.TrySpawnFish(room.Config)
+	}
+
+	// Now acquire write lock for minimal time
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+
+	// Update fish positions
 	for _, fish := range room.Fishes {
 		rm.updateFishPosition(fish, room.Config)
 	}
 	
-	// 移除超時的子彈
+	// Remove expired bullets
 	for bulletID, bullet := range room.Bullets {
 		if now.Sub(bullet.CreatedAt) > 5*time.Second {
 			delete(room.Bullets, bulletID)
 		}
 	}
 	
-	// 生成新魚
-	if len(room.Fishes) < int(room.Config.MaxFishCount) {
-		if fish := rm.spawner.TrySpawnFish(room.Config); fish != nil {
-			room.Fishes[fish.ID] = fish
-		}
+	// Add new fish if spawned
+	if newFish != nil {
+		room.Fishes[newFish.ID] = newFish
 	}
 	
-	// 嘗試生成魚群陣型
-	if formation := rm.spawner.TrySpawnFormation(room.Config); formation != nil {
-		// 將陣型中的魚添加到房間
-		for _, fish := range formation.Fishes {
+	// Add formation fishes if spawned
+	if newFormation != nil {
+		for _, fish := range newFormation.Fishes {
 			room.Fishes[fish.ID] = fish
 		}
 		rm.logger.Infof("Spawned formation in room %s: %s with %d fishes", 
-			room.ID, formation.Type, len(formation.Fishes))
+			room.ID, newFormation.Type, len(newFormation.Fishes))
 	}
 	
 	room.UpdatedAt = now
