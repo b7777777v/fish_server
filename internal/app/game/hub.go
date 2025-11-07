@@ -106,7 +106,7 @@ func NewHub(gameUsecase *game.GameUsecase, playerUsecase *player.PlayerUsecase, 
 		joinRoom:      make(chan *JoinRoomMessage),
 		leaveRoom:     make(chan *LeaveRoomMessage),
 		gameAction:    make(chan *GameActionMessage),
-		broadcast:     make(chan *BroadcastMessage, 1024), // 增加緩衝區大小以處理高流量
+		broadcast:     make(chan *BroadcastMessage, 100), // 添加緩衝區避免阻塞
 		logger:        logger.With("component", "hub"),
 		stats: &HubStats{
 			StartTime: time.Now(),
@@ -251,10 +251,8 @@ func (h *Hub) handleJoinRoom(msg *JoinRoomMessage) {
 
 	h.logger.Infof("Client %s joined room %s", client.ID, roomID)
 
-	// 異步通知房間管理器，避免死鎖
-	if rm, ok := h.roomManagers[roomID]; ok {
-		go rm.AddClient(client)
-	}
+	// 通知房間管理器
+	h.roomManagers[roomID].AddClient(client)
 
 	// 發送加入成功消息
 	joinMsg := &pb.GameMessage{
@@ -315,10 +313,11 @@ func (h *Hub) removeClientFromRoom(client *Client, roomID string) {
 		if _, ok := room[client]; ok {
 			delete(room, client)
 
-						// 異步通知房間管理器，避免死鎖
-							if roomManager, ok := h.roomManagers[roomID]; ok {
-								go roomManager.RemoveClient(client)
-							}
+			// 通知房間管理器
+			if roomManager, ok := h.roomManagers[roomID]; ok {
+				roomManager.RemoveClient(client)
+			}
+
 			// 如果房間空了，清理房間
 			if len(room) == 0 {
 				delete(h.rooms, roomID)
@@ -351,9 +350,9 @@ func (h *Hub) handleGameAction(msg *GameActionMessage) {
 	h.stats.TotalMessages++
 	h.stats.LastActivity = time.Now()
 
-	// 異步轉發到對應的房間管理器，防止阻塞 Hub 主循環
+	// 轉發到對應的房間管理器
 	if roomManager, ok := h.roomManagers[msg.RoomID]; ok {
-		go roomManager.HandleGameAction(msg)
+		roomManager.HandleGameAction(msg)
 	} else {
 		h.logger.Warnf("Room manager not found for room: %s", msg.RoomID)
 		msg.Client.sendError("Room not found")
@@ -364,29 +363,18 @@ func (h *Hub) handleGameAction(msg *GameActionMessage) {
 func (h *Hub) handleBroadcast(msg *BroadcastMessage) {
 	if msg.RoomID == "" {
 		// 全局廣播
-		var deadClients []*Client
 		h.mu.RLock()
 		for client := range h.clients {
 			if client != msg.Exclude {
 				select {
 				case client.send <- msg.Message:
 				default:
-					// Collect client to be removed, don't modify map while iterating
-					deadClients = append(deadClients, client)
+					close(client.send)
+					delete(h.clients, client)
 				}
 			}
 		}
 		h.mu.RUnlock()
-
-		// Now, outside the lock, unregister the dead clients asynchronously
-		if len(deadClients) > 0 {
-			go func() {
-				for _, client := range deadClients {
-					h.logger.Warnf("Client %s channel full during global broadcast, unregistering.", client.ID)
-					h.unregister <- client
-				}
-			}()
-		}
 	} else {
 		// 房間廣播
 		h.broadcastToRoomBytes(msg.RoomID, msg.Message, msg.Exclude)
@@ -407,35 +395,26 @@ func (h *Hub) broadcastToRoom(roomID string, message *pb.GameMessage, exclude *C
 func (h *Hub) broadcastToRoomBytes(roomID string, message []byte, exclude *Client) {
 	h.logger.Debugf("Broadcasting %d bytes to room %s", len(message), roomID)
 	h.mu.RLock()
+	defer h.mu.RUnlock()
 
-	room, ok := h.rooms[roomID]
-	if !ok {
-		h.mu.RUnlock()
-		h.logger.Warnf("Room %s not found for broadcast", roomID)
-		return
-	}
-
-	var deadClients []*Client
-	for client := range room {
-		if client != exclude {
-			select {
-			case client.send <- message:
-			default:
-				// Collect client to be removed, don't modify map while iterating under read lock
-				deadClients = append(deadClients, client)
+	if room, ok := h.rooms[roomID]; ok {
+		sentCount := 0
+		totalClients := len(room)
+		for client := range room {
+			if client != exclude {
+				select {
+				case client.send <- message:
+					sentCount++
+				default:
+					h.logger.Warnf("Failed to send message to client %s, channel full", client.ID)
+					close(client.send)
+					delete(room, client)
+				}
 			}
 		}
-	}
-	h.mu.RUnlock() // Release the read lock
-
-	// Now, outside the lock, unregister the dead clients asynchronously
-	if len(deadClients) > 0 {
-		go func() {
-			for _, client := range deadClients {
-				h.logger.Warnf("Client %s channel full in room %s, unregistering.", client.ID, roomID)
-				h.unregister <- client
-			}
-		}()
+		h.logger.Debugf("Sent message to %d/%d clients in room %s", sentCount, totalClients, roomID)
+	} else {
+		h.logger.Warnf("Room %s not found for broadcast", roomID)
 	}
 }
 

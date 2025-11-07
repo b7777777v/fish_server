@@ -33,7 +33,6 @@ type RoomManager struct {
 	// 遊戲循環控制
 	gameLoopTicker *time.Ticker
 	gameLoopStop   chan bool
-	tickDone       chan bool
 
 	// 客戶端操作通道
 	addClient    chan *Client
@@ -124,14 +123,13 @@ type CannonInfo struct {
 func NewRoomManager(roomID string, gameUsecase *game.GameUsecase, hub *Hub, logger logger.Logger) *RoomManager {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rm := &RoomManager{
+	return &RoomManager{
 		roomID:         roomID,
 		clients:        make(map[*Client]bool),
 		gameUsecase:    gameUsecase,
 		hub:            hub,
 		gameLoopTicker: time.NewTicker(1 * time.Second), // 1 FPS for testing
 		gameLoopStop:   make(chan bool),
-		tickDone:       make(chan bool, 1),
 		addClient:      make(chan *Client),
 		removeClient:   make(chan *Client),
 		gameAction:     make(chan *GameActionMessage),
@@ -140,8 +138,6 @@ func NewRoomManager(roomID string, gameUsecase *game.GameUsecase, hub *Hub, logg
 		ctx:            ctx,
 		cancel:         cancel,
 	}
-	rm.tickDone <- true // 預先填充信號，允許第一次 gameLoop 執行
-	return rm
 }
 
 // NewGameState 創建新的遊戲狀態
@@ -177,22 +173,15 @@ func (rm *RoomManager) Run() {
 	for {
 		select {
 		case <-rm.gameLoopTicker.C:
-			select {
-			case <-rm.tickDone: // 嘗試消耗上一次循環留下的「完成」信號
-				// 如果成功消耗，代表上一個循環已結束，可以開始新的循環
-				go func() {
-					defer func() {
-						if r := recover(); r != nil {
-							rm.logger.Errorf("Recovered from panic in gameLoop: %v", r)
-						}
-						rm.tickDone <- true // 確保無論如何都會在結束時發回「完成」信號
-					}()
-					rm.gameLoop()
+			rm.logger.Infof("Game loop ticker fired for room: %s", rm.roomID)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						rm.logger.Errorf("Recovered from panic in gameLoop: %v", r)
+					}
 				}()
-			default:
-				// 如果無法消耗信號，代表上一個循環仍在運行中
-				rm.logger.Warnf("Skipping game loop tick, previous one has not finished.")
-			}
+				rm.gameLoop()
+			}()
 			
 		case client := <-rm.addClient:
 			rm.logger.Debugf("Handling add client for room: %s", rm.roomID)
@@ -712,29 +701,18 @@ func (rm *RoomManager) startGame() {
 	rm.logger.Infof("Starting game in room: %s", rm.roomID)
 	rm.gameState.Status = "playing"
 	rm.gameState.GameStartTime = time.Now()
-
-	// 初始化房間內的魚
-	initialFishCount := 20
-	for i := 0; i < initialFishCount; i++ {
-		fishID := time.Now().UnixNano() + int64(i)
-		fishInfo := &FishInfo{
-			ID:        fishID,
-			Type:      int32(1 + (fishID % 5)), // 魚類型 1-5
-			Position:  GamePosition{X: float64(100 + (i * 60)), Y: float64(100 + (i%5)*80)}, // 分散初始位置
-			Direction: 3.14, // 向左游
-			Speed:     float64(50 + (fishID % 100)), // 速度 50-150
-			Health:    int32(10 + (fishID % 90)), // 血量 10-100
-			MaxHealth: int32(10 + (fishID % 90)),
-			Value:     int64(100 + (fishID % 900)), // 價值 100-1000
-			Status:    "alive",
-			SpawnTime: time.Now(),
-		}
-		rm.gameState.Fishes[fishID] = fishInfo
-	}
-	rm.logger.Infof("Initialized room with %d fishes.", initialFishCount)
-
 	rm.logger.Infof("Game state changed to 'playing' for room: %s", rm.roomID)
 	rm.logger.Infof("Ticker should start working now. Status: %s", rm.gameState.Status)
+
+	// 非阻塞地創建業務邏輯層的房間
+	go func() {
+		_, err := rm.gameUsecase.CreateRoom(rm.ctx, game.RoomTypeNovice, 4)
+		if err != nil {
+			rm.logger.Errorf("Failed to create game room: %v", err)
+		} else {
+			rm.logger.Infof("Successfully created business logic room: %s", rm.roomID)
+		}
+	}()
 
 	// 廣播遊戲開始事件
 	startEvent := map[string]interface{}{
