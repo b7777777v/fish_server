@@ -218,14 +218,7 @@ func (rm *RoomManager) Run() {
 
 		case action := <-rm.gameAction:
 			rm.logger.Debugf("Handling game action for room: %s", rm.roomID)
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						rm.logger.Errorf("Recovered from panic in handleGameAction: %v", r)
-					}
-				}()
-				rm.handleGameAction(action)
-			}()
+			rm.handleGameAction(action)
 
 		case <-rm.gameLoopStop:
 			rm.logger.Infof("Room manager stopping for room: %s", rm.roomID)

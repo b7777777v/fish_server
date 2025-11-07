@@ -21,6 +21,7 @@
 - **微服務架構**：
   - `game-server`: 處理核心遊戲邏輯與玩家互動 (WebSocket)。
   - `admin-server`: 提供 RESTful API 用於後台管理。
+  - `migrator`: 用於資料庫遷移。
 - **通訊**：
   - 客戶端與 `game-server` 之間使用 **WebSocket**。
   - 服務內部或對外的 API 使用 **gRPC** 和 **RESTful (Gin)**。
@@ -42,6 +43,9 @@
 - **資料庫遷移**: golang-migrate
 - **日誌**: `log/slog` (結構化日誌)
 - **配置管理**: Viper
+- **測試**: testify
+- **WebSocket**: gorilla/websocket
+- **JWT**: golang-jwt
 
 ## 🚀 快速開始
 
@@ -122,6 +126,99 @@ make run-game
 # 單獨運行 Admin Server
 make run-admin
 ```
+
+## ⚙️ 配置
+
+專案使用 `Viper` 來管理配置，支持從配置文件、環境變數等多種來源讀取配置。
+
+### 配置文件
+
+主要的配置文件是 `configs/config.yaml`，其中定義了所有可用的配置項及其默認值。
+
+```yaml
+# configs/config.yaml
+log:
+  level: "debug" # 可選值: debug, info, warn, error
+  format: "json" # 可選值: json, console
+
+server:
+  game:
+    port: "9090"
+  admin:
+    port: "6060"
+
+data:
+  database:
+    driver: "postgres"
+    host: "localhost"
+    port: 5432
+    user: "user"
+    password: "password"
+    dbname: "fish_db"
+    sslmode: "disable"
+  redis:
+    addr: "localhost:6379"
+    password: ""
+    db: 0
+
+jwt:
+  secret: "your-super-secret-key" # 務必修改成一個複雜的密鑰
+  issuer: "fish_server" # token 發行者
+  expire: 7200 # token 過期時間，單位為秒 (例如 7200 表示 2 小時)
+```
+
+### 環境變數
+
+您可以使用環境變數來覆蓋配置文件中的值。環境變數的命名規則是 `[SECTION]_[KEY]`，例如：
+
+```bash
+export SERVER_GAME_PORT=9091
+```
+
+## 🐟 遊戲邏輯
+
+### 魚群路線和陣型
+
+遊戲中的魚群行為由路線和陣型系統控制。
+
+#### 陣型類型
+
+- **V字型** (`FormationTypeV`)
+- **直線型** (`FormationTypeLine`)
+- **圓形** (`FormationTypeCircle`)
+- **三角形** (`FormationTypeTriangle`)
+- **菱形** (`FormationTypeDiamond`)
+- **波浪型** (`FormationTypeWave`)
+- **螺旋型** (`FormationTypeSpiral`)
+
+#### 路線類型
+
+- **直線路線**
+- **曲線路線**
+- **Z字型路線**
+- **圓形路線**
+- **螺旋路線**
+- **波浪路線**
+- **三角巡邏**
+- **隨機路線**
+
+詳細信息請參考 [FISH_FORMATION_GUIDE.md](FISH_FORMATION_GUIDE.md)。
+
+## 🎮 遊戲客戶端
+
+### 前端數據推送
+
+後端會通過 WebSocket 向前端推送遊戲狀態和事件。
+
+#### 消息類型
+
+- `ROOM_STATE_UPDATE`: 定期推送的完整房間狀態。
+- `FORMATION_SPAWNED`: 魚群陣型生成事件。
+- `FISH_SPAWNED`: 單個魚生成事件。
+- `FISH_DIED`: 魚死亡事件。
+- `BULLET_FIRED`: 子彈發射事件。
+
+詳細信息請參考 [FRONTEND_FISH_DYNAMICS_GUIDE.md](FRONTEND_FISH_DYNAMICS_GUIDE.md)。
 
 ## 🔧 開發流程
 

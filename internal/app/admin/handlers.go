@@ -64,6 +64,8 @@ func (s *AdminService) RegisterRoutes(r *gin.Engine) {
 	// 管理後台 API 組
 	admin := r.Group("/admin")
 	{
+		admin.POST("/login", s.Login)
+
 		// 健康檢查
 		admin.GET("/health", s.HealthCheck)
 		admin.GET("/health/live", s.LivenessCheck)
@@ -80,6 +82,11 @@ func (s *AdminService) RegisterRoutes(r *gin.Engine) {
 		players := admin.Group("/players")
 		{
 			players.GET("/:id", s.GetPlayer)
+			players.POST("/", s.CreatePlayer)
+			players.PUT("/:id", s.UpdatePlayer)
+			players.DELETE("/:id", s.DeletePlayer)
+			players.POST("/:id/ban", s.BanPlayer)
+			players.POST("/:id/unban", s.UnbanPlayer)
 			players.GET("/:id/wallets", s.GetPlayerWallets)
 		}
 

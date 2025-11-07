@@ -1,32 +1,40 @@
 package admin
 
 import (
+	"github.com/b7777777v/fish_server/internal/app/game"
 	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
+	"github.com/b7777777v/fish_server/internal/pkg/token"
 )
 
 // AdminService 管理後台服務
 type AdminService struct {
-	playerUC *player.PlayerUsecase
-	walletUC *wallet.WalletUsecase
-	config   *conf.Config
-	logger   logger.Logger
+	playerUC    *player.PlayerUsecase
+	walletUC    *wallet.WalletUsecase
+	gameApp     *game.GameApp
+	tokenHelper token.TokenHelper
+	config      *conf.Config
+	logger      logger.Logger
 }
 
 // NewAdminService 創建一個新的 AdminService 實例
 func NewAdminService(
 	playerUC *player.PlayerUsecase,
 	walletUC *wallet.WalletUsecase,
+	gameApp *game.GameApp,
+	tokenHelper token.TokenHelper,
 	config *conf.Config,
 	logger logger.Logger,
 ) *AdminService {
 	return &AdminService{
-		playerUC: playerUC,
-		walletUC: walletUC,
-		config:   config,
-		logger:   logger.With("module", "app/admin"),
+		playerUC:   playerUC,
+		walletUC:   walletUC,
+		gameApp:    gameApp,
+		tokenHelper: tokenHelper,
+		config:     config,
+		logger:     logger.With("module", "app/admin"),
 	}
 }
 

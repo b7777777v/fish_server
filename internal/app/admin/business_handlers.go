@@ -61,6 +61,50 @@ type ErrorResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
+type LoginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type LoginResponse struct {
+	Token         string `json:"token"`
+	GameServerURL string `json:"game_server_url"`
+}
+
+// Login handles player login.
+func (s *AdminService) Login(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Invalid request body",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	token, err := s.playerUC.Login(c.Request.Context(), req.Username, req.Password)
+	if err != nil {
+		s.logger.Errorf("Failed to login player: %v", err)
+		c.JSON(http.StatusUnauthorized, ErrorResponse{
+			Error:   "Invalid credentials",
+			Message: "Invalid username or password",
+		})
+		return
+	}
+
+	gameServerURL := "ws://localhost:9090/ws"
+	if s.config.Server != nil && s.config.Server.Game != nil {
+		gameServerURL = "ws://localhost:" + strconv.Itoa(s.config.Server.Game.Port) + "/ws"
+	}
+
+	response := LoginResponse{
+		Token:         token,
+		GameServerURL: gameServerURL,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // GetPlayer 獲取玩家信息
 func (s *AdminService) GetPlayer(c *gin.Context) {
 	idStr := c.Param("id")
@@ -76,12 +120,12 @@ func (s *AdminService) GetPlayer(c *gin.Context) {
 	// 這裡需要在 PlayerUsecase 中添加 GetPlayer 方法
 	// 暫時返回模擬數據
 	s.logger.Infof("Getting player info for ID: %d", id)
-	
+
 	response := PlayerResponse{
-		ID:       uint(id),
-		Username: "player_" + idStr, // 模擬數據
-		Email:    "player" + idStr + "@example.com",
-		Status:   1,
+		ID:        uint(id),
+		Username:  "player_" + idStr, // 模擬數據
+		Email:     "player" + idStr + "@example.com",
+		Status:    1,
 		CreatedAt: "2024-01-01T00:00:00Z",
 		UpdatedAt: "2024-01-01T00:00:00Z",
 	}
@@ -229,6 +273,31 @@ func (s *AdminService) GetWalletTransactions(c *gin.Context) {
 	})
 }
 
+// CreatePlayer 創建新玩家
+func (s *AdminService) CreatePlayer(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, ErrorResponse{Error: "Not Implemented"})
+}
+
+// UpdatePlayer 更新玩家信息
+func (s *AdminService) UpdatePlayer(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, ErrorResponse{Error: "Not Implemented"})
+}
+
+// DeletePlayer 刪除玩家
+func (s *AdminService) DeletePlayer(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, ErrorResponse{Error: "Not Implemented"})
+}
+
+// BanPlayer 封禁玩家
+func (s *AdminService) BanPlayer(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, ErrorResponse{Error: "Not Implemented"})
+}
+
+// UnbanPlayer 解封玩家
+func (s *AdminService) UnbanPlayer(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, ErrorResponse{Error: "Not Implemented"})
+}
+
 // FreezeWallet 凍結錢包
 func (s *AdminService) FreezeWallet(c *gin.Context) {
 	idStr := c.Param("id")
@@ -253,7 +322,7 @@ func (s *AdminService) FreezeWallet(c *gin.Context) {
 
 	s.logger.Infof("Wallet %d has been frozen", id)
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Wallet frozen successfully",
+		"message":   "Wallet frozen successfully",
 		"wallet_id": id,
 	})
 }
@@ -282,7 +351,7 @@ func (s *AdminService) UnfreezeWallet(c *gin.Context) {
 
 	s.logger.Infof("Wallet %d has been unfrozen", id)
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Wallet unfrozen successfully",
+		"message":   "Wallet unfrozen successfully",
 		"wallet_id": id,
 	})
 }
@@ -332,9 +401,9 @@ func (s *AdminService) DepositToWallet(c *gin.Context) {
 
 	s.logger.Infof("Deposited %.2f to wallet %d", req.Amount, id)
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Deposit successful",
+		"message":   "Deposit successful",
 		"wallet_id": id,
-		"amount": req.Amount,
+		"amount":    req.Amount,
 	})
 }
 
@@ -383,8 +452,8 @@ func (s *AdminService) WithdrawFromWallet(c *gin.Context) {
 
 	s.logger.Infof("Withdrew %.2f from wallet %d", req.Amount, id)
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Withdrawal successful",
+		"message":   "Withdrawal successful",
 		"wallet_id": id,
-		"amount": req.Amount,
+		"amount":    req.Amount,
 	})
 }
