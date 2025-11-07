@@ -8,6 +8,8 @@ package main
 
 import (
 	"github.com/b7777777v/fish_server/internal/app/admin"
+	game2 "github.com/b7777777v/fish_server/internal/app/game"
+	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/conf"
@@ -38,7 +40,26 @@ func initApp(config *conf.Config) (*admin.AdminApp, func(), error) {
 	playerUsecase := player.NewPlayerUsecase(playerRepo, tokenHelper, v)
 	walletRepo := data.NewWalletRepo(dataData, v)
 	walletUsecase := wallet.NewWalletUsecase(walletRepo, v)
-	adminService := admin.NewAdminService(playerUsecase, walletUsecase, config, v)
+	gameRepo := data.NewGameRepo(dataData, v)
+	gamePlayerRepo := data.NewGamePlayerRepo(dataData, v)
+	roomConfig := game.NewDefaultRoomConfig()
+	fishSpawner := game.NewFishSpawner(v, roomConfig)
+	mathModel := game.NewMathModel(v)
+	inMemoryInventoryRepo := data.NewInMemoryInventoryRepo(v)
+	inventoryManager, err := game.NewInventoryManager(inMemoryInventoryRepo, v)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	rtpController := game.NewRTPController(inventoryManager, v)
+	roomManager := game.NewRoomManager(v, fishSpawner, mathModel, inventoryManager, rtpController)
+	gameUsecase := game.NewGameUsecase(gameRepo, gamePlayerRepo, roomManager, fishSpawner, mathModel, inventoryManager, rtpController, v)
+	hub := game2.NewHub(gameUsecase, playerUsecase, v)
+	webSocketHandler := game2.NewWebSocketHandler(hub, v)
+	messageHandler := game2.NewMessageHandler(gameUsecase, hub, v)
+	gameApp := game2.NewGameApp(gameUsecase, config, v, hub, webSocketHandler, messageHandler)
+	adminService := admin.NewAdminService(playerUsecase, walletUsecase, gameApp, tokenHelper, config, v)
 	adminServer := admin.NewServer(server, adminService, v)
 	adminApp := admin.NewAdminApp(adminServer, v)
 	return adminApp, func() {

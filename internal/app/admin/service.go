@@ -14,7 +14,7 @@ type AdminService struct {
 	playerUC    *player.PlayerUsecase
 	walletUC    *wallet.WalletUsecase
 	gameApp     *game.GameApp
-	tokenHelper token.TokenHelper
+	tokenHelper *token.TokenHelper
 	config      *conf.Config
 	logger      logger.Logger
 }
@@ -24,7 +24,7 @@ func NewAdminService(
 	playerUC *player.PlayerUsecase,
 	walletUC *wallet.WalletUsecase,
 	gameApp *game.GameApp,
-	tokenHelper token.TokenHelper,
+	tokenHelper *token.TokenHelper,
 	config *conf.Config,
 	logger logger.Logger,
 ) *AdminService {
