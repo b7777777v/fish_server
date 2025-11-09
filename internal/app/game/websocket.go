@@ -283,21 +283,19 @@ func (c *Client) writePump() {
 				return
 			}
 
-			w, err := c.conn.NextWriter(websocket.BinaryMessage)
-			if err != nil {
+			// 發送第一個消息
+			if err := c.conn.WriteMessage(websocket.BinaryMessage, message); err != nil {
 				return
 			}
-			w.Write(message)
 
-			// 添加排隊的消息到當前寫入器
+			// 發送所有排隊的消息,每個作為獨立的 WebSocket 幀
 			n := len(c.send)
 			for i := 0; i < n; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-c.send)
-			}
-
-			if err := w.Close(); err != nil {
-				return
+				queuedMsg := <-c.send
+				c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+				if err := c.conn.WriteMessage(websocket.BinaryMessage, queuedMsg); err != nil {
+					return
+				}
 			}
 
 		case <-ticker.C:
