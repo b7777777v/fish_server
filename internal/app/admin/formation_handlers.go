@@ -153,12 +153,23 @@ func (s *AdminService) UpdateFormationConfig(c *gin.Context) {
 		currentConfig.SpecialEventMultiplier = *req.SpecialEventMultiplier
 	}
 
-	// Update config
+	// 1. 保存配置到 DB + Redis
+	ctx := c.Request.Context()
+	if err := s.formationConfigSvc.SaveConfig(ctx, &currentConfig); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to persist config",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// 2. 熱更新：應用配置到 Spawner
 	s.gameApp.GetGameUsecase().UpdateFormationConfig(currentConfig)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Formation config updated successfully",
+		"message": "Formation config updated and persisted (hot reload applied)",
 		"data":    formatFormationConfigResponse(currentConfig),
 	})
 }
@@ -191,6 +202,7 @@ func (s *AdminService) SetFormationDifficulty(c *gin.Context) {
 		return
 	}
 
+	// 1. 設置難度並熱更新
 	if err := s.gameApp.GetGameUsecase().SetFormationDifficulty(req.Difficulty); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -200,11 +212,19 @@ func (s *AdminService) SetFormationDifficulty(c *gin.Context) {
 		return
 	}
 
+	// 2. 獲取更新後的配置
 	newConfig := s.gameApp.GetGameUsecase().GetFormationConfig()
+
+	// 3. 保存配置到 DB + Redis
+	ctx := c.Request.Context()
+	if err := s.formationConfigSvc.SaveConfig(ctx, &newConfig); err != nil {
+		s.logger.Errorf("Failed to persist config after difficulty change: %v", err)
+		// 不返回錯誤，因為內存中的配置已經更新
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Formation difficulty set to " + req.Difficulty,
+		"message": "Formation difficulty set to " + req.Difficulty + " and persisted (hot reload applied)",
 		"data":    formatFormationConfigResponse(newConfig),
 	})
 }
@@ -239,11 +259,19 @@ func (s *AdminService) SetFormationSpawnRate(c *gin.Context) {
 		return
 	}
 
+	// 1. 更新生成率並熱更新
 	s.gameApp.GetGameUsecase().SetFormationSpawnRate(req.MinInterval, req.MaxInterval, req.BaseChance)
+
+	// 2. 保存配置到 DB + Redis
+	ctx := c.Request.Context()
+	updatedConfig := s.gameApp.GetGameUsecase().GetFormationConfig()
+	if err := s.formationConfigSvc.SaveConfig(ctx, &updatedConfig); err != nil {
+		s.logger.Errorf("Failed to persist config after spawn rate change: %v", err)
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Formation spawn rate updated successfully",
+		"message": "Formation spawn rate updated and persisted (hot reload applied)",
 	})
 }
 

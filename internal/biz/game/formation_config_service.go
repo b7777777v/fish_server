@@ -11,6 +11,7 @@ import (
 type FormationConfigRepo interface {
 	GetConfig(ctx context.Context) (*FormationSpawnConfig, error)
 	SaveConfig(ctx context.Context, config *FormationSpawnConfig) error
+	LoadConfigFromDB(ctx context.Context) error
 	GetPresetConfig(difficulty string) (*FormationSpawnConfig, error)
 }
 
@@ -31,7 +32,7 @@ func NewFormationConfigService(
 	}
 }
 
-// LoadConfig 載入配置（從 Redis）
+// LoadConfig 載入配置（優先從 Redis，未命中則從 DB）
 func (s *FormationConfigService) LoadConfig(ctx context.Context) (*FormationSpawnConfig, error) {
 	config, err := s.repo.GetConfig(ctx)
 	if err != nil {
@@ -43,14 +44,25 @@ func (s *FormationConfigService) LoadConfig(ctx context.Context) (*FormationSpaw
 	return config, nil
 }
 
-// SaveConfig 保存配置（到 Redis）
+// SaveConfig 保存配置（同時寫入 DB 和 Redis）
 func (s *FormationConfigService) SaveConfig(ctx context.Context, config *FormationSpawnConfig) error {
 	if err := s.repo.SaveConfig(ctx, config); err != nil {
 		s.logger.Errorf("Failed to save config: %v", err)
 		return err
 	}
 
-	s.logger.Infof("Saved formation config successfully")
+	s.logger.Infof("Saved formation config to DB and Redis successfully")
+	return nil
+}
+
+// LoadConfigFromDB 從資料庫載入配置到 Redis（服務啟動時調用）
+func (s *FormationConfigService) LoadConfigFromDB(ctx context.Context) error {
+	if err := s.repo.LoadConfigFromDB(ctx); err != nil {
+		s.logger.Errorf("Failed to load config from DB to Redis: %v", err)
+		return err
+	}
+
+	s.logger.Infof("Loaded formation config from DB to Redis successfully")
 	return nil
 }
 
