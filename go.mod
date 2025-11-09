@@ -1,6 +1,6 @@
 module github.com/b7777777v/fish_server
 
-go 1.24.9
+go 1.24.7
 
 require (
 	github.com/gin-gonic/gin v1.11.0

@@ -101,12 +101,12 @@ func NewHub(gameUsecase *game.GameUsecase, playerUsecase *player.PlayerUsecase, 
 		roomManagers:  make(map[string]*RoomManager),
 		gameUsecase:   gameUsecase,
 		playerUsecase: playerUsecase,
-		register:      make(chan *Client),
-		unregister:    make(chan *Client),
-		joinRoom:      make(chan *JoinRoomMessage),
-		leaveRoom:     make(chan *LeaveRoomMessage),
-		gameAction:    make(chan *GameActionMessage),
-		broadcast:     make(chan *BroadcastMessage, 100), // 添加緩衝區避免阻塞
+		register:      make(chan *Client, 10),             // 添加緩衝區避免阻塞
+		unregister:    make(chan *Client, 10),             // 添加緩衝區避免阻塞
+		joinRoom:      make(chan *JoinRoomMessage, 10),    // 添加緩衝區避免阻塞
+		leaveRoom:     make(chan *LeaveRoomMessage, 10),   // 添加緩衝區避免阻塞
+		gameAction:    make(chan *GameActionMessage, 100), // 添加緩衝區避免阻塞
+		broadcast:     make(chan *BroadcastMessage, 100),  // 添加緩衝區避免阻塞
 		logger:        logger.With("component", "hub"),
 		stats: &HubStats{
 			StartTime: time.Now(),
