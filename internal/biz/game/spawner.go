@@ -13,25 +13,31 @@ import (
 
 // FishSpawner 魚類生成器
 type FishSpawner struct {
-	fishTypes         []FishType
-	logger            logger.Logger
-	lastSpawnTime     time.Time
-	lastFormationTime time.Time
-	rng               *rand.Rand
-	formationManager  *FishFormationManager
+	fishTypes               []FishType
+	logger                  logger.Logger
+	lastSpawnTime           time.Time
+	lastFormationTime       time.Time
+	rng                     *rand.Rand
+	formationManager        *FishFormationManager
+	formationSpawnController *FormationSpawnController // 新增：陣型生成控制器
 }
 
 // NewFishSpawner 創建魚類生成器
 func NewFishSpawner(logger logger.Logger, roomConfig RoomConfig) *FishSpawner {
+	// 創建陣型生成控制器，使用默認配置
+	formationConfig := GetDefaultFormationSpawnConfig()
+	formationSpawnController := NewFormationSpawnController(formationConfig)
+
 	spawner := &FishSpawner{
-		fishTypes:         getDefaultFishTypes(),
-		logger:            logger.With("component", "fish_spawner"),
-		lastSpawnTime:     time.Now(),
-		lastFormationTime: time.Now(),
-		rng:               rand.New(rand.NewSource(time.Now().UnixNano())),
-		formationManager:  NewFishFormationManager(logger, roomConfig),
+		fishTypes:                getDefaultFishTypes(),
+		logger:                   logger.With("component", "fish_spawner"),
+		lastSpawnTime:            time.Now(),
+		lastFormationTime:        time.Now(),
+		rng:                      rand.New(rand.NewSource(time.Now().UnixNano())),
+		formationManager:         NewFishFormationManager(logger, roomConfig),
+		formationSpawnController: formationSpawnController,
 	}
-	
+
 	return spawner
 }
 
@@ -347,68 +353,61 @@ func (fs *FishSpawner) UpdateSpawnRate(roomID string, newRate float64) {
 	// 這裡可以添加房間特定的生成率邏輯
 }
 
-// TrySpawnFormation 嘗試生成魚群陣型
-func (fs *FishSpawner) TrySpawnFormation(config RoomConfig) *FishFormation {
-	now := time.Now()
-	
-	// 檢查陣型生成間隔（陣型生成頻率較低）
-	if now.Sub(fs.lastFormationTime) < time.Duration(30)*time.Second {
+// TrySpawnFormation 嘗試生成魚群陣型（使用配置控制器）
+func (fs *FishSpawner) TrySpawnFormation(config RoomConfig, currentPlayerCount int) *FishFormation {
+	// 使用控制器判斷是否應該生成
+	if !fs.formationSpawnController.ShouldSpawnFormation(currentPlayerCount) {
 		return nil
 	}
-	
-	// 隨機決定是否生成陣型（較低概率）
-	if fs.rng.Float64() > 0.15 { // 15%概率生成陣型
-		return nil
+
+	// 使用控制器選擇陣型類型
+	formationType := fs.formationSpawnController.SelectFormationType()
+
+	// 使用控制器選擇魚數量
+	fishCount := fs.formationSpawnController.SelectFishCount(formationType)
+
+	// 生成魚群
+	var fishes []*Fish
+	if fs.formationSpawnController.ShouldUseUniformType() {
+		// 統一魚類型
+		preferredSize := fs.formationSpawnController.SelectFishSize()
+		fishes = fs.generateFormationFishesWithSize(fishCount, preferredSize, config)
+	} else {
+		// 混合魚類型
+		fishes = fs.generateFormationFishes(fishCount, config)
 	}
-	
-	// 隨機選擇陣型類型
-	formationTypes := []FishFormationType{
-		FormationTypeV, FormationTypeLine, FormationTypeCircle,
-		FormationTypeTriangle, FormationTypeDiamond, FormationTypeWave,
-	}
-	formationType := formationTypes[fs.rng.Intn(len(formationTypes))]
-	
-	// 根據陣型類型決定魚的數量
-	var fishCount int
-	switch formationType {
-	case FormationTypeV:
-		fishCount = 5 + fs.rng.Intn(8) // 5-12條魚
-	case FormationTypeLine:
-		fishCount = 4 + fs.rng.Intn(6) // 4-9條魚
-	case FormationTypeCircle:
-		fishCount = 6 + fs.rng.Intn(10) // 6-15條魚
-	case FormationTypeTriangle:
-		fishCount = 6 + fs.rng.Intn(9) // 6-14條魚
-	case FormationTypeDiamond:
-		fishCount = 5 + fs.rng.Intn(7) // 5-11條魚
-	case FormationTypeWave:
-		fishCount = 8 + fs.rng.Intn(12) // 8-19條魚
-	default:
-		fishCount = 5 + fs.rng.Intn(8)
-	}
-	
-	// 生成魚群（偏向相同類型或相似大小的魚）
-	fishes := fs.generateFormationFishes(fishCount, config)
+
 	if len(fishes) < 3 {
+		fs.formationSpawnController.RecordSpawn(false)
 		return nil
 	}
-	
-	// 隨機選擇路線
-	route := fs.formationManager.GetRandomRoute()
+
+	// 選擇路線
+	route := fs.selectRouteByType(fs.formationSpawnController.SelectRouteType())
 	if route == nil {
+		fs.formationSpawnController.RecordSpawn(false)
 		return nil
 	}
-	
+
 	// 創建陣型
 	formation := fs.formationManager.CreateFormation(formationType, fishes, route.ID)
 	if formation != nil {
 		fs.formationManager.StartFormation(formation.ID)
-		fs.lastFormationTime = now
-		fs.logger.Infof("Spawned formation: type=%s, fish_count=%d, route=%s", 
-			formationType, len(fishes), route.Name)
+		fs.lastFormationTime = time.Now()
+		fs.formationSpawnController.RecordSpawn(true)
+
+		fs.logger.Infof("Spawned formation: type=%s, fish_count=%d, route=%s, players=%d",
+			formationType, len(fishes), route.Name, currentPlayerCount)
+	} else {
+		fs.formationSpawnController.RecordSpawn(false)
 	}
-	
+
 	return formation
+}
+
+// TrySpawnFormationLegacy 嘗試生成魚群陣型（舊版本，保持向後兼容）
+func (fs *FishSpawner) TrySpawnFormationLegacy(config RoomConfig) *FishFormation {
+	return fs.TrySpawnFormation(config, 1)
 }
 
 // generateFormationFishes 生成陣型用的魚群

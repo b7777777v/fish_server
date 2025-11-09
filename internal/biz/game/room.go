@@ -334,9 +334,9 @@ func (rm *RoomManager) updateRoom(room *Room) {
 	
 	// Update formations outside of lock (they have their own synchronization)
 	rm.spawner.UpdateFormations(deltaTime)
-	
+
 	// Try spawn formation outside of lock
-	newFormation := rm.spawner.TrySpawnFormation(room.Config)
+	newFormation := rm.spawner.TrySpawnFormation(room.Config, len(room.Players))
 	
 	// Try spawn fish outside of lock
 	var newFish *Fish
@@ -462,7 +462,7 @@ func (rm *RoomManager) SpawnFormationInRoom(roomID string, formationType FishFor
 		return nil, fmt.Errorf("room not found: %s", roomID)
 	}
 
-	formation := rm.spawner.TrySpawnFormation(room.Config)
+	formation := rm.spawner.TrySpawnFormation(room.Config, len(room.Players))
 	if formation == nil {
 		return nil, fmt.Errorf("failed to spawn formation")
 	}
