@@ -451,7 +451,52 @@ func (gu *GameUsecase) GetFormationsInRoom(ctx context.Context, roomID string) (
 		gu.logger.Errorf("Failed to get formations in room %s: %v", roomID, err)
 		return nil, err
 	}
-	
+
 	gu.logger.Debugf("Retrieved %d formations from room: %s", len(formations), roomID)
 	return formations, nil
+}
+
+// ========================================
+// 陣型配置管理
+// ========================================
+
+// GetFormationConfig 獲取當前陣型配置
+func (gu *GameUsecase) GetFormationConfig() FormationSpawnConfig {
+	return gu.spawner.GetFormationConfig()
+}
+
+// UpdateFormationConfig 更新陣型配置
+func (gu *GameUsecase) UpdateFormationConfig(config FormationSpawnConfig) {
+	gu.spawner.UpdateFormationConfig(config)
+	gu.logger.Infof("Updated formation spawn config")
+}
+
+// SetFormationDifficulty 設置陣型難度
+func (gu *GameUsecase) SetFormationDifficulty(difficulty string) error {
+	gu.spawner.SetFormationDifficulty(difficulty)
+	gu.logger.Infof("Set formation difficulty to: %s", difficulty)
+	return nil
+}
+
+// SetFormationSpawnRate 設置陣型生成率
+func (gu *GameUsecase) SetFormationSpawnRate(minInterval, maxInterval int, baseChance float64) {
+	gu.spawner.SetFormationSpawnRate(minInterval, maxInterval, baseChance)
+	gu.logger.Infof("Updated formation spawn rate")
+}
+
+// GetFormationSpawnStats 獲取陣型生成統計
+func (gu *GameUsecase) GetFormationSpawnStats() map[string]interface{} {
+	return gu.spawner.GetFormationSpawnStats()
+}
+
+// EnableFormationSpawn 啟用/禁用陣型生成
+func (gu *GameUsecase) EnableFormationSpawn(enabled bool) {
+	gu.spawner.EnableFormationSpawn(enabled)
+	gu.logger.Infof("Formation spawn enabled: %v", enabled)
+}
+
+// TriggerSpecialFormationEvent 觸發特殊陣型事件
+func (gu *GameUsecase) TriggerSpecialFormationEvent(multiplier float64, duration time.Duration) {
+	gu.spawner.TriggerSpecialEvent(multiplier, duration)
+	gu.logger.Infof("Triggered special formation event: multiplier=%.2f, duration=%v", multiplier, duration)
 }

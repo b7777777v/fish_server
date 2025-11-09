@@ -100,6 +100,18 @@ func (s *AdminService) RegisterRoutes(r *gin.Engine) {
 			wallets.POST("/:id/deposit", s.DepositToWallet)
 			wallets.POST("/:id/withdraw", s.WithdrawFromWallet)
 		}
+
+		// 陣型配置管理
+		formations := admin.Group("/formations")
+		{
+			formations.GET("/config", s.GetFormationConfig)
+			formations.PUT("/config", s.UpdateFormationConfig)
+			formations.POST("/difficulty", s.SetFormationDifficulty)
+			formations.POST("/spawn-rate", s.SetFormationSpawnRate)
+			formations.POST("/enable", s.EnableFormationSpawn)
+			formations.POST("/trigger-event", s.TriggerSpecialFormationEvent)
+			formations.GET("/stats", s.GetFormationStats)
+		}
 	}
 
 	// 根據環境條件性註冊 pprof 路由

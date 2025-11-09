@@ -264,3 +264,8 @@ func (app *GameApp) GetStats() map[string]interface{} {
 		"last_activity":      hubStats.LastActivity,
 	}
 }
+
+// GetGameUsecase 獲取遊戲用例（用於 Admin Service）
+func (app *GameApp) GetGameUsecase() *game.GameUsecase {
+	return app.gameUsecase
+}
