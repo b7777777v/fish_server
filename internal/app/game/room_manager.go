@@ -130,9 +130,9 @@ func NewRoomManager(roomID string, gameUsecase *game.GameUsecase, hub *Hub, logg
 		hub:            hub,
 		gameLoopTicker: time.NewTicker(1 * time.Second), // 1 FPS for testing
 		gameLoopStop:   make(chan bool),
-		addClient:      make(chan *Client),
-		removeClient:   make(chan *Client),
-		gameAction:     make(chan *GameActionMessage),
+		addClient:      make(chan *Client, 10),            // 添加緩衝區避免阻塞
+		removeClient:   make(chan *Client, 10),            // 添加緩衝區避免阻塞
+		gameAction:     make(chan *GameActionMessage, 100), // 添加緩衝區避免阻塞
 		gameState:      NewGameState(roomID),
 		logger:         logger.With("component", "room_manager", "room_id", roomID),
 		ctx:            ctx,
