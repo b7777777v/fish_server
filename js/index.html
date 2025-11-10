@@ -117,6 +117,19 @@
         <button id="clearLogBtn">清除日誌</button>
     </div>
 
+    <!-- 遊戲畫面區域 -->
+    <div id="gameContainer" style="display: none; margin: 20px 0;">
+        <h3>遊戲畫面</h3>
+        <div style="position: relative; display: inline-block;">
+            <canvas id="gameCanvas" width="1200" height="800" style="border: 2px solid #333; background: linear-gradient(to bottom, #1e3a8a 0%, #3b82f6 50%, #1e3a8a 100%);"></canvas>
+            <div style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px;">
+                <div>FPS: <span id="fpsDisplay">0</span></div>
+                <div>魚: <span id="renderFishCount">0</span></div>
+                <div>子彈: <span id="renderBulletCount">0</span></div>
+            </div>
+        </div>
+    </div>
+
     <div class="stats-container">
         <div class="stat-item">
             <div class="stat-value" id="messagesSent">0</div>
@@ -152,10 +165,11 @@
     <h3>通訊日誌</h3>
     <div id="log"></div>
 
-        <script>var global = window; // Polyfill for 'global' object</script>
+    <script>var global = window; // Polyfill for 'global' object</script>
     <script src="https://unpkg.com/google-protobuf@3.21.2/google-protobuf.js"></script>
     <script src="generated/proto/v1/common_pb.js"></script>
     <script src="generated/proto/v1/game_pb.js"></script>
+    <script src="game-renderer.js"></script>
     <script src="game-client.js"></script>
 </body>
 

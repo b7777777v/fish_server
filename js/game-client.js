@@ -119,6 +119,17 @@ document.addEventListener('DOMContentLoaded', () => {
             disconnectBtn.disabled = false;
             actionsDiv.style.display = 'block';
 
+            // 顯示遊戲畫面
+            const gameContainer = document.getElementById('gameContainer');
+            if (gameContainer) {
+                gameContainer.style.display = 'block';
+            }
+
+            // 啟動遊戲渲染器
+            if (window.gameRenderer) {
+                gameRenderer.start();
+            }
+
             // 建立心跳機制
             heartbeatInterval = setInterval(() => {
                 const heartbeatMsg = new proto.v1.GameMessage();
@@ -170,6 +181,18 @@ document.addEventListener('DOMContentLoaded', () => {
             connectBtn.disabled = false;
             disconnectBtn.disabled = true;
             actionsDiv.style.display = 'none';
+
+            // 隱藏遊戲畫面
+            const gameContainer = document.getElementById('gameContainer');
+            if (gameContainer) {
+                gameContainer.style.display = 'none';
+            }
+
+            // 停止遊戲渲染器
+            if (window.gameRenderer) {
+                gameRenderer.stop();
+                gameRenderer.clear();
+            }
 
             // 清除心跳
             if (heartbeatInterval) {
@@ -414,12 +437,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const playerCount = roomStateUpdate.getPlayerCount();
         const roomStatus = roomStateUpdate.getRoomStatus();
         const timestamp = roomStateUpdate.getTimestamp();
-        
+
         // 更新統計
         stats.fishCount = fishCount;
         stats.bulletCount = bulletCount;
         stats.lastUpdate = new Date();
-        
+
         // 計算延遲
         const now = Date.now();
         const serverTime = timestamp * 1000;
@@ -429,6 +452,11 @@ document.addEventListener('DOMContentLoaded', () => {
             stats.latencies.shift(); // 只保留最近10次的延遲
         }
         updateStats();
+
+        // 更新遊戲渲染器
+        if (window.gameRenderer && gameRenderer.isRunning) {
+            gameRenderer.updateGameState(roomStateUpdate);
+        }
         
         // 基本狀態信息
         log(`🎮 房間狀態更新: ${fishCount} 條魚, ${bulletCount} 發子彈, ${playerCount} 位玩家 [${roomStatus}] 延遲:${latency}ms`);
