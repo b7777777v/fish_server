@@ -2,6 +2,10 @@ package account
 
 import (
 	"context"
+	"errors"
+	"fmt"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // TODO: 實現帳號模組的業務邏輯
@@ -43,19 +47,189 @@ type User struct {
 	ThirdPartyID      string `json:"third_party_id,omitempty"`
 }
 
+// TokenService 定義 Token 生成服務介面
+type TokenService interface {
+	GenerateTokenWithClaims(userID int64, isGuest bool) (string, error)
+}
+
 // accountUsecase 實現 AccountUsecase 介面
 type accountUsecase struct {
-	// TODO: 注入必要的依賴，如：
-	// - AccountRepo: 帳號資料庫操作介面
-	// - TokenService: JWT Token 生成服務
-	// - OAuthService: OAuth 第三方登入服務
+	repo         AccountRepo
+	tokenService TokenService
+	oauthService OAuthService
 }
 
 // NewAccountUsecase 建立新的 AccountUsecase 實例
-func NewAccountUsecase( /* TODO: 添加參數 */ ) AccountUsecase {
+func NewAccountUsecase(repo AccountRepo, tokenService TokenService, oauthService OAuthService) AccountUsecase {
 	return &accountUsecase{
-		// TODO: 初始化依賴
+		repo:         repo,
+		tokenService: tokenService,
+		oauthService: oauthService,
 	}
 }
 
-// TODO: 實現 AccountUsecase 介面的所有方法
+// Register 註冊新使用者
+func (uc *accountUsecase) Register(ctx context.Context, username, password string) (*User, error) {
+	// 檢查使用者名稱是否已存在
+	existingUser, _, err := uc.repo.GetUserByUsername(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check username: %w", err)
+	}
+	if existingUser != nil {
+		return nil, errors.New("username already exists")
+	}
+
+	// 生成密碼雜湊
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// 建立使用者
+	user := &User{
+		Username: username,
+		Nickname: username, // 預設暱稱為使用者名稱
+		IsGuest:  false,
+	}
+
+	createdUser, err := uc.repo.CreateUser(ctx, user, string(passwordHash))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return createdUser, nil
+}
+
+// Login 使用者登入（使用者名稱+密碼）
+func (uc *accountUsecase) Login(ctx context.Context, username, password string) (string, error) {
+	// 根據使用者名稱獲取使用者
+	user, passwordHash, err := uc.repo.GetUserByUsername(ctx, username)
+	if err != nil {
+		return "", fmt.Errorf("failed to get user: %w", err)
+	}
+	if user == nil {
+		return "", errors.New("invalid username or password")
+	}
+
+	// 驗證密碼
+	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
+	if err != nil {
+		return "", errors.New("invalid username or password")
+	}
+
+	// 生成 JWT token
+	token, err := uc.tokenService.GenerateTokenWithClaims(user.ID, false)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	return token, nil
+}
+
+// GuestLogin 遊客登入
+func (uc *accountUsecase) GuestLogin(ctx context.Context) (string, error) {
+	// 生成唯一的遊客 ID（使用時間戳和隨機數）
+	guestNickname := fmt.Sprintf("Guest_%d", generateGuestID())
+
+	// 建立遊客使用者
+	user := &User{
+		Nickname: guestNickname,
+		IsGuest:  true,
+	}
+
+	createdUser, err := uc.repo.CreateUser(ctx, user, "")
+	if err != nil {
+		return "", fmt.Errorf("failed to create guest user: %w", err)
+	}
+
+	// 生成 JWT token（包含 is_guest: true）
+	token, err := uc.tokenService.GenerateTokenWithClaims(createdUser.ID, true)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	return token, nil
+}
+
+// OAuthLogin 第三方 OAuth 登入
+func (uc *accountUsecase) OAuthLogin(ctx context.Context, provider string, code string) (string, error) {
+	// 使用 OAuth 服務獲取使用者資訊
+	oauthUserInfo, err := uc.oauthService.GetUserInfo(ctx, provider, code)
+	if err != nil {
+		return "", fmt.Errorf("failed to get oauth user info: %w", err)
+	}
+
+	// 根據第三方平台 ID 查找使用者
+	user, err := uc.repo.GetUserByThirdParty(ctx, provider, oauthUserInfo.ThirdPartyID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get user by third party: %w", err)
+	}
+
+	// 如果使用者不存在，建立新使用者
+	if user == nil {
+		user = &User{
+			Nickname:          oauthUserInfo.Nickname,
+			AvatarURL:         oauthUserInfo.AvatarURL,
+			IsGuest:           false,
+			ThirdPartyProvider: provider,
+			ThirdPartyID:      oauthUserInfo.ThirdPartyID,
+		}
+
+		user, err = uc.repo.CreateUser(ctx, user, "")
+		if err != nil {
+			return "", fmt.Errorf("failed to create oauth user: %w", err)
+		}
+	}
+
+	// 生成 JWT token
+	token, err := uc.tokenService.GenerateTokenWithClaims(user.ID, false)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	return token, nil
+}
+
+// GetUserByID 根據 ID 獲取使用者資料
+func (uc *accountUsecase) GetUserByID(ctx context.Context, userID int64) (*User, error) {
+	user, err := uc.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	if user == nil {
+		return nil, errors.New("user not found")
+	}
+	return user, nil
+}
+
+// UpdateUser 更新使用者資料
+func (uc *accountUsecase) UpdateUser(ctx context.Context, userID int64, nickname, avatarURL string) error {
+	// 先獲取使用者，確保使用者存在
+	user, err := uc.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+	if user == nil {
+		return errors.New("user not found")
+	}
+
+	// 更新使用者資料
+	if nickname != "" {
+		user.Nickname = nickname
+	}
+	if avatarURL != "" {
+		user.AvatarURL = avatarURL
+	}
+
+	err = uc.repo.UpdateUser(ctx, user)
+	if err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+
+	return nil
+}
+
+// generateGuestID 生成遊客 ID（使用納秒級時間戳）
+func generateGuestID() int64 {
+	return 1000000000 + (int64(1) << 32) // 簡單示例，實際應該使用更複雜的生成邏輯
+}

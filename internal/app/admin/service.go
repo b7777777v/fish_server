@@ -19,6 +19,10 @@ type AdminService struct {
 	tokenHelper        *token.TokenHelper
 	config             *conf.Config
 	logger             logger.Logger
+
+	// New handlers
+	accountHandler *AccountHandler
+	lobbyHandler   *LobbyHandler
 }
 
 // NewAdminService 創建一個新的 AdminService 實例
@@ -30,6 +34,8 @@ func NewAdminService(
 	tokenHelper *token.TokenHelper,
 	config *conf.Config,
 	logger logger.Logger,
+	accountHandler *AccountHandler,
+	lobbyHandler *LobbyHandler,
 ) *AdminService {
 	return &AdminService{
 		playerUC:           playerUC,
@@ -39,6 +45,8 @@ func NewAdminService(
 		tokenHelper:        tokenHelper,
 		config:             config,
 		logger:             logger.With("module", "app/admin"),
+		accountHandler:     accountHandler,
+		lobbyHandler:       lobbyHandler,
 	}
 }
 

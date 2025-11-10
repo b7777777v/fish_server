@@ -11,7 +11,8 @@ import (
 
 // CustomClaims 定義了我們想要在 JWT 中攜帶的自訂資料
 type CustomClaims struct {
-	UserID uint `json:"user_id"`
+	UserID  int64  `json:"user_id"`
+	IsGuest bool   `json:"is_guest,omitempty"` // 是否為遊客
 	jwt.RegisteredClaims
 }
 
@@ -32,9 +33,16 @@ func NewTokenHelper(c *conf.JWT) *TokenHelper {
 }
 
 // GenerateToken 生成一個新的 JWT
+// 已過時：請使用 GenerateTokenWithClaims
 func (h *TokenHelper) GenerateToken(userID uint) (string, error) {
+	return h.GenerateTokenWithClaims(int64(userID), false)
+}
+
+// GenerateTokenWithClaims 生成一個新的 JWT，支援自訂 claims
+func (h *TokenHelper) GenerateTokenWithClaims(userID int64, isGuest bool) (string, error) {
 	claims := CustomClaims{
-		UserID: userID,
+		UserID:  userID,
+		IsGuest: isGuest,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    h.issuer,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second * time.Duration(h.expire))),

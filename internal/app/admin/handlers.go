@@ -61,6 +61,10 @@ var (
 
 // RegisterRoutes 註冊管理後台路由
 func (s *AdminService) RegisterRoutes(r *gin.Engine) {
+	// 註冊 Account 和 Lobby 模組的路由
+	RegisterAccountRoutes(r, s.accountHandler)
+	RegisterLobbyRoutes(r, s.lobbyHandler, s.accountHandler)
+
 	// 管理後台 API 組
 	admin := r.Group("/admin")
 	{
@@ -74,7 +78,7 @@ func (s *AdminService) RegisterRoutes(r *gin.Engine) {
 		// 伺服器狀態
 		admin.GET("/status", s.ServerStatus)
 		admin.GET("/metrics", s.Metrics)
-		
+
 		// 環境信息
 		admin.GET("/env", s.GetEnvironmentInfo)
 

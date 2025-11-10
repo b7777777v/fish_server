@@ -2,6 +2,7 @@ package lobby
 
 import (
 	"context"
+	"fmt"
 )
 
 // TODO: 實現大廳模組的業務邏輯
@@ -61,19 +62,103 @@ type Announcement struct {
 	CreatedAt string `json:"created_at"`
 }
 
+// WalletRepo 定義錢包資料訪問介面
+type WalletRepo interface {
+	GetBalance(ctx context.Context, userID int64) (int64, error)
+}
+
+// PlayerRepo 定義玩家資料訪問介面
+type PlayerRepo interface {
+	GetPlayerInfo(ctx context.Context, userID int64) (*PlayerStatus, error)
+}
+
 // lobbyUsecase 實現 LobbyUsecase 介面
 type lobbyUsecase struct {
-	// TODO: 注入必要的依賴，如：
-	// - LobbyRepo: 大廳資料庫操作介面
-	// - RoomCache: Redis 房間快取操作介面
-	// - WalletRepo: 錢包資料庫操作介面
+	lobbyRepo  LobbyRepo
+	roomCache  RoomCache
+	walletRepo WalletRepo
+	playerRepo PlayerRepo
 }
 
 // NewLobbyUsecase 建立新的 LobbyUsecase 實例
-func NewLobbyUsecase( /* TODO: 添加參數 */ ) LobbyUsecase {
+func NewLobbyUsecase(lobbyRepo LobbyRepo, roomCache RoomCache, walletRepo WalletRepo, playerRepo PlayerRepo) LobbyUsecase {
 	return &lobbyUsecase{
-		// TODO: 初始化依賴
+		lobbyRepo:  lobbyRepo,
+		roomCache:  roomCache,
+		walletRepo: walletRepo,
+		playerRepo: playerRepo,
 	}
 }
 
-// TODO: 實現 LobbyUsecase 介面的所有方法
+// GetRoomList 獲取遊戲房間列表
+func (uc *lobbyUsecase) GetRoomList(ctx context.Context) ([]*RoomInfo, error) {
+	rooms, err := uc.roomCache.GetAllRooms(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rooms from cache: %w", err)
+	}
+
+	return rooms, nil
+}
+
+// GetPlayerStatus 獲取玩家狀態
+func (uc *lobbyUsecase) GetPlayerStatus(ctx context.Context, userID int64) (*PlayerStatus, error) {
+	// 從資料庫獲取玩家資訊
+	playerStatus, err := uc.playerRepo.GetPlayerInfo(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get player info: %w", err)
+	}
+
+	// 獲取玩家金幣餘額
+	coins, err := uc.walletRepo.GetBalance(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get wallet balance: %w", err)
+	}
+
+	playerStatus.Coins = coins
+
+	return playerStatus, nil
+}
+
+// GetAnnouncements 獲取公告列表
+func (uc *lobbyUsecase) GetAnnouncements(ctx context.Context, limit int) ([]*Announcement, error) {
+	if limit <= 0 {
+		limit = 10 // 預設返回 10 條公告
+	}
+
+	announcements, err := uc.lobbyRepo.GetAnnouncements(ctx, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get announcements: %w", err)
+	}
+
+	return announcements, nil
+}
+
+// CreateAnnouncement 建立新公告（管理員功能）
+func (uc *lobbyUsecase) CreateAnnouncement(ctx context.Context, title, content string, priority int) error {
+	err := uc.lobbyRepo.CreateAnnouncement(ctx, title, content, priority)
+	if err != nil {
+		return fmt.Errorf("failed to create announcement: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateAnnouncement 更新公告（管理員功能）
+func (uc *lobbyUsecase) UpdateAnnouncement(ctx context.Context, id int64, title, content string, priority int) error {
+	err := uc.lobbyRepo.UpdateAnnouncement(ctx, id, title, content, priority)
+	if err != nil {
+		return fmt.Errorf("failed to update announcement: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteAnnouncement 刪除公告（管理員功能）
+func (uc *lobbyUsecase) DeleteAnnouncement(ctx context.Context, id int64) error {
+	err := uc.lobbyRepo.DeleteAnnouncement(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete announcement: %w", err)
+	}
+
+	return nil
+}
