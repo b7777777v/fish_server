@@ -104,24 +104,25 @@ Fish Server 採用微服務架構，主要由以下核心組件構成：
 *   **[F-GS-102] 玩家認證**: 玩家連線後，應透過客戶端提供的 JWT (JSON Web Token) 進行身份驗證。此 Token 由帳號模組頒發。
 *   **[F-GS-103] 創建/加入房間**: 玩家可以請求創建新房間或加入現有房間。系統應根據負載均衡策略分配玩家。
 *   **[F-GS-104] 房間狀態同步**: 玩家成功進入房間後，伺服器必須立即向其同步當前房間的完整狀態。
+*   **[F-GS-105] 斷線重連機制**: **TODO: V2 功能 - 待實現。需要在玩家斷線時保留其房間狀態和資料，允許玩家在一定時間內重新連線並恢復遊戲狀態。**
 
 ##### **5.1.2. 核心遊戲循環**
 *   **[F-GS-201] 魚群生成**:
     *   系統應根據配置，持續在遊戲場景中生成單獨的魚。
     *   系統必須能夠根據 `formation_config` 表中的設定，在特定時間觸發複雜的 **魚群陣型 (Fish Formation)**。
-    *   **[優化]** 新增 **魚潮系統 (Fish Tide System)**：作為一種特殊的陣型，在特定時間觸發。此時，大量特定魚群會快速、密集地游過螢幕，為玩家提供在短時間內賺取大量金幣的機會。其觸發規則、持續時間、魚種構成均可在後台配置。
+    *   **[優化]** 新增 **魚潮系統 (Fish Tide System)**: **TODO: 待實現。作為一種特殊的陣型，在特定時間觸發。此時，大量特定魚群會快速、密集地游過螢幕，為玩家提供在短時間內賺取大量金幣的機會。其觸發規則、持續時間、魚種構成均可在後台配置。需要在 `FishSpawner` 中實現魚潮生成邏輯，並在資料庫中新增相應的配置表。**
     *   此功能由 `FishSpawner` 模組 (`internal/biz/game/spawner.go`) 負責。
 *   **[F-GS-202] 玩家動作處理**: 處理玩家發射子彈的請求，並將此事件廣播給房間內所有其他玩家。處理玩家改變下注倍率的請求。
 *   **[F-GS-203] 命中與獎勵判定**: 伺服器需進行權威性判定 (Server-Side Authoritative)，計算子彈是否命中魚。命中後，根據砲彈威力和魚的血量計算傷害。成功擊殺魚後，根據魚的價值和下注倍率計算獎勵，並更新玩家的錢包 (`wallet`) 餘額。
 *   **[F-GS-204] RTP 控制**: 系統應內建 RTP (Return To Player) 控制器 (`rtp_controller.go`)，根據全局設定和當前遊戲的盈利狀況，微調魚的擊殺機率，以確保遊戲經濟模型的穩定。
 
 ##### **5.1.3. 動態配置熱更新**
-*   **[F-GS-301] 監聽更新**: 遊戲伺服器必須能監聽來自後台管理系統的配置更新通知 (可透過 gRPC 或 Redis Pub/Sub 實現)。
+*   **[F-GS-301] 監聽更新**: **TODO: 待決定技術方案。遊戲伺服器必須能監聽來自後台管理系統的配置更新通知。可選方案：(1) gRPC 推送通知 (2) Redis Pub/Sub 訂閱模式。需要評估兩種方案的優劣並選擇實現。**
 *   **[F-GS-302] 即時應用**: 收到更新通知後，`GameUsecase` (`internal/biz/game/usecase.go`) 必須觸發相應的邏輯，例如命令 `FishSpawner` 重新載入最新的魚群陣型配置，並在不中斷現有遊戲的情況下應用新生效的規則。
 
 #### **5.2. 後台管理系統 (Admin Server)**
 ##### **5.2.1. 儀表板與監控 (Dashboard & Monitoring)**
-*   **[F-AS-101] 系統狀態查詢**: 提供 API 介面，用於查詢遊戲伺服器的即時狀態，包括：總在線玩家數、當前活躍房間數、伺服器負載 (CPU, Memory)。
+*   **[F-AS-101] 系統狀態查詢**: **TODO: 待實現具體監控方案。提供 API 介面，用於查詢遊戲伺服器的即時狀態，包括：總在線玩家數、當前活躍房間數、伺服器負載 (CPU, Memory)。需要實現：(1) Game Server 定期將狀態推送到 Redis (2) Admin Server 從 Redis 聚合數據並提供 API 端點 (3) 可選：整合 Prometheus + Grafana 進行更完善的監控和視覺化。**
 
 ##### **5.2.2. 遊戲配置管理 (Game Configuration Management)**
 *   **[F-AS-201] 魚種管理**: 提供對魚種資料表的 CRUD (Create, Read, Update, Delete) API。可配置參數包括：魚的名稱、模型、血量、基礎獎勵倍率等。
@@ -134,32 +135,32 @@ Fish Server 採用微服務架構，主要由以下核心組件構成：
 ##### **5.2.3. 配置發布 (Configuration Deployment)**
 *   **[F-AS-301] 發布配置**: 提供一個 "Publish" 或 "Deploy" API，當營運人員完成配置修改後，可觸發此 API 將變更推送至所有線上遊戲伺服器，觸發 `[F-GS-301]` 的熱更新流程。
 
-#### **5.3. [新增] 帳號模組 (Account Module)**
-*   **[F-AM-101] 使用者註冊**: 提供 API 讓使用者透過使用者名稱和密碼註冊新帳號。
-*   **[F-AM-102] 使用者登入**: 支援多種登入方式，並頒發 JWT。
-*   **[F-AM-103] 使用者資料管理**: 提供 API 查詢與更新使用者基本資料（暱稱、頭像等）。
+#### **5.3. [新增] 帳號模組 (Account Module)** **TODO: 整個模組待實現**
+*   **[F-AM-101] 使用者註冊**: **TODO: 待實現。** 提供 API 讓使用者透過使用者名稱和密碼註冊新帳號。
+*   **[F-AM-102] 使用者登入**: **TODO: 待實現。** 支援多種登入方式，並頒發 JWT。
+*   **[F-AM-103] 使用者資料管理**: **TODO: 待實現。** 提供 API 查詢與更新使用者基本資料（暱稱、頭像等）。
 *   **技術方案**:
     *   **服務歸屬**: 帳號相關的 REST API 可整合在 **Admin Server** 中，或在未來獨立為一個 `account-service`。初期建議整合在 Admin Server。
-    *   **資料庫**: 在 PostgreSQL 中建立 `users` 表，包含 `id`, `username`, `password_hash`, `nickname`, `avatar_url`, `third_party_provider`, `third_party_id` 等欄位。
+    *   **資料庫**: **TODO: 待建立。** 在 PostgreSQL 中建立 `users` 表，包含 `id`, `username`, `password_hash`, `nickname`, `avatar_url`, `third_party_provider`, `third_party_id` 等欄位。需要建立相應的 migration 檔案。
     *   **密碼安全**: 使用 Go 的 `golang.org/x/crypto/bcrypt` 庫對使用者密碼進行雜湊儲存。
-    *   **遊客登入**: 客戶端請求遊客登入時，伺服器生成唯一 guest ID，在 `users` 表中創建一筆臨時記錄，並頒發一個包含 `is_guest: true` 標記的 JWT。
-    *   **第三方登入 (OAuth 2.0)**:
+    *   **遊客登入**: **TODO: 待實現。** 客戶端請求遊客登入時，伺服器生成唯一 guest ID，在 `users` 表中創建一筆臨時記錄，並頒發一個包含 `is_guest: true` 標記的 JWT。
+    *   **第三方登入 (OAuth 2.0)**: **TODO: 待實現。**
         1.  客戶端完成第三方平台（如 Google, Facebook, QQ）的 OAuth 流程，獲得 `authorization_code`。
         2.  客戶端將此 `code` 發送至我方伺服器的 `/auth/oauth/callback` 端點。
         3.  伺服器使用 `code` 向第三方平台換取 `access_token`，進而獲取使用者資訊。
         4.  伺服器根據第三方平台的 `user_id` 查找或創建使用者，並頒發我方系統的 JWT。
-    *   **Token 管理**: 擴展現有的 `internal/pkg/token`，使其能生成包含 `user_id`, `exp` (過期時間) 等標準聲明的 JWT。
+    *   **Token 管理**: **TODO: 待擴展。** 擴展現有的 `internal/pkg/token`，使其能生成包含 `user_id`, `exp` (過期時間) 等標準聲明的 JWT。
 
-#### **5.4. [新增] 大廳模組 (Lobby Module)**
-*   **[F-LM-101] 遊戲房間列表**: 提供 API 讓玩家能看到不同倍率/等級的遊戲房間列表，包含房間名稱、當前人數、進入限制等。
-*   **[F-LM-102] 玩家狀態顯示**: 提供 API 讓玩家在大廳能看到自己的金幣數量、等級等核心資訊。
-*   **[F-LM-103] 公告與訊息**: 提供 API 獲取遊戲公告或活動訊息。
+#### **5.4. [新增] 大廳模組 (Lobby Module)** **TODO: 整個模組待實現**
+*   **[F-LM-101] 遊戲房間列表**: **TODO: 待實現。** 提供 API 讓玩家能看到不同倍率/等級的遊戲房間列表，包含房間名稱、當前人數、進入限制等。
+*   **[F-LM-102] 玩家狀態顯示**: **TODO: 待實現。** 提供 API 讓玩家在大廳能看到自己的金幣數量、等級等核心資訊。
+*   **[F-LM-103] 公告與訊息**: **TODO: 待實現。** 提供 API 獲取遊戲公告或活動訊息。
 *   **技術方案**:
     *   **服務歸屬**: 大廳功能為請求-響應模式，其 REST API 應整合在 **Admin Server** 中。
-    *   **房間列表實現**:
+    *   **房間列表實現**: **TODO: 待實現。**
         1.  各 **Game Server** 實例定期 (如每 5 秒) 將其管理的房間狀態 (房間 ID, 當前人數, 負載等) 寫入 **Redis** 的一個 Hash 或 Sorted Set 中。
         2.  Admin Server 的 `/lobby/rooms` 端點從 Redis 讀取並匯總所有 Game Server 的房間資訊，形成完整的列表返回給客戶端。此方案擴展性好，且服務間解耦。
-    *   **公告功能**: 在 PostgreSQL 中建立 `announcements` 表，Admin Server 提供對應的 CRUD 介面進行管理，大廳 API 則從中讀取最新公告。
+    *   **公告功能**: **TODO: 待建立。** 在 PostgreSQL 中建立 `announcements` 表，Admin Server 提供對應的 CRUD 介面進行管理，大廳 API 則從中讀取最新公告。需要建立相應的 migration 檔案。
 
 ### **6. 非功能性需求 (Non-Functional Requirements)**
 
