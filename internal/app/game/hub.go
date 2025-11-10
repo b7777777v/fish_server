@@ -393,28 +393,41 @@ func (h *Hub) broadcastToRoom(roomID string, message *pb.GameMessage, exclude *C
 
 // broadcastToRoomBytes 向房間廣播字節消息
 func (h *Hub) broadcastToRoomBytes(roomID string, message []byte, exclude *Client) {
-	h.logger.Debugf("Broadcasting %d bytes to room %s", len(message), roomID)
+	h.logger.Infof("[BROADCAST] Starting broadcast: %d bytes to room %s", len(message), roomID)
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	if room, ok := h.rooms[roomID]; ok {
 		sentCount := 0
 		totalClients := len(room)
+		h.logger.Infof("[BROADCAST] Room %s has %d clients", roomID, totalClients)
+
 		for client := range room {
 			if client != exclude {
+				// 檢查 send channel 的容量和當前使用量
+				channelLen := len(client.send)
+				channelCap := cap(client.send)
+				h.logger.Infof("[BROADCAST] Attempting to send to client %s (channel: %d/%d)",
+					client.ID, channelLen, channelCap)
+
 				select {
 				case client.send <- message:
 					sentCount++
+					h.logger.Infof("[BROADCAST] ✓ Successfully sent to client %s", client.ID)
 				default:
-					h.logger.Warnf("Failed to send message to client %s, channel full", client.ID)
-					close(client.send)
-					delete(room, client)
+					h.logger.Errorf("[BROADCAST] ✗ Failed to send to client %s, channel full (%d/%d)",
+						client.ID, channelLen, channelCap)
+					// 不要立即關閉和刪除客戶端，給它一次機會
+					// close(client.send)
+					// delete(room, client)
 				}
+			} else {
+				h.logger.Infof("[BROADCAST] Skipping excluded client %s", client.ID)
 			}
 		}
-		h.logger.Debugf("Sent message to %d/%d clients in room %s", sentCount, totalClients, roomID)
+		h.logger.Infof("[BROADCAST] Sent message to %d/%d clients in room %s", sentCount, totalClients, roomID)
 	} else {
-		h.logger.Warnf("Room %s not found for broadcast", roomID)
+		h.logger.Errorf("[BROADCAST] Room %s not found for broadcast", roomID)
 	}
 }
 
@@ -459,18 +472,20 @@ func (h *Hub) GetRoomClients(roomID string) []*Client {
 
 // BroadcastToRoom 向房間廣播消息（外部接口）
 func (h *Hub) BroadcastToRoom(roomID string, message []byte, exclude *Client) {
+	h.logger.Infof("[BROADCAST] BroadcastToRoom called: room=%s, messageSize=%d", roomID, len(message))
+
 	broadcastMsg := &BroadcastMessage{
 		RoomID:  roomID,
 		Message: message,
 		Exclude: exclude,
 	}
-	
+
 	// 使用非阻塞發送避免阻塞房間管理器
 	select {
 	case h.broadcast <- broadcastMsg:
-		// 成功發送
+		h.logger.Infof("[BROADCAST] Message queued to broadcast channel for room %s", roomID)
 	default:
-		h.logger.Warnf("Broadcast channel full, dropping message for room %s", roomID)
+		h.logger.Warnf("[BROADCAST] Broadcast channel full, using direct broadcast for room %s", roomID)
 		// 如果緩衝區滿了，嘗試直接廣播（繞過 channel）
 		h.broadcastToRoomBytes(roomID, message, exclude)
 	}

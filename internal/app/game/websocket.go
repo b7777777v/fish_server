@@ -271,7 +271,10 @@ func (c *Client) writePump() {
 	defer func() {
 		ticker.Stop()
 		c.conn.Close()
+		c.logger.Infof("[WRITEPUMP] WritePump stopped for client %s", c.ID)
 	}()
+
+	c.logger.Infof("[WRITEPUMP] WritePump started for client %s", c.ID)
 
 	for {
 		select {
@@ -279,28 +282,41 @@ func (c *Client) writePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// Hub 關閉了通道
+				c.logger.Warnf("[WRITEPUMP] Send channel closed for client %s", c.ID)
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
+			c.logger.Infof("[WRITEPUMP] Received message from channel for client %s, size=%d bytes", c.ID, len(message))
+
 			// 發送第一個消息
 			if err := c.conn.WriteMessage(websocket.BinaryMessage, message); err != nil {
+				c.logger.Errorf("[WRITEPUMP] Failed to write message to WebSocket for client %s: %v", c.ID, err)
 				return
 			}
+			c.logger.Infof("[WRITEPUMP] ✓ Successfully wrote message to WebSocket for client %s", c.ID)
 
 			// 發送所有排隊的消息,每個作為獨立的 WebSocket 幀
 			n := len(c.send)
+			if n > 0 {
+				c.logger.Infof("[WRITEPUMP] Processing %d queued messages for client %s", n, c.ID)
+			}
 			for i := 0; i < n; i++ {
 				queuedMsg := <-c.send
 				c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 				if err := c.conn.WriteMessage(websocket.BinaryMessage, queuedMsg); err != nil {
+					c.logger.Errorf("[WRITEPUMP] Failed to write queued message %d to WebSocket for client %s: %v", i, c.ID, err)
 					return
 				}
+			}
+			if n > 0 {
+				c.logger.Infof("[WRITEPUMP] ✓ Wrote %d queued messages to WebSocket for client %s", n, c.ID)
 			}
 
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				c.logger.Errorf("[WRITEPUMP] Failed to send ping to client %s: %v", c.ID, err)
 				return
 			}
 		}
