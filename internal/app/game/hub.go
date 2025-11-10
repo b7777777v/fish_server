@@ -133,7 +133,15 @@ func (h *Hub) Run() {
 		}
 	}()
 
+	iterationCount := 0
 	for {
+		iterationCount++
+		if iterationCount%100 == 0 {
+			h.logger.Infof("[HUB] Main loop iteration %d, checking channels...", iterationCount)
+			h.logger.Infof("[HUB] Channel status - broadcast: %d/%d, gameAction: %d/%d",
+				len(h.broadcast), cap(h.broadcast), len(h.gameAction), cap(h.gameAction))
+		}
+
 		func() {
 			// 為每個操作添加 recover
 			defer func() {
@@ -144,22 +152,30 @@ func (h *Hub) Run() {
 
 			select {
 			case client := <-h.register:
+				h.logger.Infof("[HUB] Processing register for client %s", client.ID)
 				h.handleRegister(client)
 
 			case client := <-h.unregister:
+				h.logger.Infof("[HUB] Processing unregister for client %s", client.ID)
 				h.handleUnregister(client)
 
 			case msg := <-h.joinRoom:
+				h.logger.Infof("[HUB] Processing joinRoom for client %s, room %s", msg.Client.ID, msg.RoomID)
 				h.handleJoinRoom(msg)
+				h.logger.Infof("[HUB] Completed joinRoom for client %s", msg.Client.ID)
 
 			case msg := <-h.leaveRoom:
+				h.logger.Infof("[HUB] Processing leaveRoom for client %s", msg.Client.ID)
 				h.handleLeaveRoom(msg)
 
 			case msg := <-h.gameAction:
+				h.logger.Infof("[HUB] Processing gameAction: %s for client %s", msg.Action, msg.Client.ID)
 				h.handleGameAction(msg)
 
 			case msg := <-h.broadcast:
+				h.logger.Infof("[HUB] Processing broadcast for room %s, size=%d", msg.RoomID, len(msg.Message))
 				h.handleBroadcast(msg)
+				h.logger.Infof("[HUB] Completed broadcast for room %s", msg.RoomID)
 
 			case <-ticker.C:
 				h.updateStats()
@@ -361,8 +377,11 @@ func (h *Hub) handleGameAction(msg *GameActionMessage) {
 
 // handleBroadcast 處理廣播消息
 func (h *Hub) handleBroadcast(msg *BroadcastMessage) {
+	h.logger.Infof("[HUB] handleBroadcast called: roomID=%s, size=%d", msg.RoomID, len(msg.Message))
+
 	if msg.RoomID == "" {
 		// 全局廣播
+		h.logger.Infof("[HUB] Global broadcast to %d clients", len(h.clients))
 		h.mu.RLock()
 		for client := range h.clients {
 			if client != msg.Exclude {
@@ -377,7 +396,9 @@ func (h *Hub) handleBroadcast(msg *BroadcastMessage) {
 		h.mu.RUnlock()
 	} else {
 		// 房間廣播
+		h.logger.Infof("[HUB] Room broadcast, calling broadcastToRoomBytes for room %s", msg.RoomID)
 		h.broadcastToRoomBytes(msg.RoomID, msg.Message, msg.Exclude)
+		h.logger.Infof("[HUB] Room broadcast completed for room %s", msg.RoomID)
 	}
 }
 
