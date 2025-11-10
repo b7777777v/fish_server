@@ -419,19 +419,19 @@ document.addEventListener('DOMContentLoaded', () => {
         let cannonAngle = -Math.PI / 2; // 默認向上
 
         if (window.gameRenderer && gameRenderer.players.has(currentPlayerId)) {
-            const player = gameRenderer.players.get(currentPlayerId);
+            // 使用渲染器的統一方法獲取砲口位置
+            const barrelEnd = gameRenderer.getBarrelEndPosition(currentPlayerId);
+            if (barrelEnd) {
+                cannonPosition = { x: barrelEnd.x, y: barrelEnd.y };
+                cannonAngle = barrelEnd.angle;
 
-            // 計算砲管末端的位置（子彈發射點）
-            const barrelLength = 40 + player.level * 5; // 與渲染器中的砲管長度一致
-            cannonPosition = {
-                x: player.position.x + Math.cos(player.angle) * barrelLength,
-                y: player.position.y + Math.sin(player.angle) * barrelLength
-            };
-            cannonAngle = player.angle;
-
-            // 只在開火時記錄，不是每次都記錄
-            if (stats.messagesSent % 10 === 0) { // 每10次記錄一次
-                log(`🎯 從砲管發射: 位置(${cannonPosition.x.toFixed(1)}, ${cannonPosition.y.toFixed(1)}), 角度=${(cannonAngle * 180 / Math.PI).toFixed(1)}°`, 'system');
+                // 只在開火時記錄，不是每次都記錄
+                if (stats.messagesSent % 10 === 0) { // 每10次記錄一次
+                    log(`🎯 從砲口發射: 位置(${cannonPosition.x.toFixed(1)}, ${cannonPosition.y.toFixed(1)}), 角度=${(cannonAngle * 180 / Math.PI).toFixed(1)}°, 砲管長=${barrelEnd.barrelLength}`, 'system');
+                }
+            } else {
+                cannonPosition = { x: 600, y: 750 };
+                log(`⚠️ 無法獲取砲台位置`, 'error');
             }
         } else {
             // 如果渲染器沒有運行，使用默認位置（畫布底部中央）
