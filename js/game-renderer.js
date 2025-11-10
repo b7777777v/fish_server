@@ -21,6 +21,10 @@ class GameRenderer {
         this.players = new Map(); // player_id -> {id, position, cannonType, level}
         this.currentPlayerId = null; // 當前玩家ID
 
+        // 追蹤上次的數量，用於減少日誌
+        this.lastFishCount = 0;
+        this.lastBulletCount = 0;
+
         // FPS 追蹤
         this.fps = 0;
         this.frameCount = 0;
@@ -79,11 +83,6 @@ class GameRenderer {
             power: bullet.getPower()
         }));
 
-        // 調試：如果子彈數量變化，記錄詳細信息
-        if (bulletsList.length > 0 && bulletsList.length !== this.bullets.length) {
-            console.log(`[Renderer] Bullets count changed: ${this.bullets.length} bullets`);
-        }
-
         // 更新魚群陣型
         this.formations = roomStateUpdate.getFormationsList().map(formation => ({
             id: formation.getFormationId(),
@@ -94,16 +93,15 @@ class GameRenderer {
             fishIds: formation.getFishIdsList()
         }));
 
-        // 調試日誌 - 顯示接收到的數據
+        // 調試日誌 - 顯示接收到的數據（減少日誌頻率）
         if (this.fishes.length > 0 || this.bullets.length > 0) {
-            console.log(`[Renderer] Updated: ${this.fishes.length} fishes, ${this.bullets.length} bullets`);
-            if (this.fishes.length > 0) {
-                const fish = this.fishes[0];
-                console.log(`[Renderer] First fish: pos=(${fish.x.toFixed(1)}, ${fish.y.toFixed(1)}), type=${fish.type}`);
-            }
-            if (this.bullets.length > 0) {
-                const bullet = this.bullets[0];
-                console.log(`[Renderer] First bullet: pos=(${bullet.x.toFixed(1)}, ${bullet.y.toFixed(1)})`);
+            // 只在對象數量變化時記錄，不是每次都記錄
+            const stateChanged = this.fishes.length !== this.lastFishCount ||
+                                this.bullets.length !== this.lastBulletCount;
+            if (stateChanged) {
+                console.log(`[Renderer] Updated: ${this.fishes.length} fishes, ${this.bullets.length} bullets`);
+                this.lastFishCount = this.fishes.length;
+                this.lastBulletCount = this.bullets.length;
             }
         }
 

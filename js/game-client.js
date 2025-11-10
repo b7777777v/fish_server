@@ -34,7 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
         fishCount: 0,
         bulletCount: 0,
         latencies: [],
-        lastUpdate: null
+        lastUpdate: null,
+        lastFormationCount: 0,
+        emptyWarningShown: false
     };
 
     // --- WebSocket 相關 ---
@@ -418,9 +420,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (window.gameRenderer && gameRenderer.players.has(currentPlayerId)) {
             const player = gameRenderer.players.get(currentPlayerId);
-            cannonPosition = player.position;
+
+            // 計算砲管末端的位置（子彈發射點）
+            const barrelLength = 40 + player.level * 5; // 與渲染器中的砲管長度一致
+            cannonPosition = {
+                x: player.position.x + Math.cos(player.angle) * barrelLength,
+                y: player.position.y + Math.sin(player.angle) * barrelLength
+            };
             cannonAngle = player.angle;
-            log(`🎯 從砲台發射: 位置(${cannonPosition.x.toFixed(1)}, ${cannonPosition.y.toFixed(1)}), 角度=${(cannonAngle * 180 / Math.PI).toFixed(1)}°`, 'system');
+
+            // 只在開火時記錄，不是每次都記錄
+            if (stats.messagesSent % 10 === 0) { // 每10次記錄一次
+                log(`🎯 從砲管發射: 位置(${cannonPosition.x.toFixed(1)}, ${cannonPosition.y.toFixed(1)}), 角度=${(cannonAngle * 180 / Math.PI).toFixed(1)}°`, 'system');
+            }
         } else {
             // 如果渲染器沒有運行，使用默認位置（畫布底部中央）
             cannonPosition = { x: 600, y: 750 };
@@ -522,7 +534,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.gameRenderer) {
             if (gameRenderer.isRunning) {
                 gameRenderer.updateGameState(roomStateUpdate);
-                console.log(`[Client] Passed state to renderer: ${fishCount} fish, ${bulletCount} bullets`);
+                // 減少日誌頻率 - 只在有子彈變化時記錄
+                if (bulletCount !== stats.bulletCount) {
+                    console.log(`[Client] Passed state to renderer: ${fishCount} fish, ${bulletCount} bullets`);
+                }
             } else {
                 console.warn('[Client] Renderer exists but is not running!');
             }
@@ -530,65 +545,34 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('[Client] gameRenderer not found in window object!');
         }
 
-        // 基本狀態信息
-        log(`🎮 房間狀態更新: ${fishCount} 條魚, ${bulletCount} 發子彈, ${playerCount} 位玩家 [${roomStatus}] 延遲:${latency}ms`);
-        
-        // 詳細魚類信息（前端渲染需要的數據）
-        if (fishCount > 0) {
-            log(`🐟 魚類詳細信息 (用於前端渲染):`);
-            roomStateUpdate.getFishesList().forEach((fish, index) => {
-                if (index < 3) { // 只顯示前3條魚避免日誌過多
-                    const pos = fish.getPosition();
-                    log(`  魚[${index}]: ID=${fish.getFishId()}, 類型=${fish.getFishType()}, ` +
-                        `位置=(${pos.getX().toFixed(1)}, ${pos.getY().toFixed(1)}), ` +
-                        `方向=${fish.getDirection().toFixed(2)}, 速度=${fish.getSpeed().toFixed(1)}, ` +
-                        `血量=${fish.getHealth()}/${fish.getMaxHealth()}, 價值=${fish.getValue()}`);
-                }
-            });
-            if (fishCount > 3) {
-                log(`  ... 還有 ${fishCount - 3} 條魚`);
-            }
+        // 基本狀態信息 - 減少日誌頻率
+        if (fishCount > 0 || bulletCount > 0) {
+            log(`🎮 房間狀態更新: ${fishCount} 條魚, ${bulletCount} 發子彈, ${playerCount} 位玩家 [${roomStatus}] 延遲:${latency}ms`);
         }
-        
-        // 詳細子彈信息（前端渲染需要的數據）
-        if (bulletCount > 0) {
-            log(`💥 子彈詳細信息 (用於前端渲染): ${bulletCount} 發子彈`);
-            roomStateUpdate.getBulletsList().forEach((bullet, index) => {
-                if (index < 3) { // 只顯示前3發子彈避免日誌過多
-                    const pos = bullet.getPosition();
-                    log(`  子彈[${index}]: ID=${bullet.getBulletId()}, 玩家=${bullet.getPlayerId()}, ` +
-                        `位置=(${pos.getX().toFixed(1)}, ${pos.getY().toFixed(1)}), ` +
-                        `方向=${bullet.getDirection().toFixed(2)}, 速度=${bullet.getSpeed().toFixed(1)}, ` +
-                        `威力=${bullet.getPower()}`);
-                }
-            });
-            if (bulletCount > 3) {
-                log(`  ... 還有 ${bulletCount - 3} 發子彈`);
-            }
-        } else {
-            // 如果沒有子彈，也記錄一下
-            if (stats.bulletCount !== bulletCount) {
-                log(`ℹ️ 當前沒有子彈在畫面中`, 'system');
-            }
+
+        // 詳細魚類信息（前端渲染需要的數據）- 減少日誌
+        if (fishCount > 0 && fishCount !== stats.fishCount) {
+            log(`🐟 魚類數量: ${fishCount} 條`);
         }
-        
-        // 魚群陣型信息
+
+        // 詳細子彈信息（前端渲染需要的數據）- 減少日誌
+        if (bulletCount > 0 && bulletCount !== stats.bulletCount) {
+            log(`💥 子彈數量: ${bulletCount} 發`);
+        }
+
+        // 魚群陣型信息 - 只在有陣型時顯示
         const formations = roomStateUpdate.getFormationsList();
-        if (formations && formations.length > 0) {
-            log(`🎯 魚群陣型信息:`);
-            formations.forEach((formation, index) => {
-                const pos = formation.getCenterPosition();
-                log(`  陣型[${index}]: ID=${formation.getFormationId()}, 類型=${formation.getFormationType()}, ` +
-                    `中心位置=(${pos.getX().toFixed(1)}, ${pos.getY().toFixed(1)}), ` +
-                    `魚類數量=${formation.getFishIdsList().length}, 進度=${formation.getProgress().toFixed(2)}`);
-            });
+        if (formations && formations.length > 0 && formations.length !== stats.lastFormationCount) {
+            log(`🎯 魚群陣型: ${formations.length} 個陣型`);
+            stats.lastFormationCount = formations.length;
         }
-        
-        // 如果沒有魚類和子彈，提示可能的問題
-        if (fishCount === 0 && bulletCount === 0) {
+
+        // 如果沒有魚類和子彈，提示可能的問題（只提示一次）
+        if (fishCount === 0 && bulletCount === 0 && !stats.emptyWarningShown) {
             log(`⚠️ 注意: 沒有魚類和子彈數據 - 檢查遊戲是否正常運行或房間是否為空`, 'error');
-        } else {
-            log(`✅ 遊戲狀態正常 - 前端可以進行渲染`, 'system');
+            stats.emptyWarningShown = true;
+        } else if (fishCount > 0 || bulletCount > 0) {
+            stats.emptyWarningShown = false;
         }
     }
     
