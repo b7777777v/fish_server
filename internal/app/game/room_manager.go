@@ -2,7 +2,6 @@ package game
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -375,29 +374,32 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 		power = fireData.Power
 	}
 
-	// 調用業務邏輯層開火
-	bullet, err := rm.gameUsecase.FireBullet(rm.ctx, rm.roomID, client.PlayerID, direction, power)
-	if err != nil {
-		rm.logger.Errorf("Failed to fire bullet: %v", err)
-		client.sendError("Failed to fire bullet")
+	// 簡化版本：直接創建子彈，不調用業務邏輯層
+	// TODO: 後續需要統一 WebSocket 房間 ID 和業務邏輯房間 ID
+	bulletID := time.Now().UnixNano()
+	bulletCost := int64(power * 10) // 簡單的成本計算
+
+	// 檢查玩家餘額
+	if playerInfo.Balance < bulletCost {
+		client.sendError("Insufficient balance")
 		return
 	}
 
 	// 添加子彈到遊戲狀態
 	bulletInfo := &BulletInfo{
-		ID:        bullet.ID,
+		ID:        bulletID,
 		PlayerID:  client.ID,
 		Position:  GamePosition{X: playerInfo.Position.X, Y: playerInfo.Position.Y},
 		Direction: direction,
-		Speed:     bullet.Speed,
-		Power:     bullet.Power,
-		CreatedAt: bullet.CreatedAt,
+		Speed:     200.0, // 固定速度
+		Power:     power,
+		CreatedAt: time.Now(),
 	}
 
-	rm.gameState.Bullets[bullet.ID] = bulletInfo
+	rm.gameState.Bullets[bulletID] = bulletInfo
 
 	// 更新玩家餘額
-	playerInfo.Balance -= bullet.Cost
+	playerInfo.Balance -= bulletCost
 
 	// 發送開火響應給客戶端
 	fireResponse := &pb.GameMessage{
@@ -405,8 +407,8 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 		Data: &pb.GameMessage_FireBulletResponse{
 			FireBulletResponse: &pb.FireBulletResponse{
 				Success:   true,
-				BulletId:  bullet.ID,
-				Cost:      bullet.Cost,
+				BulletId:  bulletID,
+				Cost:      bulletCost,
 				Timestamp: time.Now().Unix(),
 			},
 		},
@@ -419,9 +421,9 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 		Data: &pb.GameMessage_BulletFired{
 			BulletFired: &pb.BulletFiredEvent{
 				PlayerId:  client.PlayerID,
-				BulletId:  bullet.ID,
+				BulletId:  bulletID,
 				Direction: direction,
-				Power:     bullet.Power,
+				Power:     power,
 				Position:  &pb.Position{X: bulletInfo.Position.X, Y: bulletInfo.Position.Y},
 				Timestamp: time.Now().Unix(),
 			},
@@ -436,7 +438,7 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 		rm.hub.BroadcastToRoom(rm.roomID, eventData, client) // 排除發送者
 	}
 
-	rm.logger.Infof("Player %s fired bullet %d in room %s", client.ID, bullet.ID, rm.roomID)
+	rm.logger.Infof("Player %s fired bullet %d in room %s", client.ID, bulletID, rm.roomID)
 }
 
 // handleSwitchCannon 處理切換砲台操作
@@ -628,46 +630,33 @@ func (rm *RoomManager) handleCollision(bulletID int64, fishID int64) {
 		return
 	}
 
-	// 調用業務邏輯處理命中
-	hitResult, err := rm.gameUsecase.HitFish(rm.ctx, rm.roomID, bulletID, fishID)
-	if err != nil {
-		rm.logger.Errorf("Failed to process hit: %v", err)
-		return
-	}
+	// 簡化版本：直接處理命中，不調用業務邏輯層
+	// TODO: 後續需要統一 WebSocket 房間 ID 和業務邏輯房間 ID
+	damage := bullet.Power
+	reward := fish.Value
 
 	// 移除子彈
 	delete(rm.gameState.Bullets, bulletID)
 
-	if hitResult.Success {
-		// 更新魚的血量或移除
-		if hitResult.Damage >= fish.Health {
-			delete(rm.gameState.Fishes, fishID)
-		} else {
-			fish.Health -= hitResult.Damage
-		}
-
-		// 更新玩家餘額
-		if playerInfo, exists := rm.gameState.Players[bullet.PlayerID]; exists {
-			playerInfo.Balance += hitResult.Reward
-		}
-
-		// 廣播命中事件
-		hitEvent := map[string]interface{}{
-			"type":        "fish_hit",
-			"player_id":   bullet.PlayerID,
-			"fish_id":     fishID,
-			"bullet_id":   bulletID,
-			"damage":      hitResult.Damage,
-			"reward":      hitResult.Reward,
-			"is_critical": hitResult.IsCritical,
-			"timestamp":   time.Now().Unix(),
-		}
-
-		rm.broadcastToRoom(hitEvent, nil)
-
-		rm.logger.Debugf("Fish %d hit by player %s, damage: %d, reward: %d",
-			fishID, bullet.PlayerID, hitResult.Damage, hitResult.Reward)
+	// 更新魚的血量或移除
+	if damage >= fish.Health {
+		delete(rm.gameState.Fishes, fishID)
+	} else {
+		fish.Health -= damage
+		// 如果沒有擊殺，不給獎勵
+		reward = 0
 	}
+
+	// 更新玩家餘額
+	if playerInfo, exists := rm.gameState.Players[bullet.PlayerID]; exists {
+		playerInfo.Balance += reward
+	}
+
+	// 廣播命中事件將通過 ROOM_STATE_UPDATE 自動發送
+	// 不需要單獨的 fish_hit 事件
+
+	rm.logger.Debugf("Fish %d hit by player %s, damage: %d, reward: %d",
+		fishID, bullet.PlayerID, damage, reward)
 }
 
 // spawnFishes 生成新魚類
@@ -726,23 +715,21 @@ func (rm *RoomManager) startGame() {
 	rm.logger.Infof("Ticker should start working now. Status: %s", rm.gameState.Status)
 
 	// 非阻塞地創建業務邏輯層的房間
+	// 注意：業務邏輯層的房間 ID 和 WebSocket 房間 ID 不同
+	// 這裡暫時不關聯它們，只創建一個默認房間用於業務邏輯
 	go func() {
-		_, err := rm.gameUsecase.CreateRoom(rm.ctx, game.RoomTypeNovice, 4)
+		createdRoom, err := rm.gameUsecase.CreateRoom(rm.ctx, game.RoomTypeNovice, 4)
 		if err != nil {
 			rm.logger.Errorf("Failed to create game room: %v", err)
 		} else {
-			rm.logger.Infof("Successfully created business logic room: %s", rm.roomID)
+			rm.logger.Infof("Successfully created business logic room: %s for WebSocket room: %s",
+				createdRoom.ID, rm.roomID)
+			// 保存業務邏輯房間 ID 供後續使用
+			// TODO: 需要在 RoomManager 中添加 businessRoomID 字段
 		}
 	}()
 
-	// 廣播遊戲開始事件
-	startEvent := map[string]interface{}{
-		"type":      "game_started",
-		"room_id":   rm.roomID,
-		"timestamp": time.Now().Unix(),
-	}
-
-	rm.broadcastToRoom(startEvent, nil)
+	// 不再發送 game_started JSON 事件，前端已經通過 ROOM_STATE_UPDATE 知道遊戲狀態
 
 	rm.logger.Infof("Game started in room: %s", rm.roomID)
 }
@@ -751,14 +738,7 @@ func (rm *RoomManager) startGame() {
 func (rm *RoomManager) pauseGame() {
 	rm.gameState.Status = "waiting"
 
-	// 廣播遊戲暫停事件
-	pauseEvent := map[string]interface{}{
-		"type":      "game_paused",
-		"room_id":   rm.roomID,
-		"timestamp": time.Now().Unix(),
-	}
-
-	rm.broadcastToRoom(pauseEvent, nil)
+	// 不再發送 game_paused JSON 事件，前端已經通過 ROOM_STATE_UPDATE 知道遊戲狀態
 
 	rm.logger.Infof("Game paused in room: %s", rm.roomID)
 }
@@ -832,26 +812,16 @@ func (rm *RoomManager) sendGameStateProtobufToClient(client *Client) {
 		client.ID, len(fishInfos), len(bulletInfos))
 }
 
-// broadcastGameState 廣播遊戲狀態
-func (rm *RoomManager) broadcastGameState() {
-	stateMsg := map[string]interface{}{
-		"type":       "game_state_update",
-		"game_state": rm.gameState,
-	}
+// broadcastGameState 廣播遊戲狀態（已廢棄，使用 broadcastGameStateProtobuf）
+// func (rm *RoomManager) broadcastGameState() {
+// 	已由 broadcastGameStateProtobuf() 替代
+// }
 
-	rm.broadcastToRoom(stateMsg, nil)
-}
-
-// broadcastToRoom 向房間廣播消息
-func (rm *RoomManager) broadcastToRoom(message interface{}, exclude *Client) {
-	data, err := json.Marshal(message)
-	if err != nil {
-		rm.logger.Errorf("Failed to marshal broadcast message: %v", err)
-		return
-	}
-
-	rm.hub.BroadcastToRoom(rm.roomID, data, exclude)
-}
+// broadcastToRoom JSON 版本已廢棄
+// 所有廣播都應使用 Protobuf 格式
+// func (rm *RoomManager) broadcastToRoom(message interface{}, exclude *Client) {
+// 	已廢棄：不應再發送 JSON 格式的消息
+// }
 
 // broadcastGameStateProtobuf 使用 Protobuf 格式廣播遊戲狀態
 func (rm *RoomManager) broadcastGameStateProtobuf() {
