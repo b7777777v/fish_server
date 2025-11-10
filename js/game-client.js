@@ -284,7 +284,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case MessageType.BULLET_FIRED:
                 const bulletFired = gameMessage.getBulletFired();
-                log(`玩家 ${bulletFired.getPlayerId()} 開火了，子彈ID: ${bulletFired.getBulletId()}`);
+                const bulletPos = bulletFired.getPosition();
+                log(`💥 玩家 ${bulletFired.getPlayerId()} 開火了，子彈ID: ${bulletFired.getBulletId()}, 位置: (${bulletPos.getX().toFixed(1)}, ${bulletPos.getY().toFixed(1)})`);
                 break;
             case MessageType.FISH_SPAWNED:
                 const fishSpawnedOld = gameMessage.getFishSpawned();
@@ -332,6 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fireBulletResp = gameMessage.getFireBulletResponse();
                 if (fireBulletResp.getSuccess()) {
                     log(`💥 成功開火！子彈ID: ${fireBulletResp.getBulletId()}, 消耗: ${fireBulletResp.getCost()}`);
+                    console.log('[Client] Fire bullet response received, waiting for ROOM_STATE_UPDATE to show bullet...');
                 } else {
                     log(`❌ 開火失敗`, 'error');
                 }
@@ -409,14 +411,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     fireBulletBtn.addEventListener('click', () => {
+        // 獲取當前玩家的砲台信息
+        const currentPlayerId = playerIdInput.value;
+        let cannonPosition = null;
+        let cannonAngle = -Math.PI / 2; // 默認向上
+
+        if (window.gameRenderer && gameRenderer.players.has(currentPlayerId)) {
+            const player = gameRenderer.players.get(currentPlayerId);
+            cannonPosition = player.position;
+            cannonAngle = player.angle;
+            log(`🎯 從砲台發射: 位置(${cannonPosition.x.toFixed(1)}, ${cannonPosition.y.toFixed(1)}), 角度=${(cannonAngle * 180 / Math.PI).toFixed(1)}°`, 'system');
+        } else {
+            // 如果渲染器沒有運行，使用默認位置（畫布底部中央）
+            cannonPosition = { x: 600, y: 750 };
+            log(`⚠️ 使用默認砲台位置`, 'system');
+        }
+
         const gameMessage = new proto.v1.GameMessage();
         gameMessage.setType(MessageType.FIRE_BULLET);
         const fireBulletReq = new proto.v1.FireBulletRequest();
-        fireBulletReq.setDirection(Math.random() * 2 * Math.PI); // 隨機方向 (弧度)
-        fireBulletReq.setPower(Math.floor(Math.random() * 100) + 1); // 隨機威力 1-100
+        fireBulletReq.setDirection(cannonAngle);
+        fireBulletReq.setPower(50); // 固定威力
         const position = new proto.v1.Position();
-        position.setX(Math.random() * 800); // 隨機 X 位置
-        position.setY(Math.random() * 600); // 隨機 Y 位置
+        position.setX(cannonPosition.x);
+        position.setY(cannonPosition.y);
         fireBulletReq.setPosition(position);
         gameMessage.setFireBullet(fireBulletReq);
         sendMessage(gameMessage);
@@ -534,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 詳細子彈信息（前端渲染需要的數據）
         if (bulletCount > 0) {
-            log(`💥 子彈詳細信息 (用於前端渲染):`);
+            log(`💥 子彈詳細信息 (用於前端渲染): ${bulletCount} 發子彈`);
             roomStateUpdate.getBulletsList().forEach((bullet, index) => {
                 if (index < 3) { // 只顯示前3發子彈避免日誌過多
                     const pos = bullet.getPosition();
@@ -546,6 +564,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (bulletCount > 3) {
                 log(`  ... 還有 ${bulletCount - 3} 發子彈`);
+            }
+        } else {
+            // 如果沒有子彈，也記錄一下
+            if (stats.bulletCount !== bulletCount) {
+                log(`ℹ️ 當前沒有子彈在畫面中`, 'system');
             }
         }
         
