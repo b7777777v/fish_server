@@ -68,7 +68,8 @@ class GameRenderer {
         }));
 
         // 更新子彈
-        this.bullets = roomStateUpdate.getBulletsList().map(bullet => ({
+        const bulletsList = roomStateUpdate.getBulletsList();
+        this.bullets = bulletsList.map(bullet => ({
             id: bullet.getBulletId(),
             playerId: bullet.getPlayerId(),
             x: bullet.getPosition().getX(),
@@ -77,6 +78,11 @@ class GameRenderer {
             speed: bullet.getSpeed(),
             power: bullet.getPower()
         }));
+
+        // 調試：如果子彈數量變化，記錄詳細信息
+        if (bulletsList.length > 0 && bulletsList.length !== this.bullets.length) {
+            console.log(`[Renderer] Bullets count changed: ${this.bullets.length} bullets`);
+        }
 
         // 更新魚群陣型
         this.formations = roomStateUpdate.getFormationsList().map(formation => ({
@@ -157,11 +163,11 @@ class GameRenderer {
         this.drawCannons();
 
         // 調試：顯示當前有多少對象需要繪製
-        if (this.fishes.length > 0 || this.bullets.length > 0) {
+        if (this.fishes.length > 0 || this.bullets.length > 0 || this.players.size > 0) {
             this.ctx.save();
             this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
             this.ctx.font = '12px monospace';
-            this.ctx.fillText(`Drawing: ${this.fishes.length} fish, ${this.bullets.length} bullets`, 10, this.height - 10);
+            this.ctx.fillText(`Drawing: ${this.fishes.length} fish, ${this.bullets.length} bullets, ${this.players.size} players`, 10, this.height - 10);
             this.ctx.restore();
         }
 
@@ -579,10 +585,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // 添加點擊事件（可選：點擊發射子彈）
+            // 添加點擊事件：點擊發射子彈
             canvas.addEventListener('click', (event) => {
                 if (window.gameRenderer && gameRenderer.isRunning && gameRenderer.currentPlayerId) {
-                    console.log('[Renderer] Canvas clicked - could trigger fire bullet here');
+                    const rect = canvas.getBoundingClientRect();
+                    const clickX = event.clientX - rect.left;
+                    const clickY = event.clientY - rect.top;
+                    console.log(`[Renderer] Canvas clicked at (${clickX}, ${clickY}) - triggering fire`);
+
+                    // 觸發開火按鈕點擊事件
+                    const fireBulletBtn = document.getElementById('fireBulletBtn');
+                    if (fireBulletBtn) {
+                        fireBulletBtn.click();
+                    }
                 }
             });
 
