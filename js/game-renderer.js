@@ -491,6 +491,24 @@ class GameRenderer {
     }
 
     /**
+     * 獲取砲口位置（用於子彈發射）
+     */
+    getBarrelEndPosition(playerId) {
+        const player = this.players.get(playerId);
+        if (!player) {
+            return null;
+        }
+
+        const barrelLength = 40 + player.level * 5;
+        return {
+            x: player.position.x + Math.cos(player.angle) * barrelLength,
+            y: player.position.y + Math.sin(player.angle) * barrelLength,
+            angle: player.angle,
+            barrelLength: barrelLength
+        };
+    }
+
+    /**
      * 繪製所有砲台
      */
     drawCannons() {
@@ -539,6 +557,14 @@ class GameRenderer {
         this.ctx.fillStyle = isCurrentPlayer ? '#43A047' : '#546E7A';
         this.ctx.fill();
         this.ctx.stroke();
+
+        // 調試：繪製砲口中心點（紅色小圓點）
+        if (isCurrentPlayer) {
+            this.ctx.beginPath();
+            this.ctx.arc(barrelLength, 0, 3, 0, Math.PI * 2);
+            this.ctx.fillStyle = '#FF0000';
+            this.ctx.fill();
+        }
 
         this.ctx.restore();
 
