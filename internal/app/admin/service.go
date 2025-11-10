@@ -2,6 +2,7 @@ package admin
 
 import (
 	"github.com/b7777777v/fish_server/internal/app/game"
+	gamebiz "github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/conf"
@@ -14,7 +15,7 @@ type AdminService struct {
 	playerUC           *player.PlayerUsecase
 	walletUC           *wallet.WalletUsecase
 	gameApp            *game.GameApp
-	formationConfigSvc *game.FormationConfigService // 新增：陣型配置服務
+	formationConfigSvc *gamebiz.FormationConfigService // 陣型配置服務
 	tokenHelper        *token.TokenHelper
 	config             *conf.Config
 	logger             logger.Logger
@@ -25,7 +26,7 @@ func NewAdminService(
 	playerUC *player.PlayerUsecase,
 	walletUC *wallet.WalletUsecase,
 	gameApp *game.GameApp,
-	formationConfigSvc *game.FormationConfigService, // 新增參數
+	formationConfigSvc *gamebiz.FormationConfigService, // 修正：使用正確的套件別名
 	tokenHelper *token.TokenHelper,
 	config *conf.Config,
 	logger logger.Logger,

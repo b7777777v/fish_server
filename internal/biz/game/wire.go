@@ -28,4 +28,5 @@ var ProviderSet = wire.NewSet(
 	NewMathModel,
 	NewFishSpawner,
 	NewDefaultRoomConfig,
+	NewFormationConfigService, // Add this line
 )

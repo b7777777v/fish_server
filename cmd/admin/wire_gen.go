@@ -59,7 +59,11 @@ func initApp(config *conf.Config) (*admin.AdminApp, func(), error) {
 	webSocketHandler := game2.NewWebSocketHandler(hub, v)
 	messageHandler := game2.NewMessageHandler(gameUsecase, hub, v)
 	gameApp := game2.NewGameApp(gameUsecase, config, v, hub, webSocketHandler, messageHandler)
-	adminService := admin.NewAdminService(playerUsecase, walletUsecase, gameApp, tokenHelper, config, v)
+	client := data.ProvidePostgresClient(dataData)
+	redisClient := data.ProvideRedisClient(dataData)
+	formationConfigRepo := data.NewFormationConfigRepo(client, redisClient, v)
+	formationConfigService := game.NewFormationConfigService(formationConfigRepo, v)
+	adminService := admin.NewAdminService(playerUsecase, walletUsecase, gameApp, formationConfigService, tokenHelper, config, v)
 	adminServer := admin.NewServer(server, adminService, v)
 	adminApp := admin.NewAdminApp(adminServer, v)
 	return adminApp, func() {

@@ -48,7 +48,7 @@ func NewFormationConfigRepo(
 	pg *pgClient.Client,
 	redis *redisClient.Client,
 	logger logger.Logger,
-) FormationConfigRepo {
+) *formationConfigRepo {
 	return &formationConfigRepo{
 		pg:     pg,
 		redis:  redis,
