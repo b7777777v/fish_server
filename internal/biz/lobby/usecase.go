@@ -1,0 +1,79 @@
+package lobby
+
+import (
+	"context"
+)
+
+// TODO: 實現大廳模組的業務邏輯
+// 此檔案包含大廳相關的核心業務邏輯，包括：
+// - 遊戲房間列表查詢
+// - 玩家狀態顯示
+// - 公告與訊息管理
+
+// LobbyUsecase 定義大廳業務邏輯的介面
+type LobbyUsecase interface {
+	// GetRoomList 獲取遊戲房間列表
+	GetRoomList(ctx context.Context) ([]*RoomInfo, error)
+
+	// GetPlayerStatus 獲取玩家狀態
+	GetPlayerStatus(ctx context.Context, userID int64) (*PlayerStatus, error)
+
+	// GetAnnouncements 獲取公告列表
+	GetAnnouncements(ctx context.Context, limit int) ([]*Announcement, error)
+
+	// CreateAnnouncement 建立新公告（管理員功能）
+	CreateAnnouncement(ctx context.Context, title, content string, priority int) error
+
+	// UpdateAnnouncement 更新公告（管理員功能）
+	UpdateAnnouncement(ctx context.Context, id int64, title, content string, priority int) error
+
+	// DeleteAnnouncement 刪除公告（管理員功能）
+	DeleteAnnouncement(ctx context.Context, id int64) error
+}
+
+// RoomInfo 房間資訊
+type RoomInfo struct {
+	RoomID          string `json:"room_id"`
+	RoomName        string `json:"room_name"`
+	BetMultiplier   int    `json:"bet_multiplier"`   // 下注倍率
+	MinCoins        int64  `json:"min_coins"`        // 最低金幣要求
+	CurrentPlayers  int    `json:"current_players"`  // 當前玩家數
+	MaxPlayers      int    `json:"max_players"`      // 最大玩家數
+	GameServerID    string `json:"game_server_id"`   // Game Server 實例 ID
+}
+
+// PlayerStatus 玩家狀態
+type PlayerStatus struct {
+	UserID    int64  `json:"user_id"`
+	Nickname  string `json:"nickname"`
+	AvatarURL string `json:"avatar_url"`
+	Coins     int64  `json:"coins"`      // 金幣數量
+	Level     int    `json:"level"`      // 等級
+	EXP       int64  `json:"exp"`        // 經驗值
+}
+
+// Announcement 公告
+type Announcement struct {
+	ID        int64  `json:"id"`
+	Title     string `json:"title"`
+	Content   string `json:"content"`
+	Priority  int    `json:"priority"`   // 優先級（數字越大越重要）
+	CreatedAt string `json:"created_at"`
+}
+
+// lobbyUsecase 實現 LobbyUsecase 介面
+type lobbyUsecase struct {
+	// TODO: 注入必要的依賴，如：
+	// - LobbyRepo: 大廳資料庫操作介面
+	// - RoomCache: Redis 房間快取操作介面
+	// - WalletRepo: 錢包資料庫操作介面
+}
+
+// NewLobbyUsecase 建立新的 LobbyUsecase 實例
+func NewLobbyUsecase( /* TODO: 添加參數 */ ) LobbyUsecase {
+	return &lobbyUsecase{
+		// TODO: 初始化依賴
+	}
+}
+
+// TODO: 實現 LobbyUsecase 介面的所有方法
