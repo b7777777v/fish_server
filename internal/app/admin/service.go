@@ -11,12 +11,13 @@ import (
 
 // AdminService 管理後台服務
 type AdminService struct {
-	playerUC    *player.PlayerUsecase
-	walletUC    *wallet.WalletUsecase
-	gameApp     *game.GameApp
-	tokenHelper *token.TokenHelper
-	config      *conf.Config
-	logger      logger.Logger
+	playerUC           *player.PlayerUsecase
+	walletUC           *wallet.WalletUsecase
+	gameApp            *game.GameApp
+	formationConfigSvc *game.FormationConfigService // 新增：陣型配置服務
+	tokenHelper        *token.TokenHelper
+	config             *conf.Config
+	logger             logger.Logger
 }
 
 // NewAdminService 創建一個新的 AdminService 實例
@@ -24,17 +25,19 @@ func NewAdminService(
 	playerUC *player.PlayerUsecase,
 	walletUC *wallet.WalletUsecase,
 	gameApp *game.GameApp,
+	formationConfigSvc *game.FormationConfigService, // 新增參數
 	tokenHelper *token.TokenHelper,
 	config *conf.Config,
 	logger logger.Logger,
 ) *AdminService {
 	return &AdminService{
-		playerUC:   playerUC,
-		walletUC:   walletUC,
-		gameApp:    gameApp,
-		tokenHelper: tokenHelper,
-		config:     config,
-		logger:     logger.With("module", "app/admin"),
+		playerUC:           playerUC,
+		walletUC:           walletUC,
+		gameApp:            gameApp,
+		formationConfigSvc: formationConfigSvc, // 保存服務引用
+		tokenHelper:        tokenHelper,
+		config:             config,
+		logger:             logger.With("module", "app/admin"),
 	}
 }
 
