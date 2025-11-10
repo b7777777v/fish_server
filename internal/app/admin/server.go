@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
+	"github.com/gin-contrib/pprof"
 )
 
 // Server 管理後台 HTTP 服務器
@@ -101,6 +102,12 @@ func (s *Server) setupRoutes() {
 	
 	// 註冊業務路由
 	s.service.RegisterRoutes(s.engine)
+
+	// 根據配置啟用 pprof 路由
+	if s.service.config.Debug != nil && s.service.config.Debug.EnablePprof {
+		pprof.Register(s.engine)
+		s.logger.Info("Pprof routes enabled for admin server")
+	}
 }
 
 // ginLogger 自定義 Gin 日誌中間件
