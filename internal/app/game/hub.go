@@ -294,7 +294,13 @@ func (h *Hub) handleJoinRoom(msg *JoinRoomMessage) {
 			},
 		},
 	}
+
+	// 重要：在調用 broadcastToRoom 之前釋放鎖，避免死鎖
+	// broadcastToRoom -> broadcastToRoomBytes 會嘗試獲取 h.mu.RLock()
+	// 而當前已經持有 h.mu.Lock()，Go 的 RWMutex 不支持鎖降級，會導致死鎖
+	h.mu.Unlock()
 	h.broadcastToRoom(roomID, playerJoinMsg, client)
+	h.mu.Lock() // 重新獲取鎖以確保 defer 能正常工作
 }
 
 // handleLeaveRoom 處理離開房間
@@ -324,6 +330,7 @@ func (h *Hub) handleLeaveRoom(msg *LeaveRoomMessage) {
 }
 
 // removeClientFromRoom 從房間移除客戶端
+// 注意：此函數假設調用者已經持有 h.mu.Lock()
 func (h *Hub) removeClientFromRoom(client *Client, roomID string) {
 	if room, ok := h.rooms[roomID]; ok {
 		if _, ok := room[client]; ok {
@@ -352,7 +359,12 @@ func (h *Hub) removeClientFromRoom(client *Client, roomID string) {
 						},
 					},
 				}
+
+				// 重要：臨時釋放鎖避免死鎖
+				// broadcastToRoom -> broadcastToRoomBytes 需要 h.mu.RLock()
+				h.mu.Unlock()
 				h.broadcastToRoom(roomID, playerLeaveMsg, client)
+				h.mu.Lock()
 			}
 		}
 	}
