@@ -3,6 +3,7 @@ package game
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/b7777777v/fish_server/internal/biz/game"
@@ -574,13 +575,16 @@ func (rm *RoomManager) gameLoop() {
 // updateBullets 更新子彈位置
 func (rm *RoomManager) updateBullets(deltaTime float64) {
 	for bulletID, bullet := range rm.gameState.Bullets {
-		// 簡單的直線移動
-		bullet.Position.X += bullet.Speed * deltaTime * 0.866 // cos(30°)
-		bullet.Position.Y -= bullet.Speed * deltaTime * 0.5   // sin(30°)
+		// 根據子彈的方向和速度進行移動
+		// Direction 是弧度值，表示子彈的飛行方向
+		bullet.Position.X += math.Cos(bullet.Direction) * bullet.Speed * deltaTime
+		bullet.Position.Y += math.Sin(bullet.Direction) * bullet.Speed * deltaTime
 
-		// 檢查是否出界
-		if bullet.Position.Y < 0 || bullet.Position.X < 0 || bullet.Position.X > 1200 {
+		// 檢查是否出界（擴大範圍以允許子彈稍微飛出螢幕）
+		if bullet.Position.Y < -100 || bullet.Position.Y > 900 ||
+			bullet.Position.X < -100 || bullet.Position.X > 1300 {
 			delete(rm.gameState.Bullets, bulletID)
+			rm.logger.Debugf("Bullet %d went out of bounds and was removed", bulletID)
 		}
 	}
 }
