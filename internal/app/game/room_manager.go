@@ -222,17 +222,38 @@ func (rm *RoomManager) Run() {
 
 // AddClient 添加客戶端到房間
 func (rm *RoomManager) AddClient(client *Client) {
-	rm.addClient <- client
+	// 使用非阻塞發送避免阻塞 Hub 主循環
+	select {
+	case rm.addClient <- client:
+		// 成功發送
+	default:
+		rm.logger.Errorf("Failed to add client %s to room %s: addClient channel full", client.ID, rm.roomID)
+	}
 }
 
 // RemoveClient 從房間移除客戶端
 func (rm *RoomManager) RemoveClient(client *Client) {
-	rm.removeClient <- client
+	// 使用非阻塞發送避免阻塞 Hub 主循環
+	select {
+	case rm.removeClient <- client:
+		// 成功發送
+	default:
+		rm.logger.Errorf("Failed to remove client %s from room %s: removeClient channel full", client.ID, rm.roomID)
+	}
 }
 
 // HandleGameAction 處理遊戲操作
 func (rm *RoomManager) HandleGameAction(action *GameActionMessage) {
-	rm.gameAction <- action
+	// 使用非阻塞發送避免阻塞 Hub 主循環
+	select {
+	case rm.gameAction <- action:
+		// 成功發送
+	default:
+		rm.logger.Errorf("Failed to handle game action for room %s: gameAction channel full", rm.roomID)
+		if action.Client != nil {
+			action.Client.sendError("Server is busy, please try again")
+		}
+	}
 }
 
 // Stop 停止房間管理器
