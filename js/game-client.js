@@ -127,6 +127,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 啟動遊戲渲染器
             if (window.gameRenderer) {
+                // 設置當前玩家
+                const currentPlayerId = playerIdInput.value;
+                gameRenderer.setCurrentPlayer(currentPlayerId);
+
+                // 添加當前玩家到渲染器
+                gameRenderer.addPlayer(currentPlayerId);
+
                 gameRenderer.start();
             }
 
@@ -267,7 +274,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case MessageType.PLAYER_JOINED:
                 const playerJoined = gameMessage.getPlayerJoined();
-                log(`玩家 ${playerJoined.getPlayerId()} 加入了房間 ${playerJoined.getRoomId()}。`);
+                const joinedPlayerId = playerJoined.getPlayerId();
+                log(`玩家 ${joinedPlayerId} 加入了房間 ${playerJoined.getRoomId()}。`);
+
+                // 添加玩家到渲染器
+                if (window.gameRenderer && gameRenderer.isRunning) {
+                    gameRenderer.addPlayer(joinedPlayerId);
+                }
                 break;
             case MessageType.BULLET_FIRED:
                 const bulletFired = gameMessage.getBulletFired();
@@ -287,7 +300,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case MessageType.PLAYER_LEFT:
                 const playerLeft = gameMessage.getPlayerLeft();
-                log(`玩家 ${playerLeft.getPlayerId()} 離開了房間。`);
+                const leftPlayerId = playerLeft.getPlayerId();
+                log(`玩家 ${leftPlayerId} 離開了房間。`);
+
+                // 從渲染器移除玩家
+                if (window.gameRenderer && gameRenderer.isRunning) {
+                    gameRenderer.removePlayer(leftPlayerId);
+                }
                 break;
             case MessageType.HEARTBEAT_RESPONSE:
                 // 心跳回應通常不需要特別處理，但可以記錄
@@ -296,7 +315,15 @@ document.addEventListener('DOMContentLoaded', () => {
             case MessageType.SWITCH_CANNON_RESPONSE:
                 const switchCannonResp = gameMessage.getSwitchCannonResponse();
                 if (switchCannonResp.getSuccess()) {
-                    log(`🔧 成功切換砲台類型: ${switchCannonResp.getCannonType()}, 等級: ${switchCannonResp.getLevel()}, 威力: ${switchCannonResp.getPower()}`);
+                    const cannonType = switchCannonResp.getCannonType();
+                    const level = switchCannonResp.getLevel();
+                    log(`🔧 成功切換砲台類型: ${cannonType}, 等級: ${level}, 威力: ${switchCannonResp.getPower()}`);
+
+                    // 更新渲染器中的砲台
+                    if (window.gameRenderer && gameRenderer.isRunning) {
+                        const currentPlayerId = playerIdInput.value;
+                        gameRenderer.updateCannonType(currentPlayerId, cannonType, level);
+                    }
                 } else {
                     log(`❌ 切換砲台失敗`, 'error');
                 }

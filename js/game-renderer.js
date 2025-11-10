@@ -15,8 +15,11 @@ class GameRenderer {
         // 遊戲狀態
         this.fishes = [];
         this.bullets = [];
-        this.players = [];
         this.formations = [];
+
+        // 玩家和砲台
+        this.players = new Map(); // player_id -> {id, position, cannonType, level}
+        this.currentPlayerId = null; // 當前玩家ID
 
         // FPS 追蹤
         this.fps = 0;
@@ -133,6 +136,8 @@ class GameRenderer {
         this.fishes = [];
         this.bullets = [];
         this.formations = [];
+        this.players.clear();
+        this.currentPlayerId = null;
         this.ctx.clearRect(0, 0, this.width, this.height);
     }
 
@@ -149,6 +154,7 @@ class GameRenderer {
         this.drawFormations();
         this.drawFishes();
         this.drawBullets();
+        this.drawCannons();
 
         // 調試：顯示當前有多少對象需要繪製
         if (this.fishes.length > 0 || this.bullets.length > 0) {
@@ -368,11 +374,188 @@ class GameRenderer {
             { id: 'test-bullet-2', playerId: 'player1', x: 700, y: 600, direction: Math.PI / 3, speed: 6, power: 75 },
         ];
 
+        // 添加測試玩家（砲台）
+        this.setCurrentPlayer('player1');
+        this.addPlayer('player1');
+        this.addPlayer('player2');
+
         // 更新統計
         document.getElementById('renderFishCount').textContent = this.fishes.length;
         document.getElementById('renderBulletCount').textContent = this.bullets.length;
 
-        console.log('[Renderer] Test data added:', this.fishes.length, 'fishes,', this.bullets.length, 'bullets');
+        console.log('[Renderer] Test data added:', this.fishes.length, 'fishes,', this.bullets.length, 'bullets', this.players.size, 'players');
+    }
+
+    /**
+     * 設置當前玩家ID
+     */
+    setCurrentPlayer(playerId) {
+        this.currentPlayerId = playerId;
+        console.log('[Renderer] Current player set to:', playerId);
+    }
+
+    /**
+     * 添加玩家（砲台）
+     */
+    addPlayer(playerId) {
+        if (!this.players.has(playerId)) {
+            const playerIndex = this.players.size;
+            const position = this.getCannonPosition(playerIndex);
+
+            this.players.set(playerId, {
+                id: playerId,
+                position: position,
+                cannonType: 1,
+                level: 1,
+                angle: -Math.PI / 2 // 默認向上
+            });
+
+            console.log(`[Renderer] Player added: ${playerId} at position (${position.x}, ${position.y})`);
+        }
+    }
+
+    /**
+     * 移除玩家
+     */
+    removePlayer(playerId) {
+        if (this.players.has(playerId)) {
+            this.players.delete(playerId);
+            console.log(`[Renderer] Player removed: ${playerId}`);
+
+            // 重新分配所有玩家位置
+            this.reassignPlayerPositions();
+        }
+    }
+
+    /**
+     * 重新分配所有玩家位置
+     */
+    reassignPlayerPositions() {
+        const playerIds = Array.from(this.players.keys());
+        playerIds.forEach((playerId, index) => {
+            const player = this.players.get(playerId);
+            player.position = this.getCannonPosition(index);
+        });
+    }
+
+    /**
+     * 獲取砲台位置（根據玩家索引）
+     */
+    getCannonPosition(playerIndex) {
+        // 捕魚遊戲典型佈局：
+        // - 主玩家（索引0）：底部中央
+        // - 玩家2（索引1）：頂部中央
+        // - 玩家3（索引2）：左側中央
+        // - 玩家4（索引3）：右側中央
+
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const margin = 50;
+
+        const positions = [
+            { x: centerX, y: this.height - margin }, // 底部中央
+            { x: centerX, y: margin },               // 頂部中央
+            { x: margin, y: centerY },               // 左側中央
+            { x: this.width - margin, y: centerY }   // 右側中央
+        ];
+
+        return positions[playerIndex % positions.length];
+    }
+
+    /**
+     * 更新玩家砲台角度（根據滑鼠位置）
+     */
+    updateCannonAngle(playerId, targetX, targetY) {
+        const player = this.players.get(playerId);
+        if (player) {
+            const dx = targetX - player.position.x;
+            const dy = targetY - player.position.y;
+            player.angle = Math.atan2(dy, dx);
+        }
+    }
+
+    /**
+     * 更新玩家砲台類型
+     */
+    updateCannonType(playerId, cannonType, level) {
+        const player = this.players.get(playerId);
+        if (player) {
+            player.cannonType = cannonType;
+            player.level = level;
+            console.log(`[Renderer] Cannon updated for ${playerId}: type=${cannonType}, level=${level}`);
+        }
+    }
+
+    /**
+     * 繪製所有砲台
+     */
+    drawCannons() {
+        this.players.forEach((player, playerId) => {
+            const isCurrentPlayer = playerId === this.currentPlayerId;
+            this.drawCannon(player, isCurrentPlayer);
+        });
+    }
+
+    /**
+     * 繪製單個砲台
+     */
+    drawCannon(player, isCurrentPlayer) {
+        this.ctx.save();
+
+        const { x, y } = player.position;
+        const angle = player.angle;
+
+        // 移動到砲台位置
+        this.ctx.translate(x, y);
+        this.ctx.rotate(angle);
+
+        // 砲台底座
+        const baseRadius = 30;
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, baseRadius, 0, Math.PI * 2);
+        this.ctx.fillStyle = isCurrentPlayer ? '#4CAF50' : '#607D8B';
+        this.ctx.fill();
+        this.ctx.strokeStyle = isCurrentPlayer ? '#2E7D32' : '#455A64';
+        this.ctx.lineWidth = 3;
+        this.ctx.stroke();
+
+        // 砲管
+        const barrelLength = 40 + player.level * 5;
+        const barrelWidth = 12 + player.level * 2;
+
+        this.ctx.fillStyle = isCurrentPlayer ? '#66BB6A' : '#78909C';
+        this.ctx.fillRect(0, -barrelWidth / 2, barrelLength, barrelWidth);
+        this.ctx.strokeStyle = isCurrentPlayer ? '#2E7D32' : '#455A64';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(0, -barrelWidth / 2, barrelLength, barrelWidth);
+
+        // 砲口
+        this.ctx.beginPath();
+        this.ctx.arc(barrelLength, 0, barrelWidth / 2 + 2, 0, Math.PI * 2);
+        this.ctx.fillStyle = isCurrentPlayer ? '#43A047' : '#546E7A';
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        this.ctx.restore();
+
+        // 繪製玩家ID標籤
+        this.ctx.save();
+        this.ctx.font = 'bold 12px Arial';
+        this.ctx.fillStyle = isCurrentPlayer ? '#4CAF50' : '#FFFFFF';
+        this.ctx.textAlign = 'center';
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeText(player.id, x, y - 45);
+        this.ctx.fillText(player.id, x, y - 45);
+
+        // 顯示等級
+        if (player.level > 1) {
+            this.ctx.font = '10px Arial';
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.strokeText(`Lv.${player.level}`, x, y - 60);
+            this.ctx.fillText(`Lv.${player.level}`, x, y - 60);
+        }
+        this.ctx.restore();
     }
 }
 
@@ -383,6 +566,28 @@ document.addEventListener('DOMContentLoaded', () => {
         window.gameRenderer = new GameRenderer('gameCanvas');
         console.log('Game renderer ready and attached to window');
         console.log('gameRenderer.isRunning:', window.gameRenderer.isRunning);
+
+        // 添加滑鼠移動事件，讓砲台跟隨滑鼠
+        const canvas = document.getElementById('gameCanvas');
+        if (canvas) {
+            canvas.addEventListener('mousemove', (event) => {
+                if (window.gameRenderer && gameRenderer.isRunning && gameRenderer.currentPlayerId) {
+                    const rect = canvas.getBoundingClientRect();
+                    const mouseX = event.clientX - rect.left;
+                    const mouseY = event.clientY - rect.top;
+                    gameRenderer.updateCannonAngle(gameRenderer.currentPlayerId, mouseX, mouseY);
+                }
+            });
+
+            // 添加點擊事件（可選：點擊發射子彈）
+            canvas.addEventListener('click', (event) => {
+                if (window.gameRenderer && gameRenderer.isRunning && gameRenderer.currentPlayerId) {
+                    console.log('[Renderer] Canvas clicked - could trigger fire bullet here');
+                }
+            });
+
+            canvas.style.cursor = 'crosshair'; // 改變滑鼠指標樣式
+        }
     } catch (error) {
         console.error('Failed to initialize game renderer:', error);
     }
