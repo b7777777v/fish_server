@@ -46,7 +46,10 @@ class GameRenderer {
      * 更新遊戲狀態
      */
     updateGameState(roomStateUpdate) {
-        if (!roomStateUpdate) return;
+        if (!roomStateUpdate) {
+            console.warn('updateGameState: roomStateUpdate is null or undefined');
+            return;
+        }
 
         // 更新魚類
         this.fishes = roomStateUpdate.getFishesList().map(fish => ({
@@ -81,6 +84,19 @@ class GameRenderer {
             progress: formation.getProgress(),
             fishIds: formation.getFishIdsList()
         }));
+
+        // 調試日誌 - 顯示接收到的數據
+        if (this.fishes.length > 0 || this.bullets.length > 0) {
+            console.log(`[Renderer] Updated: ${this.fishes.length} fishes, ${this.bullets.length} bullets`);
+            if (this.fishes.length > 0) {
+                const fish = this.fishes[0];
+                console.log(`[Renderer] First fish: pos=(${fish.x.toFixed(1)}, ${fish.y.toFixed(1)}), type=${fish.type}`);
+            }
+            if (this.bullets.length > 0) {
+                const bullet = this.bullets[0];
+                console.log(`[Renderer] First bullet: pos=(${bullet.x.toFixed(1)}, ${bullet.y.toFixed(1)})`);
+            }
+        }
 
         // 更新統計顯示
         document.getElementById('renderFishCount').textContent = this.fishes.length;
@@ -134,6 +150,15 @@ class GameRenderer {
         this.drawFishes();
         this.drawBullets();
 
+        // 調試：顯示當前有多少對象需要繪製
+        if (this.fishes.length > 0 || this.bullets.length > 0) {
+            this.ctx.save();
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            this.ctx.font = '12px monospace';
+            this.ctx.fillText(`Drawing: ${this.fishes.length} fish, ${this.bullets.length} bullets`, 10, this.height - 10);
+            this.ctx.restore();
+        }
+
         // 更新 FPS
         this.updateFPS();
 
@@ -170,7 +195,15 @@ class GameRenderer {
      * 繪製魚類
      */
     drawFishes() {
+        if (this.fishes.length === 0) return;
+
         this.fishes.forEach(fish => {
+            // 檢查魚是否在畫布範圍內（擴展範圍以顯示部分在外的魚）
+            if (fish.x < -100 || fish.x > this.width + 100 ||
+                fish.y < -100 || fish.y > this.height + 100) {
+                return; // 跳過畫布外的魚
+            }
+
             this.ctx.save();
 
             // 移動到魚的位置
@@ -245,7 +278,15 @@ class GameRenderer {
      * 繪製子彈
      */
     drawBullets() {
+        if (this.bullets.length === 0) return;
+
         this.bullets.forEach(bullet => {
+            // 檢查子彈是否在畫布範圍內
+            if (bullet.x < -50 || bullet.x > this.width + 50 ||
+                bullet.y < -50 || bullet.y > this.height + 50) {
+                return; // 跳過畫布外的子彈
+            }
+
             this.ctx.save();
 
             // 移動到子彈位置
@@ -306,16 +347,42 @@ class GameRenderer {
             document.getElementById('fpsDisplay').textContent = this.fps;
         }
     }
-}
 
-// 全局遊戲渲染器實例
-let gameRenderer = null;
+    /**
+     * 測試函數 - 添加測試魚類和子彈
+     */
+    addTestData() {
+        console.log('[Renderer] Adding test data...');
+
+        // 添加測試魚類
+        this.fishes = [
+            { id: 'test-fish-1', type: 1, x: 200, y: 200, direction: 0, speed: 2, health: 100, maxHealth: 100, value: 10 },
+            { id: 'test-fish-2', type: 2, x: 400, y: 300, direction: Math.PI / 4, speed: 3, health: 80, maxHealth: 100, value: 20 },
+            { id: 'test-fish-3', type: 3, x: 600, y: 400, direction: Math.PI / 2, speed: 1, health: 100, maxHealth: 100, value: 30 },
+            { id: 'test-fish-4', type: 4, x: 800, y: 250, direction: -Math.PI / 4, speed: 2.5, health: 50, maxHealth: 100, value: 40 },
+        ];
+
+        // 添加測試子彈
+        this.bullets = [
+            { id: 'test-bullet-1', playerId: 'player1', x: 300, y: 500, direction: -Math.PI / 2, speed: 5, power: 50 },
+            { id: 'test-bullet-2', playerId: 'player1', x: 700, y: 600, direction: Math.PI / 3, speed: 6, power: 75 },
+        ];
+
+        // 更新統計
+        document.getElementById('renderFishCount').textContent = this.fishes.length;
+        document.getElementById('renderBulletCount').textContent = this.bullets.length;
+
+        console.log('[Renderer] Test data added:', this.fishes.length, 'fishes,', this.bullets.length, 'bullets');
+    }
+}
 
 // 初始化渲染器
 document.addEventListener('DOMContentLoaded', () => {
     try {
-        gameRenderer = new GameRenderer('gameCanvas');
-        console.log('Game renderer ready');
+        // 創建全局遊戲渲染器實例
+        window.gameRenderer = new GameRenderer('gameCanvas');
+        console.log('Game renderer ready and attached to window');
+        console.log('gameRenderer.isRunning:', window.gameRenderer.isRunning);
     } catch (error) {
         console.error('Failed to initialize game renderer:', error);
     }

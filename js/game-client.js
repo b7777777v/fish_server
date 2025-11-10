@@ -427,6 +427,26 @@ document.addEventListener('DOMContentLoaded', () => {
         log('日誌已清除', 'system');
     });
 
+    // 測試渲染器按鈕
+    const testRenderBtn = document.getElementById('testRenderBtn');
+    if (testRenderBtn) {
+        testRenderBtn.addEventListener('click', () => {
+            if (window.gameRenderer) {
+                if (!gameRenderer.isRunning) {
+                    gameRenderer.start();
+                    const gameContainer = document.getElementById('gameContainer');
+                    if (gameContainer) {
+                        gameContainer.style.display = 'block';
+                    }
+                }
+                gameRenderer.addTestData();
+                log('🧪 已添加測試數據到渲染器', 'system');
+            } else {
+                log('❌ 渲染器未初始化', 'error');
+            }
+        });
+    }
+
     /**
      * 處理房間狀態更新，顯示詳細的遊戲渲染信息
      * @param {proto.v1.RoomStateUpdate} roomStateUpdate - 房間狀態更新消息
@@ -454,10 +474,17 @@ document.addEventListener('DOMContentLoaded', () => {
         updateStats();
 
         // 更新遊戲渲染器
-        if (window.gameRenderer && gameRenderer.isRunning) {
-            gameRenderer.updateGameState(roomStateUpdate);
+        if (window.gameRenderer) {
+            if (gameRenderer.isRunning) {
+                gameRenderer.updateGameState(roomStateUpdate);
+                console.log(`[Client] Passed state to renderer: ${fishCount} fish, ${bulletCount} bullets`);
+            } else {
+                console.warn('[Client] Renderer exists but is not running!');
+            }
+        } else {
+            console.error('[Client] gameRenderer not found in window object!');
         }
-        
+
         // 基本狀態信息
         log(`🎮 房間狀態更新: ${fishCount} 條魚, ${bulletCount} 發子彈, ${playerCount} 位玩家 [${roomStatus}] 延遲:${latency}ms`);
         
