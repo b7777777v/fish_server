@@ -9,4 +9,8 @@ var ProviderSet = wire.NewSet(
 	NewAdminService,
 	NewServer,
 	NewAdminApp,
+
+	// Handlers
+	NewAccountHandler,
+	NewLobbyHandler,
 )

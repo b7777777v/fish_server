@@ -24,30 +24,65 @@ func NewLobbyRepo(db *sql.DB) lobby.LobbyRepo {
 
 // GetAnnouncements 獲取公告列表
 func (r *lobbyRepo) GetAnnouncements(ctx context.Context, limit int) ([]*lobby.Announcement, error) {
-	// TODO: 實現獲取公告列表
-	// 1. 從 announcements 表查詢最新的公告
-	// 2. 按優先級和建立時間排序
-	// 3. 限制返回數量
-	panic("not implemented")
+	query := `
+		SELECT id, title, content, priority, created_at
+		FROM announcements
+		WHERE is_active = true
+		  AND (start_time IS NULL OR start_time <= NOW())
+		  AND (end_time IS NULL OR end_time >= NOW())
+		ORDER BY priority DESC, created_at DESC
+		LIMIT $1
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var announcements []*lobby.Announcement
+	for rows.Next() {
+		var ann lobby.Announcement
+		err := rows.Scan(&ann.ID, &ann.Title, &ann.Content, &ann.Priority, &ann.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		announcements = append(announcements, &ann)
+	}
+
+	return announcements, rows.Err()
 }
 
 // CreateAnnouncement 建立新公告
 func (r *lobbyRepo) CreateAnnouncement(ctx context.Context, title, content string, priority int) error {
-	// TODO: 實現建立公告
-	// 插入新公告到 announcements 表
-	panic("not implemented")
+	query := `
+		INSERT INTO announcements (title, content, priority)
+		VALUES ($1, $2, $3)
+	`
+
+	_, err := r.db.ExecContext(ctx, query, title, content, priority)
+	return err
 }
 
 // UpdateAnnouncement 更新公告
 func (r *lobbyRepo) UpdateAnnouncement(ctx context.Context, id int64, title, content string, priority int) error {
-	// TODO: 實現更新公告
-	// 更新 announcements 表中指定 ID 的公告
-	panic("not implemented")
+	query := `
+		UPDATE announcements
+		SET title = $1, content = $2, priority = $3, updated_at = NOW()
+		WHERE id = $4
+	`
+
+	_, err := r.db.ExecContext(ctx, query, title, content, priority, id)
+	return err
 }
 
 // DeleteAnnouncement 刪除公告
 func (r *lobbyRepo) DeleteAnnouncement(ctx context.Context, id int64) error {
-	// TODO: 實現刪除公告
-	// 從 announcements 表中刪除指定 ID 的公告
-	panic("not implemented")
+	query := `
+		DELETE FROM announcements
+		WHERE id = $1
+	`
+
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
 }

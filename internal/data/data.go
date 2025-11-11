@@ -2,6 +2,8 @@
 package data
 
 import (
+	"github.com/b7777777v/fish_server/internal/biz/account"
+	"github.com/b7777777v/fish_server/internal/biz/lobby"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/data/postgres"
 	"github.com/b7777777v/fish_server/internal/data/redis"
@@ -39,4 +41,28 @@ func NewData(c *conf.Data, logger logger.Logger) (*Data, func(), error) {
 	}
 
 	return &Data{db: pgClient, redis: redisClient}, cleanup, nil
+}
+
+// AccountRepo type alias for postgres.accountRepo
+type AccountRepo = account.AccountRepo
+
+// NewAccountRepo creates a new AccountRepo
+func NewAccountRepo(pgClient *postgres.Client) AccountRepo {
+	return postgres.NewAccountRepo(pgClient.GetDB())
+}
+
+// LobbyRepo type alias for postgres.lobbyRepo
+type LobbyRepo = lobby.LobbyRepo
+
+// NewLobbyRepo creates a new LobbyRepo
+func NewLobbyRepo(pgClient *postgres.Client) LobbyRepo {
+	return postgres.NewLobbyRepo(pgClient.GetDB())
+}
+
+// RoomCache type alias for redis.roomCache
+type RoomCache = lobby.RoomCache
+
+// NewRoomCache creates a new RoomCache
+func NewRoomCache(redisClient *redis.Client) RoomCache {
+	return redis.NewRoomCache(redisClient.GetClient())
 }
