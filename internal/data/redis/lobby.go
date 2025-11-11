@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/b7777777v/fish_server/internal/biz/lobby"
-	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redis/v8"
 )
 
 // TODO: 實現大廳 Redis 快取層
