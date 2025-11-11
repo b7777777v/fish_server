@@ -73,6 +73,7 @@ type PlayerInfo struct {
 	PlayerID int64        `json:"player_id"`
 	Nickname string       `json:"nickname"`
 	Balance  int64        `json:"balance"`
+	SeatID   int          `json:"seat_id"`    // 座位ID (0-3)
 	Position GamePosition `json:"position"`
 	Cannon   CannonInfo   `json:"cannon"`
 	Status   string       `json:"status"`
@@ -273,6 +274,7 @@ func (rm *RoomManager) handleAddClient(client *Client) {
 		PlayerID: client.PlayerID,
 		Nickname: client.ID,                    // 暫時使用 client.ID 作為昵稱
 		Balance:  10000,                        // 初始餘額
+		SeatID:   -1,                           // 初始未分配座位，由业务层在JoinRoom时分配
 		Position: GamePosition{X: 100, Y: 700}, // 固定位置
 		Cannon: CannonInfo{
 			Type:      1,

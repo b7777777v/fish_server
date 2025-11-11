@@ -85,8 +85,9 @@ func (rm *RoomManager) JoinRoom(roomID string, player *Player) error {
 		return fmt.Errorf("room not found: %s", roomID)
 	}
 
-	if len(room.Players) >= int(room.MaxPlayers) {
-		return fmt.Errorf("room is full")
+	// 使用新的座位管理检查房间是否已满
+	if room.IsFull() {
+		return fmt.Errorf("room is full, no available seats")
 	}
 
 	// 檢查玩家是否已在其他房間
@@ -96,7 +97,14 @@ func (rm *RoomManager) JoinRoom(roomID string, player *Player) error {
 		}
 	}
 
+	// 分配座位
+	seatID, err := room.AllocateSeat(player.ID)
+	if err != nil {
+		return fmt.Errorf("failed to allocate seat: %w", err)
+	}
+
 	player.RoomID = roomID
+	player.SeatID = seatID
 	player.Status = PlayerStatusPlaying
 	player.JoinTime = time.Now()
 	room.Players[player.ID] = player
@@ -127,8 +135,18 @@ func (rm *RoomManager) LeaveRoom(roomID string, playerID int64) error {
 		return fmt.Errorf("player not in room")
 	}
 
+	// 释放座位
+	if player.SeatID >= 0 && player.SeatID < len(room.Seats) {
+		if err := room.ReleaseSeat(player.SeatID); err != nil {
+			rm.logger.Warnf("Failed to release seat %d for player %d: %v", player.SeatID, playerID, err)
+		} else {
+			rm.logger.Debugf("Released seat %d for player %d", player.SeatID, playerID)
+		}
+	}
+
 	delete(room.Players, playerID)
 	player.RoomID = ""
+	player.SeatID = -1 // 重置座位ID
 	player.Status = PlayerStatusIdle
 	room.UpdatedAt = time.Now()
 
