@@ -486,6 +486,17 @@ func (mh *MessageHandler) broadcastRoomState(roomID string) {
 				}
 			}
 
+			// 轉換路徑控制點信息供前端渲染
+			var routePoints []*pb.Position
+			if formation.Route != nil {
+				for _, point := range formation.Route.Points {
+					routePoints = append(routePoints, &pb.Position{
+						X: point.X,
+						Y: point.Y,
+					})
+				}
+			}
+
 			formationInfo := &pb.FormationInfo{
 				FormationId:     formation.ID,
 				FormationType:   string(formation.Type),
@@ -502,6 +513,17 @@ func (mh *MessageHandler) broadcastRoomState(roomID string) {
 					Width:  formation.Size.Width,
 					Height: formation.Size.Height,
 					Depth:  formation.Size.Depth,
+				},
+				// TODO: 當 proto 重新生成後，使用完整的 RouteInfo 結構
+				// 目前將路徑點信息臨時存儲（需要前端配合處理）
+				Route: &pb.RouteInfo{
+					RouteId:    formation.Route.ID,
+					RouteName:  formation.Route.Name,
+					RouteType:  string(formation.Route.Type),
+					Points:     routePoints,
+					Duration:   float64(formation.Route.Duration.Milliseconds()),
+					Difficulty: formation.Route.Difficulty,
+					Looping:    formation.Route.Looping,
 				},
 			}
 			formationInfos = append(formationInfos, formationInfo)
@@ -549,6 +571,17 @@ func (mh *MessageHandler) BroadcastFormationSpawned(roomID string, formation *ga
 		fishInfos = append(fishInfos, fishInfo)
 	}
 
+	// 轉換路徑控制點信息供前端渲染
+	var routePoints []*pb.Position
+	if formation.Route != nil {
+		for _, point := range formation.Route.Points {
+			routePoints = append(routePoints, &pb.Position{
+				X: point.X,
+				Y: point.Y,
+			})
+		}
+	}
+
 	formationInfo := &pb.FormationInfo{
 		FormationId:     formation.ID,
 		FormationType:   string(formation.Type),
@@ -564,6 +597,17 @@ func (mh *MessageHandler) BroadcastFormationSpawned(roomID string, formation *ga
 			Width:  formation.Size.Width,
 			Height: formation.Size.Height,
 			Depth:  formation.Size.Depth,
+		},
+		// TODO: 當 proto 重新生成後，使用完整的 RouteInfo 結構
+		// 目前將路徑點信息臨時存儲（需要前端配合處理）
+		Route: &pb.RouteInfo{
+			RouteId:    formation.Route.ID,
+			RouteName:  formation.Route.Name,
+			RouteType:  string(formation.Route.Type),
+			Points:     routePoints,
+			Duration:   float64(formation.Route.Duration.Milliseconds()),
+			Difficulty: formation.Route.Difficulty,
+			Looping:    formation.Route.Looping,
 		},
 	}
 
