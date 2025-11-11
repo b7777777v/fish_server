@@ -41,24 +41,32 @@ func (rm *RoomManager) CreateRoom(roomType RoomType, maxPlayers int32) (*Room, e
 	defer rm.mu.Unlock()
 
 	roomID := fmt.Sprintf("room_%s_%d", roomType, time.Now().Unix())
-	
+	config := rm.getRoomConfig(roomType)
+
+	// 使用配置中的 MaxPlayers，如果配置中有的话，否则使用传入的参数
+	seatCount := maxPlayers
+	if config.MaxPlayers > 0 {
+		seatCount = config.MaxPlayers
+	}
+
 	room := &Room{
 		ID:         roomID,
 		Name:       fmt.Sprintf("%s房間", roomType),
 		Type:       roomType,
-		MaxPlayers: maxPlayers,
+		MaxPlayers: seatCount,
 		Players:    make(map[int64]*Player),
+		Seats:      make([]int64, seatCount), // 初始化座位切片，默认值为0表示空座位
 		Fishes:     make(map[int64]*Fish),
 		Bullets:    make(map[int64]*Bullet),
 		Status:     RoomStatusWaiting,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-		Config:     rm.getRoomConfig(roomType),
+		Config:     config,
 	}
 
 	rm.rooms[roomID] = room
-	rm.logger.Infof("Created room: %s, type: %s", roomID, roomType)
-	
+	rm.logger.Infof("Created room: %s, type: %s, seats: %d", roomID, roomType, seatCount)
+
 	return room, nil
 }
 
@@ -422,6 +430,7 @@ func (rm *RoomManager) updateFishPosition(fish *Fish, config RoomConfig) {
 func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 	configs := map[RoomType]RoomConfig{
 		RoomTypeNovice: {
+			MaxPlayers:           4,    // 4人座位
 			MinBet:               10,   // 0.1元
 			MaxBet:               100,  // 1元
 			BulletCostMultiplier: 1.0,
@@ -432,6 +441,7 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 			TargetRTP:            0.97, // 新手房RTP略高
 		},
 		RoomTypeIntermediate: {
+			MaxPlayers:           4,    // 4人座位
 			MinBet:               100,  // 1元
 			MaxBet:               1000, // 10元
 			BulletCostMultiplier: 2.0,
@@ -442,6 +452,7 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 			TargetRTP:            0.96,
 		},
 		RoomTypeAdvanced: {
+			MaxPlayers:           4,    // 4人座位
 			MinBet:               1000,  // 10元
 			MaxBet:               10000, // 100元
 			BulletCostMultiplier: 5.0,
@@ -452,6 +463,7 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 			TargetRTP:            0.95,
 		},
 		RoomTypeVIP: {
+			MaxPlayers:           4,    // 4人座位
 			MinBet:               10000, // 100元
 			MaxBet:               100000, // 1000元
 			BulletCostMultiplier: 10.0,

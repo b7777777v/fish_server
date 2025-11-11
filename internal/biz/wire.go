@@ -7,7 +7,6 @@ import (
 	"github.com/b7777777v/fish_server/internal/biz/lobby"
 	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
-	"github.com/b7777777v/fish_server/internal/pkg/token"
 
 	"github.com/google/wire"
 )
