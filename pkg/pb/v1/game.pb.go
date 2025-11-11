@@ -2444,8 +2444,8 @@ func (x *FormationSize) GetDepth() float64 {
 	return 0
 }
 
-// 路徑信息（臨時手動添加，等待 proto 重新生成）
 // RouteInfo contains path information for fish formations
+// 路徑信息（包含所有控制點供前端渲染）
 type RouteInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RouteId       string                 `protobuf:"bytes,1,opt,name=route_id,json=routeId,proto3" json:"route_id,omitempty"`
