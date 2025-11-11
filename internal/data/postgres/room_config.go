@@ -72,6 +72,7 @@ func (r *RoomConfigRepo) GetRoomConfig(ctx context.Context, roomType string) (*g
 
 	// 转换为业务实体
 	config := &game.RoomConfig{
+		MaxPlayers:           int32(po.MaxPlayers),
 		MinBet:               po.MinBet,
 		MaxBet:               po.MaxBet,
 		BulletCostMultiplier: po.BulletCostMultiplier,
@@ -127,6 +128,7 @@ func (r *RoomConfigRepo) GetAllRoomConfigs(ctx context.Context) (map[string]*gam
 		}
 
 		configs[po.RoomType] = &game.RoomConfig{
+			MaxPlayers:           int32(po.MaxPlayers),
 			MinBet:               po.MinBet,
 			MaxBet:               po.MaxBet,
 			BulletCostMultiplier: po.BulletCostMultiplier,

@@ -100,7 +100,7 @@ type Room struct {
 	Type        RoomType         `json:"type"`
 	MaxPlayers  int32            `json:"max_players"`
 	Players     map[int64]*Player `json:"players"`
-	Seats       [4]int64         `json:"seats"`        // 座位数组，存储玩家ID，0表示空座位
+	Seats       []int64          `json:"seats"`        // 座位切片，存储玩家ID，0表示空座位，长度由配置决定
 	Fishes      map[int64]*Fish   `json:"fishes"`
 	Bullets     map[int64]*Bullet `json:"bullets"`
 	Status      RoomStatus       `json:"status"`
@@ -130,6 +130,7 @@ const (
 
 // RoomConfig 房間配置
 type RoomConfig struct {
+	MaxPlayers           int32   `json:"max_players"`       // 最大玩家數（座位數）
 	MinBet               int64   `json:"min_bet"`           // 最小下注
 	MaxBet               int64   `json:"max_bet"`           // 最大下注
 	BulletCostMultiplier float64 `json:"bullet_cost_multiplier"` // 子彈成本倍數
