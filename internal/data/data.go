@@ -43,26 +43,17 @@ func NewData(c *conf.Data, logger logger.Logger) (*Data, func(), error) {
 	return &Data{db: pgClient, redis: redisClient}, cleanup, nil
 }
 
-// AccountRepo type alias for postgres.accountRepo
-type AccountRepo = account.AccountRepo
-
 // NewAccountRepo creates a new AccountRepo
-func NewAccountRepo(pgClient *postgres.Client) AccountRepo {
-	return postgres.NewAccountRepo(pgClient.GetDB())
+func NewAccountRepo(pgClient *postgres.Client) account.AccountRepo {
+	return postgres.NewAccountRepo(pgClient)
 }
-
-// LobbyRepo type alias for postgres.lobbyRepo
-type LobbyRepo = lobby.LobbyRepo
 
 // NewLobbyRepo creates a new LobbyRepo
-func NewLobbyRepo(pgClient *postgres.Client) LobbyRepo {
-	return postgres.NewLobbyRepo(pgClient.GetDB())
+func NewLobbyRepo(pgClient *postgres.Client) lobby.LobbyRepo {
+	return postgres.NewLobbyRepo(pgClient)
 }
 
-// RoomCache type alias for redis.roomCache
-type RoomCache = lobby.RoomCache
-
 // NewRoomCache creates a new RoomCache
-func NewRoomCache(redisClient *redis.Client) RoomCache {
-	return redis.NewRoomCache(redisClient.GetClient())
+func NewRoomCache(redisClient *redis.Client) lobby.RoomCache {
+	return redis.NewRoomCache(redisClient.Redis)
 }

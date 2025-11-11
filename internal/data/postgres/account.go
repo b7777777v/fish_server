@@ -12,11 +12,11 @@ import (
 
 // accountRepo 實現 account.AccountRepo 介面
 type accountRepo struct {
-	db *sql.DB
+	db *Client
 }
 
 // NewAccountRepo 建立新的 AccountRepo 實例
-func NewAccountRepo(db *sql.DB) account.AccountRepo {
+func NewAccountRepo(db *Client) account.AccountRepo {
 	return &accountRepo{
 		db: db,
 	}
@@ -33,7 +33,7 @@ func (r *accountRepo) CreateUser(ctx context.Context, user *account.User, passwo
 	var id int64
 	var createdAt, updatedAt string
 
-	err := r.db.QueryRowContext(
+	err := r.db.QueryRow(
 		ctx,
 		query,
 		sql.NullString{String: user.Username, Valid: user.Username != ""},
@@ -66,7 +66,7 @@ func (r *accountRepo) GetUserByUsername(ctx context.Context, username string) (*
 	var passwordHash sql.NullString
 	var usernameCol, avatarURL, thirdPartyProvider, thirdPartyID sql.NullString
 
-	err := r.db.QueryRowContext(ctx, query, username).Scan(
+	err := r.db.QueryRow(ctx, query, username).Scan(
 		&user.ID,
 		&usernameCol,
 		&passwordHash,
@@ -105,7 +105,7 @@ func (r *accountRepo) GetUserByID(ctx context.Context, userID int64) (*account.U
 	var user account.User
 	var username, avatarURL, thirdPartyProvider, thirdPartyID sql.NullString
 
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(
+	err := r.db.QueryRow(ctx, query, userID).Scan(
 		&user.ID,
 		&username,
 		&user.Nickname,
@@ -143,7 +143,7 @@ func (r *accountRepo) GetUserByThirdParty(ctx context.Context, provider, thirdPa
 	var user account.User
 	var username, avatarURL, thirdPartyProviderCol, thirdPartyIDCol sql.NullString
 
-	err := r.db.QueryRowContext(ctx, query, provider, thirdPartyID).Scan(
+	err := r.db.QueryRow(ctx, query, provider, thirdPartyID).Scan(
 		&user.ID,
 		&username,
 		&user.Nickname,
@@ -177,7 +177,7 @@ func (r *accountRepo) UpdateUser(ctx context.Context, user *account.User) error 
 		WHERE id = $3
 	`
 
-	_, err := r.db.ExecContext(
+	_, err := r.db.Exec(
 		ctx,
 		query,
 		user.Nickname,

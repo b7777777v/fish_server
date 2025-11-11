@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/b7777777v/fish_server/internal/biz/lobby"
 )
@@ -12,11 +11,11 @@ import (
 
 // lobbyRepo 實現 lobby.LobbyRepo 介面
 type lobbyRepo struct {
-	db *sql.DB
+	db *Client
 }
 
 // NewLobbyRepo 建立新的 LobbyRepo 實例
-func NewLobbyRepo(db *sql.DB) lobby.LobbyRepo {
+func NewLobbyRepo(db *Client) lobby.LobbyRepo {
 	return &lobbyRepo{
 		db: db,
 	}
@@ -34,7 +33,7 @@ func (r *lobbyRepo) GetAnnouncements(ctx context.Context, limit int) ([]*lobby.A
 		LIMIT $1
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, limit)
+	rows, err := r.db.Query(ctx, query, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +59,7 @@ func (r *lobbyRepo) CreateAnnouncement(ctx context.Context, title, content strin
 		VALUES ($1, $2, $3)
 	`
 
-	_, err := r.db.ExecContext(ctx, query, title, content, priority)
+	_, err := r.db.Exec(ctx, query, title, content, priority)
 	return err
 }
 
@@ -72,7 +71,7 @@ func (r *lobbyRepo) UpdateAnnouncement(ctx context.Context, id int64, title, con
 		WHERE id = $4
 	`
 
-	_, err := r.db.ExecContext(ctx, query, title, content, priority, id)
+	_, err := r.db.Exec(ctx, query, title, content, priority, id)
 	return err
 }
 
@@ -83,6 +82,6 @@ func (r *lobbyRepo) DeleteAnnouncement(ctx context.Context, id int64) error {
 		WHERE id = $1
 	`
 
-	_, err := r.db.ExecContext(ctx, query, id)
+	_, err := r.db.Exec(ctx, query, id)
 	return err
 }

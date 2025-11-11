@@ -61,11 +61,6 @@ type ErrorResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
-type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
-}
-
 type LoginResponse struct {
 	Token         string `json:"token"`
 	GameServerURL string `json:"game_server_url"`

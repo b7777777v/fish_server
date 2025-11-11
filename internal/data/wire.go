@@ -2,9 +2,7 @@
 package data
 
 import (
-	"github.com/b7777777v/fish_server/internal/biz/account"
 	"github.com/b7777777v/fish_server/internal/biz/game"
-	"github.com/b7777777v/fish_server/internal/biz/lobby"
 	"github.com/b7777777v/fish_server/internal/data/postgres" // Import postgres client
 	"github.com/b7777777v/fish_server/internal/data/redis"    // Import redis client
 	"github.com/google/wire"
@@ -28,13 +26,10 @@ var ProviderSet = wire.NewSet(
 
 	// Account and Lobby repo providers
 	NewAccountRepo,
-	wire.Bind(new(account.AccountRepo), new(*AccountRepo)),
-
 	NewLobbyRepo,
-	wire.Bind(new(lobby.LobbyRepo), new(*LobbyRepo)),
-
 	NewRoomCache,
-	wire.Bind(new(lobby.RoomCache), new(*RoomCache)),
+	NewLobbyPlayerRepo,
+	NewLobbyWalletRepo,
 
 	// Extractor functions for Postgres and Redis clients from Data struct
 	ProvidePostgresClient,
