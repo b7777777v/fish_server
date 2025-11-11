@@ -1,18 +1,28 @@
-# 🐟 Fish Server - 多人捕魚遊戲後端服務
+# 🐟 Fish Server - 多人捕魚遊戲全端專案
 
-這是一個功能完整的、為多人捕魚遊戲設計的後端專案。它採用了現代化的 Go 語言、微服務架構和雲原生技術，旨在提供一個高效、可擴展且易於維護的後端解決方案。
+這是一個功能完整的多人捕魚遊戲專案，包含後端服務和前端測試客戶端。後端採用了現代化的 Go 語言、微服務架構和雲原生技術，前端提供了基於 WebSocket 的即時遊戲客戶端，旨在提供一個高效、可擴展且易於維護的完整解決方案。
 
-此專案不僅包含了完整的業務邏輯，還提供了一套極其完善的本地開發環境 (`.vscode`)，讓開發者可以實現一鍵啟動、多環境偵錯和自動化任務，極大地提升了開發效率。
+此專案不僅包含了完整的業務邏輯和前端遊戲界面，還提供了一套極其完善的本地開發環境 (`.vscode`)，讓開發者可以實現一鍵啟動、多環境偵錯和自動化任務，極大地提升了開發效率。
+
+> **最新更新**: 新增完整的前端遊戲客戶端，支持即時遊戲交互、房間管理和完整的遊戲功能展示！
 
 ## ✨ 主要功能
 
+### 後端服務
 - **即時多人遊戲**：使用 WebSocket 實現低延遲的即時客戶端/伺服器通訊。
-- **遊戲房管理**：創建、加入、離開遊戲房間。
-- **核心遊戲邏輯**：包括魚群生成、捕獲機率、分數計算等。
-- **玩家系統**：玩家資料管理與認證。
-- **錢包系統**：管理玩家的遊戲內貨幣。
+- **遊戲房管理**：創建、加入、離開遊戲房間，支持多房間並行。
+- **核心遊戲邏輯**：包括魚群生成、捕獲機率、分數計算、砲台系統等。
+- **玩家系統**：完整的玩家資料管理與 JWT 認證。
+- **錢包系統**：管理玩家的遊戲內貨幣，支持凍結/解凍、存提款等操作。
 - **後台管理**：提供一個獨立的 `admin` 服務，用於遊戲管理與監控。
 - **多環境支援**：完整的 `DEV`, `STAGING`, `PROD` 環境隔離與配置。
+
+### 前端客戶端
+- **完整遊戲界面**：基於 Canvas 的 2D 遊戲渲染引擎。
+- **即時互動**：WebSocket 即時通訊，支持所有遊戲操作。
+- **房間管理**：支持查看房間列表、加入/離開房間。
+- **遊戲功能**：開火射擊、切換砲台、魚群動畫、分數顯示等。
+- **調試工具**：完整的消息日誌和狀態監控，方便開發調試。
 
 ## 🏛️ 架構概覽
 
@@ -33,9 +43,10 @@
 
 ## 🛠️ 技術棧
 
-- **語言**: Go
+### 後端技術
+- **語言**: Go 1.24+
 - **Web 框架**: Gin (RESTful API)
-- **RPC 框架**: gRPC
+- **RPC 框架**: gRPC + Protocol Buffers
 - **資料庫**: PostgreSQL, Redis
 - **ORM/資料庫工具**: `database/sql`, `pgx`
 - **依賴注入**: Google Wire
@@ -47,17 +58,24 @@
 - **WebSocket**: gorilla/websocket
 - **JWT**: golang-jwt
 
+### 前端技術
+- **語言**: JavaScript (原生)
+- **渲染引擎**: HTML5 Canvas 2D
+- **通訊協議**: WebSocket + Protocol Buffers
+- **UI 框架**: 原生 HTML/CSS (無框架依賴)
+
 ## 🚀 快速開始
 
 ### 1. 環境準備
 
 在開始之前，請確保您已安裝以下工具：
 
-- **Go**: 1.21 或更高版本
+- **Go**: 1.24 或更高版本
 - **Docker** 和 **Docker Compose**
 - **Make**
 - **golang-migrate**: [安裝指南](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate)
 - **golangci-lint**: [安裝指南](https://golangci-lint.run/usage/install/)
+- **現代瀏覽器**: 用於運行前端測試客戶端 (支持 WebSocket 和 Canvas)
 
 ### 2. 專案設定
 
@@ -126,6 +144,44 @@ make run-game
 # 單獨運行 Admin Server
 make run-admin
 ```
+
+### 4. 啟動前端測試客戶端
+
+前端測試客戶端位於 `js/` 目錄下，提供完整的遊戲界面用於測試和演示。
+
+#### 方式一：使用簡單的 HTTP 服務器
+
+```bash
+# 使用 Python 啟動 HTTP 服務器（Python 3）
+cd js
+python3 -m http.server 8000
+
+# 或使用 Python 2
+python -m SimpleHTTPServer 8000
+
+# 或使用 Node.js (需要先安裝 http-server: npm install -g http-server)
+npx http-server -p 8000
+```
+
+然後在瀏覽器中訪問：`http://localhost:8000`
+
+#### 方式二：直接在瀏覽器中打開
+
+如果瀏覽器支持本地文件的 CORS，你也可以直接打開 `js/index.html` 文件。
+
+#### 使用說明
+
+1. **設定服務器地址**：在頁面頂部輸入遊戲服務器地址（默認：`ws://localhost:9090/ws`）
+2. **輸入玩家信息**：輸入玩家 ID 和 Token（測試環境可使用任意值）
+3. **連接服務器**：點擊「連接」按鈕建立 WebSocket 連接
+4. **開始遊戲**：
+   - 點擊「獲取房間列表」查看可用房間
+   - 點擊「加入房間」進入遊戲
+   - 使用「開火」按鈕或點擊遊戲畫面射擊
+   - 使用「切換砲台」按鈕切換不同威力的砲台
+5. **查看日誌**：所有 WebSocket 消息都會在右側日誌區域顯示，方便調試
+
+> **提示**：確保遊戲服務器已經啟動並運行在 `localhost:9090`，否則無法連接。
 
 ## ⚙️ 配置
 
@@ -260,24 +316,79 @@ make clean
 
 ```
 .
-├── api/                # Protobuf 定義
+├── api/                # Protobuf 定義 (遊戲協議、gRPC 服務)
 ├── cmd/                # 主應用程式入口 (main.go)
 │   ├── admin/          # 後台管理服務
-│   └── game/           # 遊戲服務
+│   ├── game/           # 遊戲服務
+│   └── migrator/       # 資料庫遷移工具
 ├── configs/            # 環境配置文件 (config.yaml)
 ├── deployments/        # Docker 和部署相關文件
+├── docs/               # 專案文檔
 ├── internal/           # 專案內部代碼 (不對外暴露)
 │   ├── app/            # 應用層: 服務的啟動與組織
 │   ├── biz/            # 業務邏輯層: 核心業務實體與用例
 │   ├── conf/           # 配置映射結構
 │   ├── data/           # 資料存取層: Repository 實現
 │   └── pkg/            # 專案內部共享的工具包
+├── js/                 # 前端測試客戶端 ⭐ 新增
+│   ├── index.html      # 遊戲客戶端主頁面
+│   ├── game-client.js  # WebSocket 客戶端和遊戲邏輯
+│   ├── game-renderer.js # Canvas 渲染引擎
+│   └── generated/      # Protobuf 生成的 JavaScript 代碼
 ├── pkg/                # 可供外部專案使用的共享代碼
-├── scripts/            # 各類輔助腳本
-└── storage/            # 資料庫遷移文件
+├── scripts/            # 各類輔助腳本 (proto-gen, wire-gen 等)
+├── storage/            # 資料庫遷移文件
+└── .vscode/            # VS Code 工作區配置
 ```
 
+## 🎨 前端客戶端開發
+
+前端客戶端採用模組化設計，主要包含以下組件：
+
+### 主要模組
+
+1. **game-client.js** - WebSocket 客戶端
+   - 處理 WebSocket 連接和消息收發
+   - Protobuf 消息的序列化/反序列化
+   - 遊戲狀態管理
+
+2. **game-renderer.js** - Canvas 渲染引擎
+   - 遊戲畫面渲染（魚群、子彈、砲台等）
+   - 動畫處理和碰撞檢測
+   - UI 繪制和交互
+
+3. **generated/** - Protobuf 生成代碼
+   - 與後端共享的消息定義
+   - 自動生成的 JavaScript Protobuf 代碼
+
+### 開發指南
+
+#### 修改 Protobuf 定義後重新生成前端代碼
+
+```bash
+# 在項目根目錄執行
+make proto
+
+# 或手動執行生成腳本
+sh ./scripts/proto-gen.sh
+```
+
+生成的 JavaScript Protobuf 代碼會自動放置在 `js/generated/` 目錄下。
+
+#### 調試技巧
+
+- 打開瀏覽器開發者工具查看 Console 日誌
+- 使用頁面右側的消息日誌查看所有 WebSocket 通訊
+- 通過 Network 面板監控 WebSocket 連接狀態
+
 ## 🤝 貢獻
+
+歡迎提交 Issue 和 Pull Request！
+
+在提交代碼前，請確保：
+- 代碼通過 `make lint` 檢查
+- 所有測試通過 `make test`
+- 更新相關文檔
 
 ## API 接口文檔
 
