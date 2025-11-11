@@ -167,7 +167,8 @@ message JoinRoomResponse {
   bool success = 1;
   string room_id = 2;
   int64 timestamp = 3;
-  int32 player_count = 4; // 新增：當前房間人數
+  int32 player_count = 4; // 當前房間人數
+  int32 seat_id = 5;      // 分配的座位ID（0-based）
 }
 
 // 離開房間響應
@@ -256,12 +257,15 @@ message WelcomeMessage {
 message PlayerJoinedMessage {
   string player_id = 1;
   string room_id = 2;
+  int32 seat_id = 3;     // 分配的座位ID
+  string nickname = 4;   // 玩家暱稱
 }
 
 // 新增：玩家離開房間事件
 message PlayerLeftMessage {
   string player_id = 1;
   string room_id = 2;
+  int32 seat_id = 3;     // 離開的座位ID
 }
 
 // 魚類信息
@@ -316,6 +320,13 @@ message FormationSize {
   double depth = 3;
 }
 
+// 座位信息
+message SeatInfo {
+  int32 seat_id = 1;      // 座位ID（0-based）
+  int64 player_id = 2;    // 玩家ID，0表示空座位
+  string nickname = 3;    // 玩家暱稱
+}
+
 // 房間狀態更新
 message RoomStateUpdate {
   string room_id = 1;
@@ -325,6 +336,7 @@ message RoomStateUpdate {
   int32 player_count = 5;
   int64 timestamp = 6;
   string room_status = 7;
+  repeated SeatInfo seats = 8;  // 座位信息
 }
 
 // 魚群陣型生成事件
@@ -357,8 +369,9 @@ message RoomInfo {
   string name = 2;
   string type = 3;
   int32 player_count = 4;
-  int32 max_players = 5;
+  int32 max_players = 5;   // 最大玩家數（座位數）
   string status = 6;
+  repeated SeatInfo seats = 7;  // 座位信息
 }
 
 // 錯誤消息
