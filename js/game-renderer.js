@@ -177,28 +177,115 @@ class GameRenderer {
     }
 
     /**
-     * 繪製魚群陣型輔助線 (可選)
+     * 繪製魚群陣型輔助線和路徑可視化
      */
     drawFormations() {
+        if (this.formations.length === 0) return;
+
         this.ctx.save();
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        this.ctx.lineWidth = 1;
-        this.ctx.setLineDash([5, 5]);
 
         this.formations.forEach(formation => {
+            // 阵型类型颜色映射
+            const formationColors = {
+                'v_formation': 'rgba(255, 100, 100, 0.4)',
+                'line': 'rgba(100, 255, 100, 0.4)',
+                'circle': 'rgba(100, 100, 255, 0.4)',
+                'triangle': 'rgba(255, 255, 100, 0.4)',
+                'diamond': 'rgba(255, 100, 255, 0.4)',
+                'wave': 'rgba(100, 255, 255, 0.4)',
+                'spiral': 'rgba(255, 150, 50, 0.4)'
+            };
+            const formationColor = formationColors[formation.type] || 'rgba(255, 255, 255, 0.3)';
+
+            // 繪製陣型範圍
+            this.ctx.beginPath();
+            this.ctx.arc(formation.centerX, formation.centerY, 60, 0, Math.PI * 2);
+            this.ctx.strokeStyle = formationColor;
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.stroke();
+
             // 繪製陣型中心點
             this.ctx.beginPath();
-            this.ctx.arc(formation.centerX, formation.centerY, 5, 0, Math.PI * 2);
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            this.ctx.arc(formation.centerX, formation.centerY, 6, 0, Math.PI * 2);
+            this.ctx.fillStyle = formationColor.replace('0.4', '0.8');
             this.ctx.fill();
-
-            // 繪製陣型範圍圓
-            this.ctx.beginPath();
-            this.ctx.arc(formation.centerX, formation.centerY, 50, 0, Math.PI * 2);
+            this.ctx.strokeStyle = 'white';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([]);
             this.ctx.stroke();
+
+            // 繪製進度條
+            const progressBarWidth = 80;
+            const progressBarHeight = 6;
+            const progressBarX = formation.centerX - progressBarWidth / 2;
+            const progressBarY = formation.centerY - 75;
+
+            // 進度條背景
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.fillRect(progressBarX, progressBarY, progressBarWidth, progressBarHeight);
+
+            // 進度條填充
+            const progress = formation.progress || 0;
+            this.ctx.fillStyle = formationColor.replace('0.4', '0.9');
+            this.ctx.fillRect(progressBarX, progressBarY, progressBarWidth * progress, progressBarHeight);
+
+            // 進度條邊框
+            this.ctx.strokeStyle = 'white';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(progressBarX, progressBarY, progressBarWidth, progressBarHeight);
+
+            // 繪製陣型類型標籤
+            this.ctx.font = 'bold 12px monospace';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillStyle = 'white';
+            this.ctx.strokeStyle = 'black';
+            this.ctx.lineWidth = 3;
+            const typeText = this.getFormationTypeName(formation.type);
+            this.ctx.strokeText(typeText, formation.centerX, progressBarY - 5);
+            this.ctx.fillText(typeText, formation.centerX, progressBarY - 5);
+
+            // 繪製魚數量
+            this.ctx.font = '10px monospace';
+            const fishCountText = `${formation.fishIds.length} 魚`;
+            this.ctx.strokeText(fishCountText, formation.centerX, formation.centerY + 80);
+            this.ctx.fillText(fishCountText, formation.centerX, formation.centerY + 80);
+
+            // 繪製連接線到陣型中的魚
+            if (formation.fishIds && formation.fishIds.length > 0) {
+                this.ctx.strokeStyle = formationColor.replace('0.4', '0.2');
+                this.ctx.lineWidth = 1;
+                this.ctx.setLineDash([2, 3]);
+
+                formation.fishIds.forEach(fishId => {
+                    const fish = this.fishes.find(f => f.id === fishId);
+                    if (fish) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(formation.centerX, formation.centerY);
+                        this.ctx.lineTo(fish.x, fish.y);
+                        this.ctx.stroke();
+                    }
+                });
+            }
         });
 
         this.ctx.restore();
+    }
+
+    /**
+     * 獲取陣型類型的中文名稱
+     */
+    getFormationTypeName(type) {
+        const typeNames = {
+            'v_formation': 'V字陣',
+            'line': '直線陣',
+            'circle': '圓形陣',
+            'triangle': '三角陣',
+            'diamond': '菱形陣',
+            'wave': '波浪陣',
+            'spiral': '螺旋陣'
+        };
+        return typeNames[type] || type;
     }
 
     /**
