@@ -24,9 +24,8 @@ var ProviderSet = wire.NewSet(
 	NewRoomManager,
 	NewRTPController,
 	NewInventoryManager,
-	// TODO: These are temporary mocks and should be replaced by real implementations
 	NewMathModel,
 	NewFishSpawner,
 	NewDefaultRoomConfig,
-	NewFormationConfigService, // Add this line
+	NewFormationConfigService,
 )
