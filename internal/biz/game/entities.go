@@ -15,6 +15,7 @@ type Player struct {
 	Nickname string    `json:"nickname"`
 	Balance  int64     `json:"balance"`  // 玩家餘額（以分為單位）
 	RoomID   string    `json:"room_id"`  // 當前房間ID
+	SeatID   int       `json:"seat_id"`  // 座位ID (0-3)，-1 表示未分配
 	Status   PlayerStatus `json:"status"`
 	JoinTime time.Time `json:"join_time"`
 }
@@ -99,6 +100,7 @@ type Room struct {
 	Type        RoomType         `json:"type"`
 	MaxPlayers  int32            `json:"max_players"`
 	Players     map[int64]*Player `json:"players"`
+	Seats       [4]int64         `json:"seats"`        // 座位数组，存储玩家ID，0表示空座位
 	Fishes      map[int64]*Fish   `json:"fishes"`
 	Bullets     map[int64]*Bullet `json:"bullets"`
 	Status      RoomStatus       `json:"status"`

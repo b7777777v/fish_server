@@ -24,6 +24,9 @@ var ProviderSet = wire.NewSet(
 	NewFormationConfigRepo,
 	wire.Bind(new(game.FormationConfigRepo), new(*formationConfigRepo)), // Bind interface to implementation
 
+	// Add RoomConfigRepo provider
+	NewRoomConfigRepo,
+
 	// Account and Lobby repo providers
 	NewAccountRepo,
 	NewLobbyRepo,
