@@ -311,6 +311,7 @@ message FormationInfo {
   string route_name = 10;
   int64 created_at = 11;
   FormationSize size = 12;
+  RouteInfo route = 13;  // 完整路徑信息（含所有控制點）
 }
 
 // 陣型大小
@@ -318,6 +319,17 @@ message FormationSize {
   double width = 1;
   double height = 2;
   double depth = 3;
+}
+
+// 路徑信息（包含所有控制點供前端渲染）
+message RouteInfo {
+  string route_id = 1;           // 路徑ID
+  string route_name = 2;         // 路徑名稱
+  string route_type = 3;         // 路徑類型 (straight/curved/zigzag/circular/random)
+  repeated Position points = 4;  // 路徑控制點（前端可用於繪製路徑曲線）
+  double duration = 5;           // 路徑總時長（毫秒）
+  double difficulty = 6;         // 難度係數
+  bool looping = 7;              // 是否循環
 }
 
 // 座位信息

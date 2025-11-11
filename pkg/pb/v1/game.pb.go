@@ -2257,6 +2257,7 @@ type FormationInfo struct {
 	RouteName      string                 `protobuf:"bytes,10,opt,name=route_name,json=routeName,proto3" json:"route_name,omitempty"`
 	CreatedAt      int64                  `protobuf:"varint,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	Size           *FormationSize         `protobuf:"bytes,12,opt,name=size,proto3" json:"size,omitempty"`
+	Route          *RouteInfo             `protobuf:"bytes,13,opt,name=route,proto3" json:"route,omitempty"` // 完整路徑信息
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -2375,6 +2376,13 @@ func (x *FormationInfo) GetSize() *FormationSize {
 	return nil
 }
 
+func (x *FormationInfo) GetRoute() *RouteInfo {
+	if x != nil {
+		return x.Route
+	}
+	return nil
+}
+
 // 陣型大小
 type FormationSize struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2434,6 +2442,88 @@ func (x *FormationSize) GetDepth() float64 {
 		return x.Depth
 	}
 	return 0
+}
+
+// 路徑信息（臨時手動添加，等待 proto 重新生成）
+// RouteInfo contains path information for fish formations
+type RouteInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RouteId       string                 `protobuf:"bytes,1,opt,name=route_id,json=routeId,proto3" json:"route_id,omitempty"`
+	RouteName     string                 `protobuf:"bytes,2,opt,name=route_name,json=routeName,proto3" json:"route_name,omitempty"`
+	RouteType     string                 `protobuf:"bytes,3,opt,name=route_type,json=routeType,proto3" json:"route_type,omitempty"`
+	Points        []*Position            `protobuf:"bytes,4,rep,name=points,proto3" json:"points,omitempty"`
+	Duration      float64                `protobuf:"fixed64,5,opt,name=duration,proto3" json:"duration,omitempty"`
+	Difficulty    float64                `protobuf:"fixed64,6,opt,name=difficulty,proto3" json:"difficulty,omitempty"`
+	Looping       bool                   `protobuf:"varint,7,opt,name=looping,proto3" json:"looping,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RouteInfo) Reset() {
+	*x = RouteInfo{}
+}
+
+func (x *RouteInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RouteInfo) ProtoMessage() {}
+
+func (x *RouteInfo) ProtoReflect() protoreflect.Message {
+	return nil
+}
+
+func (*RouteInfo) Descriptor() ([]byte, []int) {
+	return file_proto_v1_game_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RouteInfo) GetRouteId() string {
+	if x != nil {
+		return x.RouteId
+	}
+	return ""
+}
+
+func (x *RouteInfo) GetRouteName() string {
+	if x != nil {
+		return x.RouteName
+	}
+	return ""
+}
+
+func (x *RouteInfo) GetRouteType() string {
+	if x != nil {
+		return x.RouteType
+	}
+	return ""
+}
+
+func (x *RouteInfo) GetPoints() []*Position {
+	if x != nil {
+		return x.Points
+	}
+	return nil
+}
+
+func (x *RouteInfo) GetDuration() float64 {
+	if x != nil {
+		return x.Duration
+	}
+	return 0
+}
+
+func (x *RouteInfo) GetDifficulty() float64 {
+	if x != nil {
+		return x.Difficulty
+	}
+	return 0
+}
+
+func (x *RouteInfo) GetLooping() bool {
+	if x != nil {
+		return x.Looping
+	}
+	return false
 }
 
 // 房間狀態更新
