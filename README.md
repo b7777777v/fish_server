@@ -75,7 +75,8 @@
 - **Make**
 - **golang-migrate**: [安裝指南](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate)
 - **golangci-lint**: [安裝指南](https://golangci-lint.run/usage/install/)
-- **現代瀏覽器**: 用於運行前端測試客戶端 (支持 WebSocket 和 Canvas)
+
+> **可選**：現代瀏覽器用於訪問前端測試客戶端 (需支持 WebSocket 和 Canvas)
 
 ### 2. 專案設定
 
@@ -145,29 +146,19 @@ make run-game
 make run-admin
 ```
 
-### 4. 啟動前端測試客戶端
+### 4. 訪問前端測試客戶端
 
-前端測試客戶端位於 `js/` 目錄下，提供完整的遊戲界面用於測試和演示。
+前端測試客戶端已經集成到 `admin-server` 中，無需額外啟動服務。
 
-#### 方式一：使用簡單的 HTTP 服務器
+#### 訪問方式
 
-```bash
-# 使用 Python 啟動 HTTP 服務器（Python 3）
-cd js
-python3 -m http.server 8000
+確保 Admin Server 已經啟動（默認端口：6060），然後在瀏覽器中訪問：
 
-# 或使用 Python 2
-python -m SimpleHTTPServer 8000
-
-# 或使用 Node.js (需要先安裝 http-server: npm install -g http-server)
-npx http-server -p 8000
+```
+http://localhost:6060/test-client
 ```
 
-然後在瀏覽器中訪問：`http://localhost:8000`
-
-#### 方式二：直接在瀏覽器中打開
-
-如果瀏覽器支持本地文件的 CORS，你也可以直接打開 `js/index.html` 文件。
+> **提示**：前端測試客戶端是專門用來檢測和調試 Game Server 的工具，因此集成到 Admin Server 中最為合適。
 
 #### 使用說明
 
@@ -343,7 +334,7 @@ make clean
 
 ## 🎨 前端客戶端開發
 
-前端客戶端採用模組化設計，主要包含以下組件：
+前端測試客戶端已整合到 Admin Server 中，通過 `/test-client` 路由提供服務。客戶端採用模組化設計，主要包含以下組件：
 
 ### 主要模組
 
@@ -363,6 +354,12 @@ make clean
 
 ### 開發指南
 
+#### 訪問測試客戶端
+
+1. 啟動 Admin Server：`make run-admin`
+2. 在瀏覽器中訪問：`http://localhost:6060/test-client`
+3. 確保 Game Server 也在運行（默認端口：9090）
+
 #### 修改 Protobuf 定義後重新生成前端代碼
 
 ```bash
@@ -380,6 +377,7 @@ sh ./scripts/proto-gen.sh
 - 打開瀏覽器開發者工具查看 Console 日誌
 - 使用頁面右側的消息日誌查看所有 WebSocket 通訊
 - 通過 Network 面板監控 WebSocket 連接狀態
+- Admin Server 會在啟動時顯示測試客戶端的訪問地址
 
 ## 🤝 貢獻
 

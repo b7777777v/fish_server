@@ -96,10 +96,15 @@ func (s *Server) setupMiddleware() {
 func (s *Server) setupRoutes() {
 	// 根路由
 	s.engine.GET("/", s.rootHandler)
-	
+
 	// 健康檢查（簡單版本，不需要認證）
 	s.engine.GET("/ping", s.pingHandler)
-	
+
+	// 提供前端測試客戶端靜態文件
+	// 可通過 http://localhost:6060/test-client 訪問遊戲測試客戶端
+	s.engine.Static("/test-client", "./js")
+	s.logger.Info("Game test client available at /test-client")
+
 	// 註冊業務路由
 	s.service.RegisterRoutes(s.engine)
 
@@ -173,8 +178,14 @@ func (s *Server) securityHeadersMiddleware() gin.HandlerFunc {
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("X-XSS-Protection", "1; mode=block")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-		c.Header("Content-Security-Policy", "default-src 'self'")
-		
+
+		// 對於測試客戶端，放寬 CSP 策略以允許 WebSocket 連接和腳本執行
+		if len(c.Request.URL.Path) >= 12 && c.Request.URL.Path[:12] == "/test-client" {
+			c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; img-src 'self' data:")
+		} else {
+			c.Header("Content-Security-Policy", "default-src 'self'")
+		}
+
 		c.Next()
 	}
 }
@@ -203,12 +214,13 @@ func (s *Server) rootHandler(c *gin.Context) {
 		"status":  "running",
 		"time":    time.Now().Format(time.RFC3339),
 		"endpoints": gin.H{
-			"health":   "/admin/health",
-			"status":   "/admin/status",
-			"metrics":  "/admin/metrics",
-			"players":  "/admin/players",
-			"wallets":  "/admin/wallets",
-			"debug":    "/debug/pprof",
+			"health":      "/admin/health",
+			"status":      "/admin/status",
+			"metrics":     "/admin/metrics",
+			"players":     "/admin/players",
+			"wallets":     "/admin/wallets",
+			"debug":       "/debug/pprof",
+			"test_client": "/test-client",
 		},
 	})
 }
