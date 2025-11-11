@@ -24,6 +24,4 @@ var ProviderSet = wire.NewSet(
 
 	// Lobby module providers
 	lobby.NewLobbyUsecase,
-	// Bind TokenService interface from account package to token.TokenHelper
-	wire.Bind(new(account.TokenService), new(*token.TokenHelper)),
 )

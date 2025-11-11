@@ -9,7 +9,9 @@ package main
 import (
 	"github.com/b7777777v/fish_server/internal/app/admin"
 	game2 "github.com/b7777777v/fish_server/internal/app/game"
+	"github.com/b7777777v/fish_server/internal/biz/account"
 	"github.com/b7777777v/fish_server/internal/biz/game"
+	"github.com/b7777777v/fish_server/internal/biz/lobby"
 	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/conf"
@@ -25,47 +27,57 @@ func initApp(config *conf.Config) (*admin.AdminApp, func(), error) {
 	server := config.Server
 	confData := config.Data
 	log := config.Log
-	v, cleanup, err := logger.NewLogger(log)
+	sugaredLogger, cleanup, err := logger.NewLogger(log)
 	if err != nil {
 		return nil, nil, err
 	}
-	dataData, cleanup2, err := data.NewData(confData, v)
+	dataData, cleanup2, err := data.NewData(confData, sugaredLogger)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	playerRepo := data.NewPlayerRepo(dataData, v)
+	playerRepo := data.NewPlayerRepo(dataData, sugaredLogger)
 	jwt := config.JWT
 	tokenHelper := token.NewTokenHelper(jwt)
-	playerUsecase := player.NewPlayerUsecase(playerRepo, tokenHelper, v)
-	walletRepo := data.NewWalletRepo(dataData, v)
-	walletUsecase := wallet.NewWalletUsecase(walletRepo, v)
-	gameRepo := data.NewGameRepo(dataData, v)
-	gamePlayerRepo := data.NewGamePlayerRepo(dataData, v)
+	playerUsecase := player.NewPlayerUsecase(playerRepo, tokenHelper, sugaredLogger)
+	walletRepo := data.NewWalletRepo(dataData, sugaredLogger)
+	walletUsecase := wallet.NewWalletUsecase(walletRepo, sugaredLogger)
+	gameRepo := data.NewGameRepo(dataData, sugaredLogger)
+	gamePlayerRepo := data.NewGamePlayerRepo(dataData, sugaredLogger)
 	roomConfig := game.NewDefaultRoomConfig()
-	fishSpawner := game.NewFishSpawner(v, roomConfig)
-	mathModel := game.NewMathModel(v)
-	inMemoryInventoryRepo := data.NewInMemoryInventoryRepo(v)
-	inventoryManager, err := game.NewInventoryManager(inMemoryInventoryRepo, v)
+	fishSpawner := game.NewFishSpawner(sugaredLogger, roomConfig)
+	mathModel := game.NewMathModel(sugaredLogger)
+	inMemoryInventoryRepo := data.NewInMemoryInventoryRepo(sugaredLogger)
+	inventoryManager, err := game.NewInventoryManager(inMemoryInventoryRepo, sugaredLogger)
 	if err != nil {
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
-	rtpController := game.NewRTPController(inventoryManager, v)
-	roomManager := game.NewRoomManager(v, fishSpawner, mathModel, inventoryManager, rtpController)
-	gameUsecase := game.NewGameUsecase(gameRepo, gamePlayerRepo, roomManager, fishSpawner, mathModel, inventoryManager, rtpController, v)
-	hub := game2.NewHub(gameUsecase, playerUsecase, v)
-	webSocketHandler := game2.NewWebSocketHandler(hub, v)
-	messageHandler := game2.NewMessageHandler(gameUsecase, hub, v)
-	gameApp := game2.NewGameApp(gameUsecase, config, v, hub, webSocketHandler, messageHandler)
+	rtpController := game.NewRTPController(inventoryManager, sugaredLogger)
+	roomManager := game.NewRoomManager(sugaredLogger, fishSpawner, mathModel, inventoryManager, rtpController)
+	gameUsecase := game.NewGameUsecase(gameRepo, gamePlayerRepo, roomManager, fishSpawner, mathModel, inventoryManager, rtpController, sugaredLogger)
+	hub := game2.NewHub(gameUsecase, playerUsecase, sugaredLogger)
+	webSocketHandler := game2.NewWebSocketHandler(hub, sugaredLogger)
+	messageHandler := game2.NewMessageHandler(gameUsecase, hub, sugaredLogger)
+	gameApp := game2.NewGameApp(gameUsecase, config, sugaredLogger, hub, webSocketHandler, messageHandler)
 	client := data.ProvidePostgresClient(dataData)
 	redisClient := data.ProvideRedisClient(dataData)
-	formationConfigRepo := data.NewFormationConfigRepo(client, redisClient, v)
-	formationConfigService := game.NewFormationConfigService(formationConfigRepo, v)
-	adminService := admin.NewAdminService(playerUsecase, walletUsecase, gameApp, formationConfigService, tokenHelper, config, v)
-	adminServer := admin.NewServer(server, adminService, v)
-	adminApp := admin.NewAdminApp(adminServer, v)
+	formationConfigRepo := data.NewFormationConfigRepo(client, redisClient, sugaredLogger)
+	formationConfigService := game.NewFormationConfigService(formationConfigRepo, sugaredLogger)
+	accountRepo := data.NewAccountRepo(client)
+	oAuthService := account.NewOAuthService()
+	accountUsecase := account.NewAccountUsecase(accountRepo, tokenHelper, oAuthService)
+	accountHandler := admin.NewAccountHandler(accountUsecase, tokenHelper)
+	lobbyRepo := data.NewLobbyRepo(client)
+	roomCache := data.NewRoomCache(redisClient)
+	lobbyWalletRepo := data.NewLobbyWalletRepo(dataData, sugaredLogger)
+	lobbyPlayerRepo := data.NewLobbyPlayerRepo(dataData, sugaredLogger)
+	lobbyUsecase := lobby.NewLobbyUsecase(lobbyRepo, roomCache, lobbyWalletRepo, lobbyPlayerRepo)
+	lobbyHandler := admin.NewLobbyHandler(lobbyUsecase, tokenHelper)
+	adminService := admin.NewAdminService(playerUsecase, walletUsecase, gameApp, formationConfigService, tokenHelper, config, sugaredLogger, accountHandler, lobbyHandler)
+	adminServer := admin.NewServer(server, adminService, sugaredLogger)
+	adminApp := admin.NewAdminApp(adminServer, sugaredLogger)
 	return adminApp, func() {
 		cleanup2()
 		cleanup()

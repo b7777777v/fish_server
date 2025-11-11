@@ -2,6 +2,7 @@ package account
 
 import (
 	"context"
+	"fmt"
 )
 
 // TODO: 實現 OAuth 第三方登入服務
@@ -48,14 +49,17 @@ func (s *oAuthService) GetUserInfo(ctx context.Context, provider, code string) (
 	switch provider {
 	case "google":
 		// TODO: 實現 Google OAuth
-		panic("not implemented")
+		// 參考：https://developers.google.com/identity/protocols/oauth2
+		return nil, fmt.Errorf("google oauth is not implemented yet")
 	case "facebook":
 		// TODO: 實現 Facebook OAuth
-		panic("not implemented")
+		// 參考：https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow
+		return nil, fmt.Errorf("facebook oauth is not implemented yet")
 	case "qq":
 		// TODO: 實現 QQ OAuth
-		panic("not implemented")
+		// 參考：https://wiki.connect.qq.com/oauth2-0%e7%ae%80%e4%bb%8b
+		return nil, fmt.Errorf("qq oauth is not implemented yet")
 	default:
-		panic("unsupported provider")
+		return nil, fmt.Errorf("unsupported oauth provider: %s", provider)
 	}
 }
