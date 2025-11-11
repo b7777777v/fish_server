@@ -479,14 +479,32 @@ func (c *Client) handleLeaveRoomPB(msg *pb.GameMessage) {
 func (c *Client) handleGetPlayerInfo(msg *pb.GameMessage) {
 	c.logger.Infof("Handling GetPlayerInfo request for player %s", c.ID)
 
-	// TODO: 實際應用中應從 usecase/service 獲取真實玩家數據
-	// 這裡我們返回一個模擬的響應
+	// 從房間管理器的遊戲狀態中獲取玩家數據
+	var nickname string = "Player"
+	var balance int64 = 0
+	var level int32 = 1
+	var exp int64 = 0
+
+	// 獲取房間管理器
+	c.hub.mu.RLock()
+	roomManager, exists := c.hub.roomManagers[c.RoomID]
+	c.hub.mu.RUnlock()
+
+	if exists && roomManager != nil && roomManager.gameState != nil {
+		// 從遊戲狀態中獲取玩家信息
+		if playerInfo, ok := roomManager.gameState.Players[c.ID]; ok {
+			nickname = playerInfo.Nickname
+			balance = playerInfo.Balance
+			// Level 和 Exp 暫時使用默認值，未來可以從玩家系統獲取
+		}
+	}
+
 	playerInfo := &pb.PlayerInfoResponse{
-		PlayerId:  c.PlayerID, // 假設 c.PlayerID 已經在連接時被正確設置
-		Nickname:  "MockPlayer",
-		Balance:   10000,
-		Level:     10,
-		Exp:       500,
+		PlayerId:  c.PlayerID,
+		Nickname:  nickname,
+		Balance:   balance,
+		Level:     level,
+		Exp:       exp,
 		RoomId:    c.RoomID,
 		Timestamp: time.Now().Unix(),
 	}

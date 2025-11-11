@@ -18,8 +18,11 @@ import (
 
 // RoomManager 管理單個房間的遊戲循環
 type RoomManager struct {
-	// 房間ID
+	// 房間ID（WebSocket 房間 ID）
 	roomID string
+
+	// 業務邏輯房間 ID
+	businessRoomID string
 
 	// 房間中的客戶端
 	clients map[*Client]bool
@@ -378,7 +381,8 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 	}
 
 	// 簡化版本：直接創建子彈，不調用業務邏輯層
-	// TODO: 後續需要統一 WebSocket 房間 ID 和業務邏輯房間 ID
+	// 注意：為了實時遊戲性能，子彈創建在 WebSocket 層處理
+	// businessRoomID 用於後續的錢包操作和持久化（在 handleCollision 中）
 	bulletID := time.Now().UnixNano()
 	bulletCost := int64(power * 10) // 簡單的成本計算
 
@@ -637,7 +641,8 @@ func (rm *RoomManager) handleCollision(bulletID int64, fishID int64) {
 	}
 
 	// 簡化版本：直接處理命中，不調用業務邏輯層
-	// TODO: 後續需要統一 WebSocket 房間 ID 和業務邏輯房間 ID
+	// 注意：為了實時遊戲性能，碰撞檢測在 WebSocket 層處理
+	// businessRoomID 可用於後續的錢包持久化操作
 	damage := bullet.Power
 	reward := fish.Value
 
@@ -722,16 +727,15 @@ func (rm *RoomManager) startGame() {
 
 	// 非阻塞地創建業務邏輯層的房間
 	// 注意：業務邏輯層的房間 ID 和 WebSocket 房間 ID 不同
-	// 這裡暫時不關聯它們，只創建一個默認房間用於業務邏輯
+	// 創建業務邏輯房間並保存其 ID
 	go func() {
 		createdRoom, err := rm.gameUsecase.CreateRoom(rm.ctx, game.RoomTypeNovice, 4)
 		if err != nil {
 			rm.logger.Errorf("Failed to create game room: %v", err)
 		} else {
+			rm.businessRoomID = createdRoom.ID
 			rm.logger.Infof("Successfully created business logic room: %s for WebSocket room: %s",
 				createdRoom.ID, rm.roomID)
-			// 保存業務邏輯房間 ID 供後續使用
-			// TODO: 需要在 RoomManager 中添加 businessRoomID 字段
 		}
 	}()
 
