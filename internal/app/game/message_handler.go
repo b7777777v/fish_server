@@ -514,8 +514,6 @@ func (mh *MessageHandler) broadcastRoomState(roomID string) {
 					Height: formation.Size.Height,
 					Depth:  formation.Size.Depth,
 				},
-				// TODO: 當 proto 重新生成後，使用完整的 RouteInfo 結構
-				// 目前將路徑點信息臨時存儲（需要前端配合處理）
 				Route: &pb.RouteInfo{
 					RouteId:    formation.Route.ID,
 					RouteName:  formation.Route.Name,
@@ -598,8 +596,6 @@ func (mh *MessageHandler) BroadcastFormationSpawned(roomID string, formation *ga
 			Height: formation.Size.Height,
 			Depth:  formation.Size.Depth,
 		},
-		// TODO: 當 proto 重新生成後，使用完整的 RouteInfo 結構
-		// 目前將路徑點信息臨時存儲（需要前端配合處理）
 		Route: &pb.RouteInfo{
 			RouteId:    formation.Route.ID,
 			RouteName:  formation.Route.Name,
