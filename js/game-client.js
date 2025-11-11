@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusSpan = document.getElementById('status');
     const logDiv = document.getElementById('log');
     const actionsDiv = document.getElementById('actions');
-    
+
     // --- 統計元素 ---
     const messagesSentSpan = document.getElementById('messagesSent');
     const messagesReceivedSpan = document.getElementById('messagesReceived');
@@ -16,6 +16,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const latencySpan = document.getElementById('latency');
     const debugInfoDiv = document.getElementById('debugInfo');
     const debugTextSpan = document.getElementById('debugText');
+
+    // --- 新增：玩家信息面板元素 ---
+    const playerInfoPanel = document.getElementById('playerInfoPanel');
+    const playerNickname = document.getElementById('playerNickname');
+    const playerLevel = document.getElementById('playerLevel');
+    const playerBalance = document.getElementById('playerBalance');
+    const playerExp = document.getElementById('playerExp');
+    const refreshPlayerInfoBtn = document.getElementById('refreshPlayerInfoBtn');
+
+    // --- 新增：房間列表面板元素 ---
+    const roomListPanel = document.getElementById('roomListPanel');
+    const roomListContainer = document.getElementById('roomListContainer');
+
+    // --- 新增：砲台選擇器面板元素 ---
+    const cannonSelectorPanel = document.getElementById('cannonSelectorPanel');
+    const cannonTypeSelect = document.getElementById('cannonTypeSelect');
+    const cannonLevelSelect = document.getElementById('cannonLevelSelect');
+    const cannonPowerSlider = document.getElementById('cannonPowerSlider');
+    const cannonPowerValue = document.getElementById('cannonPowerValue');
+    const applyCannonBtn = document.getElementById('applyCannonBtn');
+
+    // --- 新增：座位信息元素 ---
+    const seatsContainer = document.getElementById('seatsContainer');
 
     // --- 按鈕 ---
     const getRoomListBtn = document.getElementById('getRoomListBtn');
@@ -127,6 +150,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 gameContainer.style.display = 'block';
             }
 
+            // 顯示新增的功能面板
+            if (playerInfoPanel) playerInfoPanel.style.display = 'block';
+            if (roomListPanel) roomListPanel.style.display = 'block';
+            if (cannonSelectorPanel) cannonSelectorPanel.style.display = 'block';
+
             // 啟動遊戲渲染器
             if (window.gameRenderer) {
                 // 設置當前玩家
@@ -138,6 +166,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 gameRenderer.start();
             }
+
+            // 自動獲取玩家資訊
+            setTimeout(() => {
+                getPlayerInfoBtn.click();
+            }, 500);
 
             // 建立心跳機制
             heartbeatInterval = setInterval(() => {
@@ -196,6 +229,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (gameContainer) {
                 gameContainer.style.display = 'none';
             }
+
+            // 隱藏功能面板
+            if (playerInfoPanel) playerInfoPanel.style.display = 'none';
+            if (roomListPanel) roomListPanel.style.display = 'none';
+            if (cannonSelectorPanel) cannonSelectorPanel.style.display = 'none';
 
             // 停止遊戲渲染器
             if (window.gameRenderer) {
@@ -262,7 +300,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case MessageType.ROOM_LIST_RESPONSE:
                 const roomListResp = gameMessage.getRoomListResponse();
-                log(`收到房間列表: ${JSON.stringify(roomListResp.toObject())}`);
+                log(`收到房間列表: ${roomListResp.getRoomsList().length} 個房間`);
+                displayRoomList(roomListResp.getRoomsList());
                 break;
             case MessageType.JOIN_ROOM_RESPONSE:
                 const joinRoomResp = gameMessage.getJoinRoomResponse();
@@ -369,7 +408,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case MessageType.GET_PLAYER_INFO_RESPONSE:
                 const playerInfoResp = gameMessage.getPlayerInfoResponse();
-                log(`收到玩家資訊: ${JSON.stringify(playerInfoResp.toObject())}`);
+                log(`收到玩家資訊: ${playerInfoResp.getNickname()}, 餘額: ${playerInfoResp.getBalance()}`);
+                updatePlayerInfo(playerInfoResp);
                 break;
             case MessageType.ROOM_STATE_UPDATE:
                 const roomStateUpdate = gameMessage.getRoomStateUpdate();
@@ -452,15 +492,6 @@ document.addEventListener('DOMContentLoaded', () => {
         sendMessage(gameMessage);
     });
 
-    switchCannonBtn.addEventListener('click', () => {
-        const gameMessage = new proto.v1.GameMessage();
-        gameMessage.setType(MessageType.SWITCH_CANNON);
-        const switchCannonReq = new proto.v1.SwitchCannonRequest();
-        switchCannonReq.setCannonType(2); // 假設切換到砲台類型為 2
-        switchCannonReq.setLevel(1); // 砲台等級為 1
-        gameMessage.setSwitchCannon(switchCannonReq);
-        sendMessage(gameMessage);
-    });
 
     leaveRoomBtn.addEventListener('click', () => {
         const gameMessage = new proto.v1.GameMessage();
@@ -520,6 +551,12 @@ document.addEventListener('DOMContentLoaded', () => {
         stats.bulletCount = bulletCount;
         stats.lastUpdate = new Date();
 
+        // 更新座位信息
+        const seats = roomStateUpdate.getSeatsList();
+        if (seats && seats.length > 0) {
+            updateSeatsInfo(seats);
+        }
+
         // 計算延遲
         const now = Date.now();
         const serverTime = timestamp * 1000;
@@ -575,7 +612,190 @@ document.addEventListener('DOMContentLoaded', () => {
             stats.emptyWarningShown = false;
         }
     }
-    
+
+    /**
+     * 更新玩家信息面板
+     * @param {proto.v1.PlayerInfoResponse} playerInfo - 玩家信息
+     */
+    function updatePlayerInfo(playerInfo) {
+        if (playerNickname) playerNickname.textContent = playerInfo.getNickname() || '-';
+        if (playerLevel) playerLevel.textContent = playerInfo.getLevel() || '-';
+        if (playerBalance) playerBalance.textContent = playerInfo.getBalance() || '0';
+        if (playerExp) playerExp.textContent = playerInfo.getExp() || '0';
+    }
+
+    /**
+     * 顯示房間列表
+     * @param {Array} rooms - 房間列表
+     */
+    function displayRoomList(rooms) {
+        if (!roomListContainer) return;
+
+        if (rooms.length === 0) {
+            roomListContainer.innerHTML = '<p style="color: #888;">目前沒有可用的房間</p>';
+            return;
+        }
+
+        let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+        rooms.forEach(room => {
+            const roomId = room.getRoomId();
+            const roomName = room.getName();
+            const roomType = room.getType();
+            const playerCount = room.getPlayerCount();
+            const maxPlayers = room.getMaxPlayers();
+            const status = room.getStatus();
+
+            const isFull = playerCount >= maxPlayers;
+            const statusColor = status === 'playing' ? '#28a745' : status === 'waiting' ? '#ffc107' : '#6c757d';
+            const statusText = status === 'playing' ? '遊戲中' : status === 'waiting' ? '等待中' : '關閉';
+
+            html += `
+                <div style="background: white; padding: 10px; border-radius: 5px; border: 1px solid #ddd; cursor: ${isFull ? 'not-allowed' : 'pointer'}; opacity: ${isFull ? '0.6' : '1'};"
+                     onclick="${isFull ? '' : `window.joinRoomById('${roomId}')`}">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${roomName}</strong>
+                            <span style="background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-left: 8px;">${roomType}</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="color: ${statusColor}; font-weight: bold;">${statusText}</span>
+                            <div style="font-size: 12px; color: #666;">👥 ${playerCount}/${maxPlayers}</div>
+                        </div>
+                    </div>
+                    ${isFull ? '<div style="color: #dc3545; font-size: 12px; margin-top: 5px;">房間已滿</div>' : ''}
+                </div>
+            `;
+        });
+        html += '</div>';
+        roomListContainer.innerHTML = html;
+    }
+
+    /**
+     * 加入指定房間
+     * @param {string} roomId - 房間ID
+     */
+    window.joinRoomById = function(roomId) {
+        const gameMessage = new proto.v1.GameMessage();
+        gameMessage.setType(MessageType.JOIN_ROOM);
+        const joinRoomReq = new proto.v1.JoinRoomRequest();
+        joinRoomReq.setRoomId(roomId);
+        gameMessage.setJoinRoom(joinRoomReq);
+        sendMessage(gameMessage);
+        log(`正在加入房間 ${roomId}...`, 'system');
+    };
+
+    /**
+     * 更新座位信息顯示
+     * @param {Array} seats - 座位列表
+     */
+    function updateSeatsInfo(seats) {
+        if (!seatsContainer) return;
+
+        const currentPlayerId = playerIdInput.value;
+        let html = '';
+
+        seats.forEach(seat => {
+            const seatId = seat.getSeatId();
+            const playerId = seat.getPlayerId();
+            const nickname = seat.getNickname();
+
+            const isEmpty = !playerId || playerId === '0';
+            const isCurrentPlayer = playerId === currentPlayerId;
+            const seatColor = isCurrentPlayer ? '#28a745' : isEmpty ? '#6c757d' : '#007bff';
+            const seatIcon = isEmpty ? '🪑' : isCurrentPlayer ? '⭐' : '👤';
+
+            html += `
+                <div style="margin-bottom: 3px; padding: 3px 6px; background: ${isEmpty ? 'rgba(108,117,125,0.1)' : isCurrentPlayer ? 'rgba(40,167,69,0.2)' : 'rgba(0,123,255,0.1)'}; border-radius: 3px; display: flex; justify-content: space-between;">
+                    <span>${seatIcon} 座位 ${seatId + 1}</span>
+                    <span style="color: ${seatColor}; font-weight: ${isCurrentPlayer ? 'bold' : 'normal'};">
+                        ${isEmpty ? '空位' : nickname || `玩家${playerId}`}
+                    </span>
+                </div>
+            `;
+        });
+
+        seatsContainer.innerHTML = html || '<div style="color: #888;">無座位資訊</div>';
+    }
+
+    // --- 新增功能的事件監聽器 ---
+
+    // 刷新玩家資訊
+    if (refreshPlayerInfoBtn) {
+        refreshPlayerInfoBtn.addEventListener('click', () => {
+            getPlayerInfoBtn.click();
+        });
+    }
+
+    // 砲台威力滑桿
+    if (cannonPowerSlider) {
+        cannonPowerSlider.addEventListener('input', (e) => {
+            if (cannonPowerValue) {
+                cannonPowerValue.textContent = e.target.value;
+            }
+        });
+    }
+
+    // 應用砲台設置
+    if (applyCannonBtn) {
+        applyCannonBtn.addEventListener('click', () => {
+            const cannonType = parseInt(cannonTypeSelect.value);
+            const cannonLevel = parseInt(cannonLevelSelect.value);
+            const power = parseInt(cannonPowerSlider.value);
+
+            const gameMessage = new proto.v1.GameMessage();
+            gameMessage.setType(MessageType.SWITCH_CANNON);
+            const switchCannonReq = new proto.v1.SwitchCannonRequest();
+            switchCannonReq.setCannonType(cannonType);
+            switchCannonReq.setLevel(cannonLevel);
+            gameMessage.setSwitchCannon(switchCannonReq);
+            sendMessage(gameMessage);
+
+            log(`🔧 切換砲台: Type ${cannonType}, Level ${cannonLevel}, Power ${power}`, 'system');
+        });
+    }
+
+    // 新增：畫布點擊開火功能
+    const canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+        canvas.addEventListener('click', (e) => {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            // 獲取點擊位置相對於畫布的座標
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            // 獲取當前玩家的砲台位置
+            const currentPlayerId = playerIdInput.value;
+            let cannonPosition = { x: 600, y: 750 }; // 默認位置
+            let cannonAngle = -Math.PI / 2;
+
+            if (window.gameRenderer && gameRenderer.players.has(currentPlayerId)) {
+                const barrelEnd = gameRenderer.getBarrelEndPosition(currentPlayerId);
+                if (barrelEnd) {
+                    cannonPosition = { x: barrelEnd.x, y: barrelEnd.y };
+                    // 計算從砲台到點擊位置的角度
+                    cannonAngle = Math.atan2(clickY - barrelEnd.y, clickX - barrelEnd.x);
+                }
+            }
+
+            // 發送開火請求
+            const gameMessage = new proto.v1.GameMessage();
+            gameMessage.setType(MessageType.FIRE_BULLET);
+            const fireBulletReq = new proto.v1.FireBulletRequest();
+            fireBulletReq.setDirection(cannonAngle);
+            fireBulletReq.setPower(parseInt(cannonPowerSlider?.value || 50));
+            const position = new proto.v1.Position();
+            position.setX(cannonPosition.x);
+            position.setY(cannonPosition.y);
+            fireBulletReq.setPosition(position);
+            gameMessage.setFireBullet(fireBulletReq);
+            sendMessage(gameMessage);
+        });
+    }
+
     // 初始化統計顯示
     updateStats();
     log('🚀 遊戲客戶端已載入，準備連接...', 'system');
