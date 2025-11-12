@@ -3,6 +3,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const playerIdInput = document.getElementById('playerIdInput');
     const connectBtn = document.getElementById('connectBtn');
     const disconnectBtn = document.getElementById('disconnectBtn');
+    const guestLoginBtn = document.getElementById('guestLoginBtn');
+    const guestInfo = document.getElementById('guestInfo');
+    const guestNickname = document.getElementById('guestNickname');
     const statusSpan = document.getElementById('status');
     const logDiv = document.getElementById('log');
     const actionsDiv = document.getElementById('actions');
@@ -64,8 +67,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- WebSocket 相關 ---
     const WEBSOCKET_URL = 'ws://localhost:9090/ws';
+    const API_BASE_URL = 'http://localhost:9090';
     let socket = null;
     let heartbeatInterval = null;
+    let authToken = null; // JWT token for guest mode
+    let isGuestMode = false; // Track if user is in guest mode
 
     // 直接使用 Protobuf 生成的 MessageType 枚舉
     const MessageType = proto.v1.MessageType;
@@ -118,6 +124,91 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- WebSocket 核心功能 ---
+    // --- 遊客登入函數 ---
+    async function guestLogin() {
+        try {
+            // 禁用按鈕並顯示加載狀態
+            guestLoginBtn.disabled = true;
+            guestLoginBtn.textContent = '⏳ 正在登入...';
+            log('正在進行遊客登入...', 'system');
+
+            // 調用後端遊客登入 API
+            const response = await fetch(`${API_BASE_URL}/guest-login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success && data.token) {
+                authToken = data.token;
+                isGuestMode = true;
+
+                // 解析 token 獲取用戶信息（簡單解碼 JWT，不驗證）
+                const tokenPayload = parseJWT(authToken);
+                const nickname = `Guest_${tokenPayload.user_id}`;
+
+                log(`遊客登入成功！暱稱: ${nickname}`, 'system');
+
+                // 顯示遊客信息
+                guestNickname.textContent = nickname;
+                guestInfo.style.display = 'block';
+
+                // 自動連接到遊戲服務器
+                connectWithToken();
+            } else {
+                throw new Error('登入失敗：未返回 token');
+            }
+        } catch (error) {
+            log(`遊客登入失敗: ${error.message}`, 'error');
+            guestLoginBtn.disabled = false;
+            guestLoginBtn.textContent = '🚀 遊客登入並開始遊戲';
+        }
+    }
+
+    // --- 解析 JWT token（僅用於顯示，不驗證簽名）---
+    function parseJWT(token) {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        } catch (error) {
+            log('解析 token 失敗', 'error');
+            return {};
+        }
+    }
+
+    // --- 使用 token 連接 ---
+    function connectWithToken() {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            log('已經連接。', 'system');
+            return;
+        }
+
+        if (!authToken) {
+            log('沒有可用的 token', 'error');
+            return;
+        }
+
+        const url = `${WEBSOCKET_URL}?token=${encodeURIComponent(authToken)}`;
+        log(`正在使用 token 連接到服務器...`, 'system');
+
+        socket = new WebSocket(url);
+        socket.binaryType = "arraybuffer";
+
+        setupWebSocketHandlers();
+    }
+
+    // --- 傳統連接方式（使用 player_id）---
     function connect() {
         if (socket && socket.readyState === WebSocket.OPEN) {
             log('已經連接。', 'system');
@@ -134,14 +225,20 @@ document.addEventListener('DOMContentLoaded', () => {
         log(`正在連接到 ${url}`, 'system');
 
         socket = new WebSocket(url);
-        // 設置 WebSocket 接收二進位數據
         socket.binaryType = "arraybuffer";
+
+        setupWebSocketHandlers();
+    }
+
+    // --- 設置 WebSocket 事件處理器 ---
+    function setupWebSocketHandlers() {
 
         socket.onopen = () => {
             log('成功連接到伺服器', 'system');
             statusSpan.textContent = '已連接';
             connectBtn.disabled = true;
             disconnectBtn.disabled = false;
+            guestLoginBtn.disabled = true;
             actionsDiv.style.display = 'block';
 
             // 顯示遊戲畫面
@@ -157,8 +254,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 啟動遊戲渲染器
             if (window.gameRenderer) {
-                // 設置當前玩家
-                const currentPlayerId = playerIdInput.value;
+                // 設置當前玩家 - 支持遊客模式
+                const currentPlayerId = isGuestMode
+                    ? (guestNickname ? guestNickname.textContent : 'Guest')
+                    : playerIdInput.value;
                 gameRenderer.setCurrentPlayer(currentPlayerId);
 
                 // 添加當前玩家到渲染器
@@ -222,6 +321,15 @@ document.addEventListener('DOMContentLoaded', () => {
             statusSpan.textContent = '未連接';
             connectBtn.disabled = false;
             disconnectBtn.disabled = true;
+
+            // 重新啟用遊客登入按鈕（僅當不是遊客模式或連接已斷開時）
+            if (isGuestMode) {
+                guestLoginBtn.disabled = false;
+                guestLoginBtn.textContent = '🔄 重新連接';
+            } else {
+                guestLoginBtn.disabled = false;
+            }
+
             actionsDiv.style.display = 'none';
 
             // 隱藏遊戲畫面
@@ -426,6 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 綁定事件監聽器 ---
+    guestLoginBtn.addEventListener('click', guestLogin);
     connectBtn.addEventListener('click', connect);
     disconnectBtn.addEventListener('click', disconnect);
 
