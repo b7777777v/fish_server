@@ -198,6 +198,7 @@ go mod tidy
 | 停止數據庫 | `scripts\stop-database.bat` | - | 停止所有數據庫服務 |
 | 運行遷移 | `scripts\run-migration.bat [命令]` | `.\scripts\run-migration.ps1 [命令]` | 執行數據庫遷移 |
 | 修復 Dirty Migration | `scripts\fix-dirty-migration.bat [版本]` | `.\scripts\fix-dirty-migration.ps1 -Version [版本]` | 修復損壞的遷移 |
+| 清理部分遷移 | `scripts\cleanup-migration-6.bat` | `.\scripts\cleanup-migration-6.ps1` | 清理部分應用的 migration 6 |
 
 ## 🔍 常見問題
 
@@ -238,6 +239,22 @@ go run cmd/migrator/main.go
 ```
 
 但在 Go 代碼中和 Git Bash 中可以使用正斜線 `/`。
+
+### Q: 遇到 "relation idx_users_username already exists" 錯誤
+
+**A:** 這表示 migration 6 部分執行了。請參考 [FIX_PARTIAL_MIGRATION.md](FIX_PARTIAL_MIGRATION.md) 獲取詳細的修復步驟。
+
+快速修復：
+```cmd
+REM 1. 清理部分應用的更改
+scripts\cleanup-migration-6.bat
+
+REM 2. 強制版本到 5
+go run cmd\migrator\main.go force 5
+
+REM 3. 重新應用遷移
+go run cmd\migrator\main.go up
+```
 
 ### Q: 資料庫連接失敗
 
