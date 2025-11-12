@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -406,13 +407,26 @@ func (rm *RoomManager) updateRoom(room *Room) {
 		}
 	}
 
+	// Remove dead fish (out of bounds or killed)
+	for fishID, fish := range room.Fishes {
+		if fish.Status == FishStatusDead {
+			delete(room.Fishes, fishID)
+		}
+	}
+
 	if independentFishCount > 0 {
 		rm.logger.Debugf("Updated %d independent fish (not in formations)", independentFishCount)
 	}
-	
-	// Remove expired bullets
+
+	// Update bullet positions and remove expired/out-of-bounds bullets
 	for bulletID, bullet := range room.Bullets {
-		if now.Sub(bullet.CreatedAt) > 5*time.Second {
+		// Update bullet position based on speed and direction
+		rm.updateBulletPosition(bullet, deltaTime, room.Config)
+
+		// Remove bullet if expired or out of bounds
+		if now.Sub(bullet.CreatedAt) > 5*time.Second ||
+			bullet.Position.X < -100 || bullet.Position.X > room.Config.RoomWidth+100 ||
+			bullet.Position.Y < -100 || bullet.Position.Y > room.Config.RoomHeight+100 {
 			delete(room.Bullets, bulletID)
 		}
 	}
@@ -438,18 +452,27 @@ func (rm *RoomManager) updateRoom(room *Room) {
 func (rm *RoomManager) updateFishPosition(fish *Fish, config RoomConfig) {
 	// 簡單的直線移動
 	deltaTime := 0.1 // 100ms
-	
-	fish.Position.X += fish.Speed * deltaTime * fish.Direction
-	fish.Position.Y += fish.Speed * deltaTime * 0.1 // 輕微的Y軸移動
-	
-	// 邊界檢查，魚游出邊界後重新生成位置
-	if fish.Position.X > config.RoomWidth || fish.Position.X < 0 ||
-		fish.Position.Y > config.RoomHeight || fish.Position.Y < 0 {
-		// 重新設置魚的位置
-		fish.Position.X = 0
-		fish.Position.Y = config.RoomHeight / 2
-		fish.Direction = 1.0 // 向右游
+
+	// 使用三角函數計算基於方向的移動
+	// Direction 是弧度值
+	fish.Position.X += fish.Speed * deltaTime * math.Cos(fish.Direction)
+	fish.Position.Y += fish.Speed * deltaTime * math.Sin(fish.Direction)
+
+	// 邊界檢查，魚游出邊界後移除（由spawner重新生成新魚）
+	// 不重置位置，而是標記為已離開
+	if fish.Position.X > config.RoomWidth+50 || fish.Position.X < -50 ||
+		fish.Position.Y > config.RoomHeight+50 || fish.Position.Y < -50 {
+		fish.Status = FishStatusDead
 	}
+}
+
+// updateBulletPosition 更新子彈的位置
+func (rm *RoomManager) updateBulletPosition(bullet *Bullet, deltaTime float64, config RoomConfig) {
+	// 根據子彈的方向和速度更新位置
+	// Speed 是像素/秒，deltaTime 是秒
+	// Direction 是弧度值
+	bullet.Position.X += bullet.Speed * deltaTime * math.Cos(bullet.Direction)
+	bullet.Position.Y += bullet.Speed * deltaTime * math.Sin(bullet.Direction)
 }
 
 // getRoomConfig 獲取房間配置
