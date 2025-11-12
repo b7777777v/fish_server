@@ -66,13 +66,15 @@
 
 ## 🚀 快速開始
 
+> **🪟 Windows 用戶**: 請查看 [WINDOWS_GUIDE.md](WINDOWS_GUIDE.md) 獲取不使用 `make` 的 Windows 專用指南和腳本！
+
 ### 1. 環境準備
 
 在開始之前，請確保您已安裝以下工具：
 
 - **Go**: 1.24 或更高版本
 - **Docker** 和 **Docker Compose**
-- **Make**
+- **Make** (Linux/Mac 用戶) 或查看 [WINDOWS_GUIDE.md](WINDOWS_GUIDE.md) (Windows 用戶)
 - **golang-migrate**: [安裝指南](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate)
 - **golangci-lint**: [安裝指南](https://golangci-lint.run/usage/install/)
 
@@ -100,8 +102,18 @@
 3. **啟動基礎設施**
     使用 Docker Compose 啟動資料庫 (PostgreSQL, Redis) 等依賴服務。
 
+    **Linux/Mac:**
     ```bash
     make run-dev
+    ```
+
+    **Windows:**
+    ```cmd
+    REM 使用批處理文件
+    scripts\start-database.bat
+
+    REM 或使用 Docker Compose
+    docker-compose -f deployments\docker-compose.dev.yml up -d postgres redis
     ```
 
     > 這將會啟動 `deployments/docker-compose.yml` 中定義的服務。首次啟動會需要一些時間來下載鏡像。
@@ -109,10 +121,20 @@
 4. **執行資料庫遷移**
     在另一個終端中，執行以下命令來初始化資料庫結構。
 
+    **Linux/Mac:**
     ```bash
     # !! 注意 !!
     # Makefile 中的 DB_URL 可能需要根據您的 .env.dev 設定進行調整
     make migrate-up
+    ```
+
+    **Windows:**
+    ```cmd
+    REM 使用批處理文件
+    scripts\run-migration.bat up
+
+    REM 或直接使用 Go
+    go run cmd\migrator\main.go up
     ```
 
 ### 3. 啟動應用程式

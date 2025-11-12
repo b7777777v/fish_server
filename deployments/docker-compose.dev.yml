@@ -4,7 +4,7 @@ services:
   postgres:
     image: postgres:13
     environment:
-      POSTGRES_DB: fish_db_dev
+      POSTGRES_DB: fish_db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     ports:
@@ -13,7 +13,7 @@ services:
       - postgres_dev_data:/var/lib/postgresql/data
       - ../storage/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d fish_db_dev"]
+      test: ["CMD-SHELL", "pg_isready -U user -d fish_db"]
       interval: 10s
       timeout: 5s
       retries: 5
