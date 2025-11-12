@@ -27,11 +27,10 @@ func (r *accountRepo) CreateUser(ctx context.Context, user *account.User, passwo
 	query := `
 		INSERT INTO users (username, password_hash, nickname, avatar_url, is_guest, third_party_provider, third_party_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, created_at, updated_at
+		RETURNING id
 	`
 
 	var id int64
-	var createdAt, updatedAt string
 
 	err := r.db.QueryRow(
 		ctx,
@@ -43,7 +42,7 @@ func (r *accountRepo) CreateUser(ctx context.Context, user *account.User, passwo
 		user.IsGuest,
 		sql.NullString{String: user.ThirdPartyProvider, Valid: user.ThirdPartyProvider != ""},
 		sql.NullString{String: user.ThirdPartyID, Valid: user.ThirdPartyID != ""},
-	).Scan(&id, &createdAt, &updatedAt)
+	).Scan(&id)
 
 	if err != nil {
 		return nil, err
