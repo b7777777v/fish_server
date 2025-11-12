@@ -25,6 +25,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:      RouteTypeStraight,
 		Difficulty: 0.8,
 		Looping:   false,
+		Smooth:    false,
 		CreatedAt: time.Now(),
 	}
 
@@ -40,6 +41,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:      RouteTypeStraight,
 		Difficulty: 0.8,
 		Looping:   false,
+		Smooth:    false,
 		CreatedAt: time.Now(),
 	}
 
@@ -55,6 +57,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:      RouteTypeStraight,
 		Difficulty: 0.9,
 		Looping:   false,
+		Smooth:    false,
 		CreatedAt: time.Now(),
 	}
 
@@ -70,6 +73,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:      RouteTypeStraight,
 		Difficulty: 0.9,
 		Looping:   false,
+		Smooth:    false,
 		CreatedAt: time.Now(),
 	}
 
@@ -87,6 +91,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:      RouteTypeCurved,
 		Difficulty: 1.2,
 		Looping:   false,
+		Smooth:    true, // 啟用平滑插值
 		CreatedAt: time.Now(),
 	}
 
@@ -106,6 +111,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:      RouteTypeZigzag,
 		Difficulty: 1.4,
 		Looping:   false,
+		Smooth:    true, // 啟用平滑插值
 		CreatedAt: time.Now(),
 	}
 
@@ -118,6 +124,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:     RouteTypeCircular,
 		Difficulty: 1.0,
 		Looping:  true,
+		Smooth:   true, // 啟用平滑插值
 		CreatedAt: time.Now(),
 	}
 
@@ -130,6 +137,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:     RouteTypeCircular,
 		Difficulty: 1.0,
 		Looping:  true,
+		Smooth:   true, // 啟用平滑插值
 		CreatedAt: time.Now(),
 	}
 
@@ -142,6 +150,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:     RouteTypeCurved,
 		Difficulty: 1.5,
 		Looping:  true,
+		Smooth:   true, // 啟用平滑插值
 		CreatedAt: time.Now(),
 	}
 
@@ -154,6 +163,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:     RouteTypeCurved,
 		Difficulty: 1.6,
 		Looping:  false,
+		Smooth:   true, // 啟用平滑插值
 		CreatedAt: time.Now(),
 	}
 
@@ -166,6 +176,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:     RouteTypeCurved,
 		Difficulty: 1.6,
 		Looping:  false,
+		Smooth:   true, // 啟用平滑插值
 		CreatedAt: time.Now(),
 	}
 
@@ -178,6 +189,7 @@ func (fm *FishFormationManager) initializeDefaultRoutes() {
 		Type:     RouteTypeCurved,
 		Difficulty: 1.1,
 		Looping:  false,
+		Smooth:   true, // 啟用平滑插值
 		CreatedAt: time.Now(),
 	}
 

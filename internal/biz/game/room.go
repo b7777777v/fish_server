@@ -169,7 +169,7 @@ func (rm *RoomManager) LeaveRoom(roomID string, playerID int64) error {
 }
 
 // FireBullet 玩家開火
-func (rm *RoomManager) FireBullet(roomID string, playerID int64, direction float64, power int32) (*Bullet, error) {
+func (rm *RoomManager) FireBullet(roomID string, playerID int64, direction float64, power int32, position Position) (*Bullet, error) {
 	// First check room and player existence with read lock
 	rm.mu.RLock()
 	room, exists := rm.rooms[roomID]
@@ -197,7 +197,7 @@ func (rm *RoomManager) FireBullet(roomID string, playerID int64, direction float
 	bullet := &Bullet{
 		ID:        bulletID,
 		PlayerID:  playerID,
-		Position:  Position{X: 100, Y: 300}, // 固定發射位置
+		Position:  position, // 使用客戶端發送的位置
 		Direction: direction,
 		Speed:     500.0, // 固定速度
 		Power:     power,

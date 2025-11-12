@@ -81,8 +81,18 @@ func (mh *MessageHandler) handleFireBullet(client *Client, message *pb.GameMessa
 	
 	// 調用業務邏輯
 	ctx := context.Background()
-	bullet, err := mh.gameUsecase.FireBullet(ctx, client.RoomID, client.PlayerID, 
-		fireData.Direction, fireData.Power)
+
+	// 獲取子彈發射位置
+	position := game.Position{X: 600, Y: 750} // 默認位置
+	if fireData.Position != nil {
+		position = game.Position{
+			X: fireData.Position.X,
+			Y: fireData.Position.Y,
+		}
+	}
+
+	bullet, err := mh.gameUsecase.FireBullet(ctx, client.RoomID, client.PlayerID,
+		fireData.Direction, fireData.Power, position)
 	if err != nil {
 		mh.logger.Errorf("Failed to fire bullet: %v", err)
 		mh.sendErrorResponse(client, "Failed to fire bullet")
