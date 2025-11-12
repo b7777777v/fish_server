@@ -1,6 +1,7 @@
 package game
 
 import (
+	"math"
 	"math/rand"
 	"time"
 
@@ -122,16 +123,16 @@ func (fs *FishSpawner) createFish(fishType *FishType, config RoomConfig) *Fish {
 	switch spawnSide {
 	case 0: // 從左側進入
 		position = Position{X: -50, Y: fs.rng.Float64() * config.RoomHeight}
-		direction = 1.0 // 向右
+		direction = 0.0 // 向右 (0 radians)
 	case 1: // 從右側進入
 		position = Position{X: config.RoomWidth + 50, Y: fs.rng.Float64() * config.RoomHeight}
-		direction = -1.0 // 向左
+		direction = math.Pi // 向左 (π radians)
 	case 2: // 從上方進入
 		position = Position{X: fs.rng.Float64() * config.RoomWidth, Y: -50}
-		direction = 0.5 // 向右下
+		direction = math.Pi / 2 // 向下 (π/2 radians)
 	case 3: // 從下方進入
 		position = Position{X: fs.rng.Float64() * config.RoomWidth, Y: config.RoomHeight + 50}
-		direction = 0.5 // 向右上
+		direction = -math.Pi / 2 // 向上 (-π/2 radians)
 	}
 	
 	// 添加隨機變化
