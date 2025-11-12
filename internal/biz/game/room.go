@@ -379,9 +379,21 @@ func (rm *RoomManager) updateRoom(room *Room) {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
-	// Update fish positions
+	// Get all fish IDs that are in formations
+	fishInFormations := make(map[int64]bool)
+	formations := rm.spawner.GetFormationManager().GetAllFormations()
+	for _, formation := range formations {
+		for _, fish := range formation.Fishes {
+			fishInFormations[fish.ID] = true
+		}
+	}
+
+	// Update fish positions only for fish NOT in formations
+	// Fish in formations are updated by the formation system
 	for _, fish := range room.Fishes {
-		rm.updateFishPosition(fish, room.Config)
+		if !fishInFormations[fish.ID] {
+			rm.updateFishPosition(fish, room.Config)
+		}
 	}
 	
 	// Remove expired bullets
