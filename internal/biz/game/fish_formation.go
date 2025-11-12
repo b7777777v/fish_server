@@ -171,12 +171,15 @@ func (fm *FishFormationManager) updateFormation(formation *FishFormation, deltaT
 	if formation.Status != FormationStatusMoving {
 		return
 	}
-	
+
+	// 保存旧位置用于计算方向
+	oldPosition := formation.Position
+
 	// 更新路線進度
 	distancePerSecond := formation.Speed
 	progressIncrement := (distancePerSecond * deltaTime) / fm.calculateRouteLength(formation.Route)
 	formation.Progress += progressIncrement
-	
+
 	// 檢查是否完成路線
 	if formation.Progress >= 1.0 {
 		if formation.Route.Looping {
@@ -186,14 +189,22 @@ func (fm *FishFormationManager) updateFormation(formation *FishFormation, deltaT
 			return
 		}
 	}
-	
+
 	// 計算當前位置
 	newPosition := fm.interpolateRoutePosition(formation.Route, formation.Progress)
 	formation.Position = newPosition
-	
+
+	// 計算移動方向（基於位置變化）
+	dx := newPosition.X - oldPosition.X
+	dy := newPosition.Y - oldPosition.Y
+	if dx != 0 || dy != 0 {
+		// 使用 atan2 計算方向（弧度）
+		formation.Direction = math.Atan2(dy, dx)
+	}
+
 	// 更新陣型中所有魚的位置
 	fm.updateFishPositions(formation)
-	
+
 	formation.UpdatedAt = time.Now()
 }
 
