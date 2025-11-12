@@ -554,14 +554,15 @@ func (rm *RoomManager) gameLoop() {
 	// 更新子彈位置
 	rm.updateBullets(deltaTime)
 
-	// 更新魚類位置
-	rm.updateFishes(deltaTime)
+	// 從業務邏輯層同步魚類數據（包含 formation 系統的位置）
+	rm.syncFishesFromBizLayer()
 
 	// 檢測碰撞
 	rm.checkCollisions()
 
-	// 生成新魚類
-	rm.spawnFishes()
+	// 注意：不再在 WebSocket 層生成模擬魚類
+	// 所有魚類由業務邏輯層 (biz/game) 的 spawner 和 formation 系統管理
+	// rm.spawnFishes()  // 已禁用
 
 	// 清理過期對象
 	rm.cleanupExpiredObjects()
@@ -581,10 +582,17 @@ func (rm *RoomManager) gameLoop() {
 // updateBullets 更新子彈位置
 func (rm *RoomManager) updateBullets(deltaTime float64) {
 	for bulletID, bullet := range rm.gameState.Bullets {
+		// 記錄更新前的位置
+		oldX, oldY := bullet.Position.X, bullet.Position.Y
+
 		// 根據子彈的方向和速度進行移動
 		// Direction 是弧度值，表示子彈的飛行方向
 		bullet.Position.X += math.Cos(bullet.Direction) * bullet.Speed * deltaTime
 		bullet.Position.Y += math.Sin(bullet.Direction) * bullet.Speed * deltaTime
+
+		// 記錄子彈移動
+		rm.logger.Debugf("Bullet %d moved from (%.1f, %.1f) to (%.1f, %.1f), direction: %.2f",
+			bulletID, oldX, oldY, bullet.Position.X, bullet.Position.Y, bullet.Direction)
 
 		// 檢查是否出界（擴大範圍以允許子彈稍微飛出螢幕）
 		if bullet.Position.Y < -100 || bullet.Position.Y > 900 ||
@@ -595,19 +603,42 @@ func (rm *RoomManager) updateBullets(deltaTime float64) {
 	}
 }
 
-// updateFishes 更新魚類位置
-func (rm *RoomManager) updateFishes(deltaTime float64) {
-	// 更新現有魚類的位置
-	for _, fish := range rm.gameState.Fishes {
-		// 簡單的橫向移動
-		fish.Position.X -= fish.Speed * deltaTime
-		
-		// 如果魚游出屏幕左側，則移除
-		if fish.Position.X < -100 {
-			delete(rm.gameState.Fishes, fish.ID)
-			rm.logger.Debugf("Fish %d swam off screen and was removed", fish.ID)
+// syncFishesFromBizLayer 從業務邏輯層同步魚類數據
+func (rm *RoomManager) syncFishesFromBizLayer() {
+	// 從業務邏輯層獲取房間數據
+	ctx := context.Background()
+	room, err := rm.gameUsecase.GetRoom(ctx, rm.businessRoomID)
+	if err != nil {
+		rm.logger.Debugf("Cannot sync fishes from biz layer: %v", err)
+		return
+	}
+
+	// 清空現有魚類數據
+	rm.gameState.Fishes = make(map[int64]*FishInfo)
+
+	// 從業務邏輯層複製魚類數據到 WebSocket 層
+	for _, bizFish := range room.Fishes {
+		rm.gameState.Fishes[bizFish.ID] = &FishInfo{
+			ID:        bizFish.ID,
+			Type:      bizFish.Type.ID,
+			Position:  GamePosition{X: bizFish.Position.X, Y: bizFish.Position.Y},
+			Direction: bizFish.Direction,
+			Speed:     bizFish.Speed,
+			Health:    bizFish.Health,
+			MaxHealth: bizFish.MaxHealth,
+			Value:     bizFish.Value,
+			Status:    string(bizFish.Status),
+			SpawnTime: bizFish.SpawnTime,
 		}
 	}
+
+	rm.logger.Debugf("Synced %d fishes from biz layer to WebSocket layer", len(rm.gameState.Fishes))
+}
+
+// updateFishes 更新魚類位置（已廢棄，由業務邏輯層處理）
+func (rm *RoomManager) updateFishes(deltaTime float64) {
+	// 此方法已被 syncFishesFromBizLayer 取代
+	// 不再在 WebSocket 層直接更新魚的位置
 }
 
 // checkCollisions 檢測碰撞
