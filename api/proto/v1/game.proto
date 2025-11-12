@@ -28,6 +28,7 @@ enum MessageType {
   HEARTBEAT = 5;
   GET_ROOM_LIST = 6;
   GET_PLAYER_INFO = 7;
+  SELECT_SEAT = 8;
 
   // 服務器響應 (10-19)
   FIRE_BULLET_RESPONSE = 10;
@@ -37,6 +38,7 @@ enum MessageType {
   HEARTBEAT_RESPONSE = 14;
   ROOM_LIST_RESPONSE = 15;
   PLAYER_INFO_RESPONSE = 16;
+  SELECT_SEAT_RESPONSE = 17;
 
   // 服務器端事件廣播 (20-39)
   BULLET_FIRED = 20;
@@ -71,6 +73,7 @@ message GameMessage {
     HeartbeatMessage heartbeat = 6;
     GetRoomListRequest get_room_list = 7;
     GetPlayerInfoRequest get_player_info = 8;
+    SelectSeatRequest select_seat = 9;
 
     // 響應消息
     FireBulletResponse fire_bullet_response = 12;
@@ -80,6 +83,7 @@ message GameMessage {
     HeartbeatResponse heartbeat_response = 16;
     RoomListResponse room_list_response = 17;
     PlayerInfoResponse player_info_response = 18;
+    SelectSeatResponse select_seat_response = 19;
 
     // 事件消息
     BulletFiredEvent bullet_fired = 22;
@@ -141,6 +145,11 @@ message GetPlayerInfoRequest {
   // 空消息，使用當前連接的玩家
 }
 
+// 選擇座位請求
+message SelectSeatRequest {
+  int32 seat_id = 1;  // 座位ID (0-3)
+}
+
 // ========================================
 // 響應消息
 // ========================================
@@ -199,6 +208,15 @@ message PlayerInfoResponse {
   int64 exp = 5;
   string room_id = 6;
   int64 timestamp = 7;
+  int32 seat_id = 8;  // 當前座位ID，-1 表示未選擇
+}
+
+// 選擇座位響應
+message SelectSeatResponse {
+  bool success = 1;
+  int32 seat_id = 2;
+  string message = 3;
+  int64 timestamp = 4;
 }
 
 // ========================================

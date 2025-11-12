@@ -43,6 +43,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 新增：座位信息元素 ---
     const seatsContainer = document.getElementById('seatsContainer');
 
+    // --- 新增：座位選擇面板元素 ---
+    const seatSelectionPanel = document.getElementById('seatSelectionPanel');
+    const seatButtons = document.querySelectorAll('.seat-btn');
+    const currentSeatInfo = document.getElementById('currentSeatInfo');
+    const currentSeatId = document.getElementById('currentSeatId');
+    const fireWarning = document.getElementById('fireWarning');
+    const fireTip = document.getElementById('fireTip');
+
     // --- 按鈕 ---
     const getRoomListBtn = document.getElementById('getRoomListBtn');
     const joinRoomBtn = document.getElementById('joinRoomBtn');
@@ -72,6 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let heartbeatInterval = null;
     let authToken = null; // JWT token for guest mode
     let isGuestMode = false; // Track if user is in guest mode
+
+    // --- 座位選擇相關 ---
+    let currentSeat = -1; // 當前選擇的座位，-1 表示未選擇
+    let hasSelectedSeat = false; // 是否已選擇座位
 
     // 直接使用 Protobuf 生成的 MessageType 枚舉
     const MessageType = proto.v1.MessageType;

@@ -187,18 +187,44 @@
         <button id="applyCannonBtn" style="margin-top: 10px; background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">⚙️ 應用設置</button>
     </div>
 
+    <!-- 座位選擇面板 -->
+    <div id="seatSelectionPanel" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+        <h3 style="margin-top: 0; color: #856404;">🪑 選擇座位</h3>
+        <p style="color: #856404; font-size: 14px; margin-bottom: 10px;">請選擇一個座位開始遊戲</p>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+            <button class="seat-btn" data-seat="0" style="padding: 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                座位 1<br><small id="seat0Status">可用</small>
+            </button>
+            <button class="seat-btn" data-seat="1" style="padding: 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                座位 2<br><small id="seat1Status">可用</small>
+            </button>
+            <button class="seat-btn" data-seat="2" style="padding: 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                座位 3<br><small id="seat2Status">可用</small>
+            </button>
+            <button class="seat-btn" data-seat="3" style="padding: 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                座位 4<br><small id="seat3Status">可用</small>
+            </button>
+        </div>
+        <p id="currentSeatInfo" style="margin-top: 10px; padding: 8px; background: #d1ecf1; border-radius: 4px; font-size: 13px; color: #0c5460; display: none;">
+            <strong>當前座位:</strong> <span id="currentSeatId">未選擇</span>
+        </p>
+    </div>
+
     <div id="actions" style="display: none;">
         <h3>遊戲操作</h3>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
             <button id="getRoomListBtn">📋 獲取房間列表</button>
             <button id="joinRoomBtn" style="display: none;">加入房間 (ID: 101)</button>
             <button id="getPlayerInfoBtn">👤 獲取玩家資訊</button>
-            <button id="fireBulletBtn">🔫 開火</button>
+            <button id="fireBulletBtn" disabled>🔫 開火</button>
             <button id="leaveRoomBtn">🚪 離開房間</button>
             <button id="clearLogBtn">🧹 清除日誌</button>
             <button id="testRenderBtn" style="background-color: #ff9800; color: white;">🧪 測試渲染器</button>
         </div>
-        <p style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-radius: 4px; font-size: 14px;">
+        <p id="fireWarning" style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 4px; font-size: 14px; color: #856404;">
+            ⚠️ <strong>請先選擇座位才能開火</strong>
+        </p>
+        <p id="fireTip" style="display: none; margin-top: 10px; padding: 10px; background: #e3f2fd; border-radius: 4px; font-size: 14px;">
             💡 <strong>提示:</strong> 點擊遊戲畫布可直接開火，滑鼠移動控制砲台方向
         </p>
     </div>
