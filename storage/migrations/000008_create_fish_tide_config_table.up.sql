@@ -44,7 +44,8 @@ CREATE TRIGGER trigger_update_fish_tide_config_updated_at
     EXECUTE FUNCTION update_fish_tide_config_updated_at();
 
 -- 插入示例魚潮配置
--- 假設已有魚種 ID 5 為高價值魚種
+-- 使用實際存在的魚種 ID：22（魔鬼魚）和 101（黃金鯊）
 INSERT INTO fish_tide_config (name, description, fish_type_id, fish_count, duration_seconds, spawn_interval_ms, speed_multiplier, trigger_rule, trigger_config, is_active) VALUES
-('黃金魚潮', '大量黃金魚快速游過螢幕，持續 30 秒', 5, 100, 30, 300, 1.5, 'random', '{"min_interval_minutes": 30, "max_interval_minutes": 60}', TRUE),
-('午間魚潮', '每天中午 12 點觸發的特殊魚潮', 5, 150, 60, 200, 2.0, 'fixed_time', '{"cron": "0 12 * * *"}', TRUE);
+('魔鬼魚潮', '大量魔鬼魚快速游過螢幕，持續 30 秒', 22, 100, 30, 300, 1.5, 'random', '{"min_interval_minutes": 30, "max_interval_minutes": 60}', TRUE),
+('黃金鯊魚潮', '每天中午 12 點觸發的特殊黃金鯊魚潮', 101, 50, 60, 500, 2.0, 'fixed_time', '{"cron": "0 12 * * *"}', TRUE)
+ON CONFLICT DO NOTHING;
