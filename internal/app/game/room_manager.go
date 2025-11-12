@@ -794,6 +794,18 @@ func (rm *RoomManager) startGame() {
 			rm.businessRoomID = createdRoom.ID
 			rm.logger.Infof("Successfully created business logic room: %s for WebSocket room: %s",
 				createdRoom.ID, rm.roomID)
+
+			// 讓所有 WebSocket 房間中的玩家加入業務邏輯房間
+			// 這樣才會啟動業務邏輯層的遊戲循環（魚類更新、生成等）
+			for _, playerInfo := range rm.gameState.Players {
+				err := rm.gameUsecase.JoinRoom(rm.ctx, rm.businessRoomID, playerInfo.PlayerID)
+				if err != nil {
+					rm.logger.Errorf("Failed to join player %d to business room: %v", playerInfo.PlayerID, err)
+				} else {
+					rm.logger.Infof("Player %d (%s) joined business logic room %s",
+						playerInfo.PlayerID, playerInfo.Nickname, rm.businessRoomID)
+				}
+			}
 		}
 	}
 
