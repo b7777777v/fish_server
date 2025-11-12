@@ -68,6 +68,12 @@ func (rm *RoomManager) CreateRoom(roomType RoomType, maxPlayers int32) (*Room, e
 	rm.rooms[roomID] = room
 	rm.logger.Infof("Created room: %s, type: %s, seats: %d", roomID, roomType, seatCount)
 
+	// 立即啟動遊戲循環，不等待玩家加入
+	// 魚應該一直游動，不管有沒有玩家
+	room.Status = RoomStatusPlaying
+	go rm.startRoomGameLoop(room)
+	rm.logger.Infof("Game loop started for room: %s", roomID)
+
 	return room, nil
 }
 
@@ -119,11 +125,7 @@ func (rm *RoomManager) JoinRoom(roomID string, player *Player) error {
 	room.Players[player.ID] = player
 	room.UpdatedAt = time.Now()
 
-	// 如果房間人數達到要求，開始遊戲
-	if len(room.Players) >= 1 && room.Status == RoomStatusWaiting {
-		room.Status = RoomStatusPlaying
-		go rm.startRoomGameLoop(room)
-	}
+	// 遊戲循環已經在房間創建時啟動，不需要在這裡再次啟動
 
 	rm.logger.Infof("Player %d joined room %s", player.ID, roomID)
 	return nil
@@ -159,13 +161,10 @@ func (rm *RoomManager) LeaveRoom(roomID string, playerID int64) error {
 	player.Status = PlayerStatusIdle
 	room.UpdatedAt = time.Now()
 
-	// 如果房間沒有玩家了，關閉房間
-	if len(room.Players) == 0 {
-		room.Status = RoomStatusClosed
-		rm.logger.Infof("Room %s closed due to no players", roomID)
-	}
+	// 遊戲循環會繼續運行，即使沒有玩家
+	// 魚會繼續游動，等待新玩家加入
+	rm.logger.Infof("Player %d left room %s, remaining players: %d", playerID, roomID, len(room.Players))
 
-	rm.logger.Infof("Player %d left room %s", playerID, roomID)
 	return nil
 }
 
@@ -344,9 +343,10 @@ func (rm *RoomManager) startRoomGameLoop(room *Room) {
 		select {
 		case <-ticker.C:
 			rm.updateRoom(room)
-			
+
 			// 檢查房間是否應該關閉
-			if room.Status == RoomStatusClosed || len(room.Players) == 0 {
+			// 注意：即使沒有玩家，遊戲循環也應該繼續，只有房間狀態為 Closed 時才停止
+			if room.Status == RoomStatusClosed {
 				rm.logger.Infof("Game loop ended for room %s", room.ID)
 				return
 			}
