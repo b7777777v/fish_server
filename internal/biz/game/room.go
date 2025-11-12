@@ -457,16 +457,19 @@ func (rm *RoomManager) updateRoom(room *Room) {
 	if newFish != nil {
 		room.Fishes[newFish.ID] = newFish
 	}
-	
+
 	// Add formation fishes if spawned
 	if newFormation != nil {
 		for _, fish := range newFormation.Fishes {
 			room.Fishes[fish.ID] = fish
 		}
-		rm.logger.Infof("Spawned formation in room %s: %s with %d fishes", 
+		rm.logger.Infof("Spawned formation in room %s: %s with %d fishes",
 			room.ID, newFormation.Type, len(newFormation.Fishes))
 	}
-	
+
+	// Clean up completed formations
+	rm.cleanupCompletedFormations(room)
+
 	room.UpdatedAt = now
 }
 
@@ -495,6 +498,26 @@ func (rm *RoomManager) updateBulletPosition(bullet *Bullet, deltaTime float64, c
 	// Direction 是弧度值
 	bullet.Position.X += bullet.Speed * deltaTime * math.Cos(bullet.Direction)
 	bullet.Position.Y += bullet.Speed * deltaTime * math.Sin(bullet.Direction)
+}
+
+// cleanupCompletedFormations 清理已完成的阵型
+func (rm *RoomManager) cleanupCompletedFormations(room *Room) {
+	formations := rm.spawner.GetFormationManager().GetAllFormations()
+
+	for _, formation := range formations {
+		if formation.Status == FormationStatusComplete {
+			// 移除阵型中的鱼
+			for _, fish := range formation.Fishes {
+				delete(room.Fishes, fish.ID)
+			}
+
+			// 从管理器中移除阵型
+			rm.spawner.GetFormationManager().RemoveFormation(formation.ID)
+
+			rm.logger.Infof("Cleaned up completed formation %s (type: %s) with %d fishes",
+				formation.ID, formation.Type, len(formation.Fishes))
+		}
+	}
 }
 
 // getRoomConfig 獲取房間配置

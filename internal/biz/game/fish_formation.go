@@ -63,6 +63,7 @@ type FishFormation struct {
 	CreatedAt    time.Time         `json:"created_at"`
 	UpdatedAt    time.Time         `json:"updated_at"`
 	Progress     float64           `json:"progress"`      // 路線進度 (0.0-1.0)
+	LoopCount    int               `json:"loop_count"`    // 循環次數計數
 	Config       FormationConfig   `json:"config"`        // 陣型配置
 }
 
@@ -184,6 +185,16 @@ func (fm *FishFormationManager) updateFormation(formation *FishFormation, deltaT
 	if formation.Progress >= 1.0 {
 		if formation.Route.Looping {
 			formation.Progress = 0.0
+			formation.LoopCount++
+
+			// 限制循環次數，防止阵型永远存在
+			// 循環 2-3 次後標記為完成
+			maxLoops := 3
+			if formation.LoopCount >= maxLoops {
+				fm.logger.Infof("Formation %s completed %d loops, marking as complete", formation.ID, formation.LoopCount)
+				formation.Status = FormationStatusComplete
+				return
+			}
 		} else {
 			formation.Status = FormationStatusComplete
 			return
