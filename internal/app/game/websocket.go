@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/b7777777v/fish_server/internal/biz/account"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
+	"github.com/b7777777v/fish_server/internal/pkg/token"
 	pb "github.com/b7777777v/fish_server/pkg/pb/v1"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
@@ -135,15 +138,19 @@ func (c *Client) sendJSON(v interface{}) {
 
 // WebSocketHandler WebSocket 升級處理器
 type WebSocketHandler struct {
-	hub    *Hub
-	logger logger.Logger
+	hub            *Hub
+	tokenHelper    *token.TokenHelper
+	accountUsecase account.AccountUsecase
+	logger         logger.Logger
 }
 
 // NewWebSocketHandler 創建 WebSocket 處理器
-func NewWebSocketHandler(hub *Hub, logger logger.Logger) *WebSocketHandler {
+func NewWebSocketHandler(hub *Hub, tokenHelper *token.TokenHelper, accountUsecase account.AccountUsecase, logger logger.Logger) *WebSocketHandler {
 	return &WebSocketHandler{
-		hub:    hub,
-		logger: logger.With("component", "websocket_handler"),
+		hub:            hub,
+		tokenHelper:    tokenHelper,
+		accountUsecase: accountUsecase,
+		logger:         logger.With("component", "websocket_handler"),
 	}
 }
 
@@ -159,31 +166,82 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	// 創建客戶端
 	client := NewClient(conn, h.hub, h.logger)
 
-	// 從查詢參數獲取玩家信息
-	playerUsername := r.URL.Query().Get("player_id")
-	if playerUsername == "" {
-		h.logger.Error("WebSocket connection rejected: player_id is required")
-		conn.Close()
-		return
+	// 嘗試從 token 獲取用戶信息（支持遊客模式）
+	var playerUsername string
+	var userID int64
+
+	// 1. 首先檢查是否有 token（從查詢參數或 Authorization header）
+	tokenString := r.URL.Query().Get("token")
+	if tokenString == "" {
+		// 檢查 Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+		}
 	}
 
-	// 根據 player_id (username) 獲取或創建玩家
-	player, err := h.hub.playerUsecase.GetOrCreateByUsername(r.Context(), playerUsername)
-	if err != nil {
-		h.logger.Errorf("Failed to get or create player %s: %v", playerUsername, err)
-		conn.Close()
-		return
+	// 2. 如果有 token，解析並使用 token 中的用戶信息
+	if tokenString != "" {
+		claims, err := h.tokenHelper.ParseToken(tokenString)
+		if err != nil {
+			h.logger.Errorf("Invalid token: %v", err)
+			conn.Close()
+			return
+		}
+
+		userID = claims.UserID
+
+		// 從 AccountUsecase 獲取用戶信息
+		user, err := h.accountUsecase.GetUserByID(r.Context(), userID)
+		if err != nil {
+			h.logger.Errorf("Failed to get user %d: %v", userID, err)
+			conn.Close()
+			return
+		}
+
+		// 使用用戶的 nickname 作為玩家名稱
+		playerUsername = user.Nickname
+
+		// 根據 nickname 獲取或創建玩家
+		_, err = h.hub.playerUsecase.GetOrCreateByUsername(r.Context(), playerUsername)
+		if err != nil {
+			h.logger.Errorf("Failed to get or create player for user %d: %v", userID, err)
+			conn.Close()
+			return
+		}
+
+		h.logger.Infof("WebSocket connection with token: userID=%d, nickname=%s, isGuest=%v",
+			userID, playerUsername, claims.IsGuest)
+	} else {
+		// 3. 如果沒有 token，回退到舊的 player_id 模式（向後兼容）
+		playerUsername = r.URL.Query().Get("player_id")
+		if playerUsername == "" {
+			h.logger.Error("WebSocket connection rejected: token or player_id is required")
+			conn.Close()
+			return
+		}
+
+		// 根據 player_id (username) 獲取或創建玩家
+		player, err := h.hub.playerUsecase.GetOrCreateByUsername(r.Context(), playerUsername)
+		if err != nil {
+			h.logger.Errorf("Failed to get or create player %s: %v", playerUsername, err)
+			conn.Close()
+			return
+		}
+
+		userID = int64(player.ID)
+		h.logger.Infof("WebSocket connection with player_id: player=%s", playerUsername)
 	}
 
 	// 設置客戶端信息
-	client.ID = player.Username      // string ID
-	client.PlayerID = int64(player.ID) // numeric ID
+	client.ID = playerUsername
+	client.PlayerID = userID
 	client.RoomID = r.URL.Query().Get("room_id") // 可選的 room_id
 
 	// 註冊客戶端到 Hub
 	h.hub.register <- client
 
-	h.logger.Infof("New WebSocket connection: player=%s, room=%s", client.ID, client.RoomID)
+	h.logger.Infof("New WebSocket connection: player=%s, userID=%d, room=%s", client.ID, client.PlayerID, client.RoomID)
 
 	// 啟動客戶端的讀寫 goroutines
 	go client.writePump()
@@ -402,6 +460,8 @@ func (c *Client) handleMessageByType(gameMsg *pb.GameMessage) {
 		c.handleGetRoomList(gameMsg)
 	case pb.MessageType_HEARTBEAT:
 		c.handleHeartbeat(gameMsg)
+	case pb.MessageType_SELECT_SEAT:
+		c.handleSelectSeat(gameMsg)
 	default:
 		c.logger.Warnf("Unknown protobuf message type: %v", gameMsg.Type)
 		c.sendErrorPB(fmt.Sprintf("Unsupported message type: %v", gameMsg.Type))
@@ -589,6 +649,24 @@ func (c *Client) handleHeartbeat(msg *pb.GameMessage) {
 	}
 
 	c.sendProtobuf(responseMsg)
+}
+
+// handleSelectSeat 處理選擇座位請求
+// NOTE: 需要重新生成 protobuf 代碼後才能編譯（運行 make proto）
+func (c *Client) handleSelectSeat(msg *pb.GameMessage) {
+	if c.RoomID == "" {
+		c.sendErrorPB("Not in any room")
+		return
+	}
+
+	// 轉發到房間處理
+	c.hub.gameAction <- &GameActionMessage{
+		Client:    c,
+		RoomID:    c.RoomID,
+		Action:    "select_seat",
+		Data:      msg,
+		Timestamp: time.Now(),
+	}
 }
 
 // GetConnectionInfo 獲取連接信息
