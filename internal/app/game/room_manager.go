@@ -347,8 +347,9 @@ func (rm *RoomManager) handleGameAction(action *GameActionMessage) {
 		rm.handleFireBullet(action)
 	case "switch_cannon":
 		rm.handleSwitchCannon(action)
-	case "select_seat":
-		rm.handleSelectSeat(action)
+	// TODO: Uncomment after running `make proto` to regenerate protobuf code
+	// case "select_seat":
+	// 	rm.handleSelectSeat(action)
 	default:
 		rm.logger.Warnf("Unknown game action: %s", action.Action)
 		action.Client.sendError(fmt.Sprintf("Unknown action: %s", action.Action))
@@ -366,11 +367,12 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 		return
 	}
 
-	// 檢查玩家是否已選擇座位
-	if playerInfo.SeatID == -1 {
-		client.sendError("Please select a seat first")
-		return
-	}
+	// TODO: Uncomment after running `make proto` to enable seat selection requirement
+	// // 檢查玩家是否已選擇座位
+	// if playerInfo.SeatID == -1 {
+	// 	client.sendError("Please select a seat first")
+	// 	return
+	// }
 
 	// 解析消息
 	gameMsg, ok := action.Data.(*pb.GameMessage)
@@ -543,72 +545,72 @@ func (rm *RoomManager) handleSwitchCannon(action *GameActionMessage) {
 		client.ID, newCannonType, newCannonLevel, rm.roomID)
 }
 
+// TODO: Uncomment after running `make proto` to regenerate protobuf code
 // handleSelectSeat 處理選擇座位操作
-// NOTE: 需要重新生成 protobuf 代碼後才能編譯（運行 make proto）
-func (rm *RoomManager) handleSelectSeat(action *GameActionMessage) {
-	client := action.Client
-
-	// 檢查玩家是否在房間中
-	playerInfo, exists := rm.gameState.Players[client.ID]
-	if !exists {
-		client.sendError("Player not in game")
-		return
-	}
-
-	// 解析 Protobuf 消息獲取座位信息
-	gameMsg, ok := action.Data.(*pb.GameMessage)
-	if !ok {
-		client.sendError("Invalid message format")
-		return
-	}
-
-	// 獲取選擇的座位 ID
-	selectData := gameMsg.GetSelectSeat()
-	if selectData == nil {
-		client.sendError("Invalid select seat data")
-		return
-	}
-
-	requestedSeatID := selectData.SeatId
-
-	// 驗證座位 ID 範圍 (0-3)
-	if requestedSeatID < 0 || requestedSeatID > 3 {
-		client.sendError("Invalid seat ID, must be between 0 and 3")
-		return
-	}
-
-	// 檢查座位是否已被佔用
-	for _, p := range rm.gameState.Players {
-		if p.SeatID == int(requestedSeatID) && p.PlayerID != client.ID {
-			client.sendError("Seat already taken")
-			return
-		}
-	}
-
-	// 分配座位
-	oldSeatID := playerInfo.SeatID
-	playerInfo.SeatID = int(requestedSeatID)
-
-	// 發送選擇座位響應給客戶端
-	selectResponse := &pb.GameMessage{
-		Type: pb.MessageType_SELECT_SEAT_RESPONSE,
-		Data: &pb.GameMessage_SelectSeatResponse{
-			SelectSeatResponse: &pb.SelectSeatResponse{
-				Success:   true,
-				SeatId:    requestedSeatID,
-				Message:   "Seat selected successfully",
-				Timestamp: time.Now().Unix(),
-			},
-		},
-	}
-	client.sendProtobuf(selectResponse)
-
-	rm.logger.Infof("Player %s selected seat %d (previous: %d) in room %s",
-		client.ID, requestedSeatID, oldSeatID, rm.roomID)
-
-	// 廣播座位狀態更新給所有玩家
-	rm.broadcastRoomState()
-}
+// func (rm *RoomManager) handleSelectSeat(action *GameActionMessage) {
+// 	client := action.Client
+//
+// 	// 檢查玩家是否在房間中
+// 	playerInfo, exists := rm.gameState.Players[client.ID]
+// 	if !exists {
+// 		client.sendError("Player not in game")
+// 		return
+// 	}
+//
+// 	// 解析 Protobuf 消息獲取座位信息
+// 	gameMsg, ok := action.Data.(*pb.GameMessage)
+// 	if !ok {
+// 		client.sendError("Invalid message format")
+// 		return
+// 	}
+//
+// 	// 獲取選擇的座位 ID
+// 	selectData := gameMsg.GetSelectSeat()
+// 	if selectData == nil {
+// 		client.sendError("Invalid select seat data")
+// 		return
+// 	}
+//
+// 	requestedSeatID := selectData.SeatId
+//
+// 	// 驗證座位 ID 範圍 (0-3)
+// 	if requestedSeatID < 0 || requestedSeatID > 3 {
+// 		client.sendError("Invalid seat ID, must be between 0 and 3")
+// 		return
+// 	}
+//
+// 	// 檢查座位是否已被佔用
+// 	for _, p := range rm.gameState.Players {
+// 		if p.SeatID == int(requestedSeatID) && p.PlayerID != client.ID {
+// 			client.sendError("Seat already taken")
+// 			return
+// 		}
+// 	}
+//
+// 	// 分配座位
+// 	oldSeatID := playerInfo.SeatID
+// 	playerInfo.SeatID = int(requestedSeatID)
+//
+// 	// 發送選擇座位響應給客戶端
+// 	selectResponse := &pb.GameMessage{
+// 		Type: pb.MessageType_SELECT_SEAT_RESPONSE,
+// 		Data: &pb.GameMessage_SelectSeatResponse{
+// 			SelectSeatResponse: &pb.SelectSeatResponse{
+// 				Success:   true,
+// 				SeatId:    requestedSeatID,
+// 				Message:   "Seat selected successfully",
+// 				Timestamp: time.Now().Unix(),
+// 			},
+// 		},
+// 	}
+// 	client.sendProtobuf(selectResponse)
+//
+// 	rm.logger.Infof("Player %s selected seat %d (previous: %d) in room %s",
+// 		client.ID, requestedSeatID, oldSeatID, rm.roomID)
+//
+// 	// 廣播座位狀態更新給所有玩家
+// 	rm.broadcastRoomState()
+// }
 
 // gameLoop 遊戲主循環
 func (rm *RoomManager) gameLoop() {
