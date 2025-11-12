@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/b7777777v/fish_server/internal/biz/game"
@@ -57,6 +58,10 @@ type RoomManager struct {
 	// 上下文和取消函數
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// 房間空閒回收定時器
+	emptyRoomTimer *time.Timer
+	emptyRoomMu    sync.Mutex
 }
 
 // GameState 房間遊戲狀態
@@ -277,6 +282,9 @@ func (rm *RoomManager) Stop() {
 func (rm *RoomManager) handleAddClient(client *Client) {
 	rm.clients[client] = true
 
+	// 取消空閒回收定時器（如果存在）
+	rm.cancelEmptyRoomTimer()
+
 	// 添加玩家到遊戲狀態
 	playerInfo := &PlayerInfo{
 		ID:       client.ID,
@@ -316,9 +324,10 @@ func (rm *RoomManager) handleRemoveClient(client *Client) {
 		delete(rm.clients, client)
 		delete(rm.gameState.Players, client.ID)
 
-		// 如果沒有玩家了，暫停遊戲
+		// 如果沒有玩家了，暫停遊戲並啟動空閒回收定時器
 		if len(rm.gameState.Players) == 0 {
 			rm.pauseGame()
+			rm.startEmptyRoomTimer()
 		}
 
 		rm.logger.Infof("Client %s removed from room %s, remaining players: %d",
@@ -936,7 +945,7 @@ func (rm *RoomManager) sendGameStateProtobufToClient(client *Client) {
 		if playerInfo, exists := rm.gameState.Players[bullet.PlayerID]; exists {
 			playerID = playerInfo.PlayerID
 		}
-		
+
 		bulletInfos = append(bulletInfos, &pb.BulletInfo{
 			BulletId:  bullet.ID,
 			PlayerId:  playerID,
@@ -948,11 +957,15 @@ func (rm *RoomManager) sendGameStateProtobufToClient(client *Client) {
 		})
 	}
 
+	// 生成座位信息
+	seatInfos := rm.generateSeatInfos()
+
 	// 創建房間狀態更新消息
 	roomStateUpdate := &pb.RoomStateUpdate{
 		RoomId:       rm.roomID,
 		Fishes:       fishInfos,
 		Bullets:      bulletInfos,
+		Seats:        seatInfos,
 		PlayerCount:  int32(len(rm.gameState.Players)),
 		Timestamp:    time.Now().Unix(),
 		RoomStatus:   rm.gameState.Status,
@@ -968,8 +981,8 @@ func (rm *RoomManager) sendGameStateProtobufToClient(client *Client) {
 
 	// 發送給特定客戶端
 	client.sendProtobuf(gameMessage)
-	rm.logger.Debugf("Sent room state update to client %s: %d fishes, %d bullets", 
-		client.ID, len(fishInfos), len(bulletInfos))
+	rm.logger.Debugf("Sent room state update to client %s: %d fishes, %d bullets, %d seats",
+		client.ID, len(fishInfos), len(bulletInfos), len(seatInfos))
 }
 
 // broadcastGameState 廣播遊戲狀態（已廢棄，使用 broadcastGameStateProtobuf）
@@ -1014,7 +1027,7 @@ func (rm *RoomManager) broadcastGameStateProtobuf() {
 		if playerInfo, exists := rm.gameState.Players[bullet.PlayerID]; exists {
 			playerID = playerInfo.PlayerID
 		}
-		
+
 		bulletInfos = append(bulletInfos, &pb.BulletInfo{
 			BulletId:  bullet.ID,
 			PlayerId:  playerID,
@@ -1026,11 +1039,15 @@ func (rm *RoomManager) broadcastGameStateProtobuf() {
 		})
 	}
 
+	// 生成座位信息
+	seatInfos := rm.generateSeatInfos()
+
 	// 創建房間狀態更新消息
 	roomStateUpdate := &pb.RoomStateUpdate{
 		RoomId:       rm.roomID,
 		Fishes:       fishInfos,
 		Bullets:      bulletInfos,
+		Seats:        seatInfos,
 		PlayerCount:  int32(len(rm.gameState.Players)),
 		Timestamp:    time.Now().Unix(),
 		RoomStatus:   rm.gameState.Status,
@@ -1108,4 +1125,72 @@ func (rm *RoomManager) broadcastFishSpawned(fish *FishInfo) {
 	}
 
 	rm.hub.BroadcastToRoom(rm.roomID, data, nil)
+}
+
+// generateSeatInfos 生成座位信息列表
+func (rm *RoomManager) generateSeatInfos() []*pb.SeatInfo {
+	seatInfos := make([]*pb.SeatInfo, rm.gameState.MaxPlayers)
+
+	// 為每個座位生成信息
+	for i := 0; i < rm.gameState.MaxPlayers; i++ {
+		seatInfo := &pb.SeatInfo{
+			SeatId:   int32(i),
+			PlayerId: 0, // 默認空座位
+			Nickname: "",
+		}
+
+		// 查找佔用該座位的玩家
+		for _, player := range rm.gameState.Players {
+			if player.SeatID == i {
+				seatInfo.PlayerId = player.PlayerID
+				seatInfo.Nickname = player.Nickname
+				break
+			}
+		}
+
+		seatInfos[i] = seatInfo
+	}
+
+	return seatInfos
+}
+
+// startEmptyRoomTimer 啟動空閒房間回收定時器
+func (rm *RoomManager) startEmptyRoomTimer() {
+	rm.emptyRoomMu.Lock()
+	defer rm.emptyRoomMu.Unlock()
+
+	// 如果已經有定時器在運行，先取消
+	if rm.emptyRoomTimer != nil {
+		rm.emptyRoomTimer.Stop()
+	}
+
+	// 創建新的定時器：1分鐘後檢查房間是否仍為空
+	rm.emptyRoomTimer = time.AfterFunc(1*time.Minute, func() {
+		// 檢查房間是否仍為空
+		if len(rm.gameState.Players) == 0 {
+			rm.logger.Infof("Room %s has been empty for 1 minute, shutting down", rm.roomID)
+
+			// 通知 Hub 關閉房間
+			rm.hub.CloseRoom(rm.roomID)
+
+			// 停止房間管理器
+			rm.Stop()
+		} else {
+			rm.logger.Debugf("Room %s is no longer empty, cancelling shutdown", rm.roomID)
+		}
+	})
+
+	rm.logger.Infof("Started empty room timer for room %s (will close in 1 minute if still empty)", rm.roomID)
+}
+
+// cancelEmptyRoomTimer 取消空閒房間回收定時器
+func (rm *RoomManager) cancelEmptyRoomTimer() {
+	rm.emptyRoomMu.Lock()
+	defer rm.emptyRoomMu.Unlock()
+
+	if rm.emptyRoomTimer != nil {
+		rm.emptyRoomTimer.Stop()
+		rm.emptyRoomTimer = nil
+		rm.logger.Debugf("Cancelled empty room timer for room %s", rm.roomID)
+	}
 }

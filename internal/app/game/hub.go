@@ -532,6 +532,29 @@ func (h *Hub) BroadcastGlobal(message []byte) {
 	}
 }
 
+// CloseRoom 關閉指定房間並清理資源
+func (h *Hub) CloseRoom(roomID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// 停止房間管理器
+	if roomManager, exists := h.roomManagers[roomID]; exists {
+		roomManager.Stop()
+		delete(h.roomManagers, roomID)
+	}
+
+	// 移除房間中的所有客戶端（但不關閉連接）
+	if room, exists := h.rooms[roomID]; exists {
+		for client := range room {
+			client.RoomID = ""
+		}
+		delete(h.rooms, roomID)
+	}
+
+	h.stats.ActiveRooms = len(h.rooms)
+	h.logger.Infof("Room %s closed and cleaned up", roomID)
+}
+
 // Stop 停止 Hub
 func (h *Hub) Stop() {
 	h.logger.Info("Stopping Hub")
