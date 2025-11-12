@@ -68,6 +68,7 @@ type GameState struct {
 	Bullets       map[int64]*BulletInfo  `json:"bullets"`
 	LastUpdate    time.Time              `json:"last_update"`
 	GameStartTime time.Time              `json:"game_start_time"`
+	TickCount     int64                  `json:"tick_count"` // 用於控制日誌頻率
 }
 
 // PlayerInfo 玩家信息
@@ -132,7 +133,7 @@ func NewRoomManager(roomID string, gameUsecase *game.GameUsecase, hub *Hub, logg
 		clients:        make(map[*Client]bool),
 		gameUsecase:    gameUsecase,
 		hub:            hub,
-		gameLoopTicker: time.NewTicker(1 * time.Second), // 1 FPS for testing
+		gameLoopTicker: time.NewTicker(100 * time.Millisecond), // 10 FPS for smooth animation
 		gameLoopStop:   make(chan bool),
 		addClient:      make(chan *Client, 10),            // 添加緩衝區避免阻塞
 		removeClient:   make(chan *Client, 10),            // 添加緩衝區避免阻塞
@@ -177,7 +178,7 @@ func (rm *RoomManager) Run() {
 	for {
 		select {
 		case <-rm.gameLoopTicker.C:
-			rm.logger.Infof("Game loop ticker fired for room: %s", rm.roomID)
+			// 減少日誌輸出（ticker 每 100ms 觸發一次，不需要每次都記錄）
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
@@ -375,9 +376,18 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 	direction := 0.0 // 默認方向
 	power := playerInfo.Cannon.Power
 
+	// 獲取子彈發射位置（使用前端發送的位置，而不是玩家位置）
+	bulletPosition := GamePosition{X: playerInfo.Position.X, Y: playerInfo.Position.Y} // 默認值
 	if fireData != nil {
 		direction = fireData.Direction
 		power = fireData.Power
+		// 使用前端發送的砲口位置
+		if fireData.Position != nil {
+			bulletPosition = GamePosition{
+				X: fireData.Position.X,
+				Y: fireData.Position.Y,
+			}
+		}
 	}
 
 	// 簡化版本：直接創建子彈，不調用業務邏輯層
@@ -396,12 +406,16 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 	bulletInfo := &BulletInfo{
 		ID:        bulletID,
 		PlayerID:  client.ID,
-		Position:  GamePosition{X: playerInfo.Position.X, Y: playerInfo.Position.Y},
+		Position:  bulletPosition, // 使用前端發送的砲口位置
 		Direction: direction,
 		Speed:     200.0, // 固定速度
 		Power:     power,
 		CreatedAt: time.Now(),
 	}
+
+	// 記錄子彈發射位置用於調試
+	rm.logger.Debugf("Bullet fired: ID=%d, Position=(%.1f, %.1f), Direction=%.2f, Power=%d",
+		bulletID, bulletPosition.X, bulletPosition.Y, direction, power)
 
 	rm.gameState.Bullets[bulletID] = bulletInfo
 
@@ -529,22 +543,23 @@ func (rm *RoomManager) gameLoop() {
 		return
 	}
 	
-	// 記錄遊戲循環執行（移除時間條件以確保能看到）
-	rm.logger.Infof("Game loop tick: %d fishes, %d bullets, %d players", 
-		len(rm.gameState.Fishes), len(rm.gameState.Bullets), len(rm.gameState.Players))
-	
-	// 詳細記錄魚類和子彈狀態供前端調試
-	if len(rm.gameState.Fishes) > 0 {
-		for fishID, fish := range rm.gameState.Fishes {
-			rm.logger.Debugf("Fish %d: type=%d, pos=(%.1f,%.1f), dir=%.2f, speed=%.1f, hp=%d/%d", 
-				fishID, fish.Type, fish.Position.X, fish.Position.Y, fish.Direction, fish.Speed, fish.Health, fish.MaxHealth)
-		}
+	// 每 50 個 tick 記錄一次狀態（每5秒）
+	if rm.gameState.TickCount%50 == 0 {
+		rm.logger.Infof("Game loop tick: %d fishes, %d bullets, %d players",
+			len(rm.gameState.Fishes), len(rm.gameState.Bullets), len(rm.gameState.Players))
 	}
+	rm.gameState.TickCount++
 	
-	if len(rm.gameState.Bullets) > 0 {
-		for bulletID, bullet := range rm.gameState.Bullets {
-			rm.logger.Debugf("Bullet %d: player=%s, pos=(%.1f,%.1f), dir=%.2f, speed=%.1f, power=%d", 
-				bulletID, bullet.PlayerID, bullet.Position.X, bullet.Position.Y, bullet.Direction, bullet.Speed, bullet.Power)
+	// 每 50 個 tick 記錄一次詳細狀態（與上面的日誌同步）
+	if rm.gameState.TickCount%50 == 1 && len(rm.gameState.Fishes) > 0 {
+		// 只記錄前 3 條魚
+		count := 0
+		for fishID, fish := range rm.gameState.Fishes {
+			if count < 3 {
+				rm.logger.Debugf("Fish %d: type=%d, pos=(%.1f,%.1f), dir=%.2f, speed=%.1f, hp=%d/%d",
+					fishID, fish.Type, fish.Position.X, fish.Position.Y, fish.Direction, fish.Speed, fish.Health, fish.MaxHealth)
+				count++
+			}
 		}
 	}
 
@@ -582,23 +597,15 @@ func (rm *RoomManager) gameLoop() {
 // updateBullets 更新子彈位置
 func (rm *RoomManager) updateBullets(deltaTime float64) {
 	for bulletID, bullet := range rm.gameState.Bullets {
-		// 記錄更新前的位置
-		oldX, oldY := bullet.Position.X, bullet.Position.Y
-
 		// 根據子彈的方向和速度進行移動
 		// Direction 是弧度值，表示子彈的飛行方向
 		bullet.Position.X += math.Cos(bullet.Direction) * bullet.Speed * deltaTime
 		bullet.Position.Y += math.Sin(bullet.Direction) * bullet.Speed * deltaTime
 
-		// 記錄子彈移動
-		rm.logger.Debugf("Bullet %d moved from (%.1f, %.1f) to (%.1f, %.1f), direction: %.2f",
-			bulletID, oldX, oldY, bullet.Position.X, bullet.Position.Y, bullet.Direction)
-
 		// 檢查是否出界（擴大範圍以允許子彈稍微飛出螢幕）
 		if bullet.Position.Y < -100 || bullet.Position.Y > 900 ||
 			bullet.Position.X < -100 || bullet.Position.X > 1300 {
 			delete(rm.gameState.Bullets, bulletID)
-			rm.logger.Debugf("Bullet %d went out of bounds and was removed", bulletID)
 		}
 	}
 }
