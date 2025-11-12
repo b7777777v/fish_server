@@ -13,6 +13,6 @@ CREATE TABLE IF NOT EXISTS fish_types (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- 創建索引
-CREATE INDEX idx_fish_types_size ON fish_types(size);
-CREATE INDEX idx_fish_types_rarity ON fish_types(rarity);
+-- 創建索引（使用 IF NOT EXISTS 確保冪等性）
+CREATE INDEX IF NOT EXISTS idx_fish_types_size ON fish_types(size);
+CREATE INDEX IF NOT EXISTS idx_fish_types_rarity ON fish_types(rarity);

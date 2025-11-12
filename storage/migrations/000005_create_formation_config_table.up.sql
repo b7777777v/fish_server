@@ -9,10 +9,10 @@ CREATE TABLE IF NOT EXISTS formation_configs (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- 創建索引
-CREATE INDEX idx_formation_configs_key ON formation_configs(config_key);
-CREATE INDEX idx_formation_configs_active ON formation_configs(is_active);
-CREATE INDEX idx_formation_configs_data ON formation_configs USING GIN (config_data);
+-- 創建索引（使用 IF NOT EXISTS 確保冪等性）
+CREATE INDEX IF NOT EXISTS idx_formation_configs_key ON formation_configs(config_key);
+CREATE INDEX IF NOT EXISTS idx_formation_configs_active ON formation_configs(is_active);
+CREATE INDEX IF NOT EXISTS idx_formation_configs_data ON formation_configs USING GIN (config_data);
 
 -- 創建更新時間觸發器函數
 CREATE OR REPLACE FUNCTION update_formation_configs_updated_at()
