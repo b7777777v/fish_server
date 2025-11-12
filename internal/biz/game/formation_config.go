@@ -250,9 +250,9 @@ func (fsc *FormationSpawnController) GetConfig() FormationSpawnConfig {
 func GetDefaultFormationSpawnConfig() FormationSpawnConfig {
 	return FormationSpawnConfig{
 		Enabled:                  true,
-		MinInterval:              20 * time.Second,
-		MaxInterval:              60 * time.Second,
-		BaseSpawnChance:          0.3,
+		MinInterval:              5 * time.Second,   // 从20秒改为5秒，更频繁生成
+		MaxInterval:              15 * time.Second,  // 从60秒改为15秒
+		BaseSpawnChance:          0.8,               // 从0.3改为0.8，提高概率
 		FormationWeights:         GetDefaultFormationWeights(),
 		MinFishCount:             5,
 		MaxFishCount:             20,

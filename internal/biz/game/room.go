@@ -382,18 +382,32 @@ func (rm *RoomManager) updateRoom(room *Room) {
 	// Get all fish IDs that are in formations
 	fishInFormations := make(map[int64]bool)
 	formations := rm.spawner.GetFormationManager().GetAllFormations()
+	formationFishCount := 0
 	for _, formation := range formations {
 		for _, fish := range formation.Fishes {
 			fishInFormations[fish.ID] = true
+			formationFishCount++
 		}
+	}
+
+	// Log formation status
+	if len(formations) > 0 {
+		rm.logger.Debugf("Active formations: %d, fish in formations: %d, total fish: %d",
+			len(formations), formationFishCount, len(room.Fishes))
 	}
 
 	// Update fish positions only for fish NOT in formations
 	// Fish in formations are updated by the formation system
+	independentFishCount := 0
 	for _, fish := range room.Fishes {
 		if !fishInFormations[fish.ID] {
 			rm.updateFishPosition(fish, room.Config)
+			independentFishCount++
 		}
+	}
+
+	if independentFishCount > 0 {
+		rm.logger.Debugf("Updated %d independent fish (not in formations)", independentFishCount)
 	}
 	
 	// Remove expired bullets
