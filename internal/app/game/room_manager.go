@@ -63,6 +63,7 @@ type RoomManager struct {
 type GameState struct {
 	RoomID        string                 `json:"room_id"`
 	Status        string                 `json:"status"` // waiting, playing, paused
+	MaxPlayers    int                    `json:"max_players"` // 最大玩家數（座位數）
 	Players       map[string]*PlayerInfo `json:"players"`
 	Fishes        map[int64]*FishInfo    `json:"fishes"`
 	Bullets       map[int64]*BulletInfo  `json:"bullets"`
@@ -128,6 +129,9 @@ type CannonInfo struct {
 func NewRoomManager(roomID string, gameUsecase *game.GameUsecase, hub *Hub, logger logger.Logger) *RoomManager {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// 默認座位數，如果無法獲取房間配置則使用此值
+	maxPlayers := 4
+
 	return &RoomManager{
 		roomID:         roomID,
 		clients:        make(map[*Client]bool),
@@ -138,7 +142,7 @@ func NewRoomManager(roomID string, gameUsecase *game.GameUsecase, hub *Hub, logg
 		addClient:      make(chan *Client, 10),            // 添加緩衝區避免阻塞
 		removeClient:   make(chan *Client, 10),            // 添加緩衝區避免阻塞
 		gameAction:     make(chan *GameActionMessage, 100), // 添加緩衝區避免阻塞
-		gameState:      NewGameState(roomID),
+		gameState:      NewGameState(roomID, maxPlayers),
 		logger:         logger.With("component", "room_manager", "room_id", roomID),
 		ctx:            ctx,
 		cancel:         cancel,
@@ -146,10 +150,11 @@ func NewRoomManager(roomID string, gameUsecase *game.GameUsecase, hub *Hub, logg
 }
 
 // NewGameState 創建新的遊戲狀態
-func NewGameState(roomID string) *GameState {
+func NewGameState(roomID string, maxPlayers int) *GameState {
 	return &GameState{
 		RoomID:        roomID,
 		Status:        "waiting",
+		MaxPlayers:    maxPlayers,
 		Players:       make(map[string]*PlayerInfo),
 		Fishes:        make(map[int64]*FishInfo),
 		Bullets:       make(map[int64]*BulletInfo),
@@ -347,9 +352,8 @@ func (rm *RoomManager) handleGameAction(action *GameActionMessage) {
 		rm.handleFireBullet(action)
 	case "switch_cannon":
 		rm.handleSwitchCannon(action)
-	// TODO: Uncomment after running `make proto` to regenerate protobuf code
-	// case "select_seat":
-	// 	rm.handleSelectSeat(action)
+	case "select_seat":
+		rm.handleSelectSeat(action)
 	default:
 		rm.logger.Warnf("Unknown game action: %s", action.Action)
 		action.Client.sendError(fmt.Sprintf("Unknown action: %s", action.Action))
@@ -545,72 +549,71 @@ func (rm *RoomManager) handleSwitchCannon(action *GameActionMessage) {
 		client.ID, newCannonType, newCannonLevel, rm.roomID)
 }
 
-// TODO: Uncomment after running `make proto` to regenerate protobuf code
 // handleSelectSeat 處理選擇座位操作
-// func (rm *RoomManager) handleSelectSeat(action *GameActionMessage) {
-// 	client := action.Client
-//
-// 	// 檢查玩家是否在房間中
-// 	playerInfo, exists := rm.gameState.Players[client.ID]
-// 	if !exists {
-// 		client.sendError("Player not in game")
-// 		return
-// 	}
-//
-// 	// 解析 Protobuf 消息獲取座位信息
-// 	gameMsg, ok := action.Data.(*pb.GameMessage)
-// 	if !ok {
-// 		client.sendError("Invalid message format")
-// 		return
-// 	}
-//
-// 	// 獲取選擇的座位 ID
-// 	selectData := gameMsg.GetSelectSeat()
-// 	if selectData == nil {
-// 		client.sendError("Invalid select seat data")
-// 		return
-// 	}
-//
-// 	requestedSeatID := selectData.SeatId
-//
-// 	// 驗證座位 ID 範圍 (0-3)
-// 	if requestedSeatID < 0 || requestedSeatID > 3 {
-// 		client.sendError("Invalid seat ID, must be between 0 and 3")
-// 		return
-// 	}
-//
-// 	// 檢查座位是否已被佔用
-// 	for _, p := range rm.gameState.Players {
-// 		if p.SeatID == int(requestedSeatID) && p.PlayerID != client.ID {
-// 			client.sendError("Seat already taken")
-// 			return
-// 		}
-// 	}
-//
-// 	// 分配座位
-// 	oldSeatID := playerInfo.SeatID
-// 	playerInfo.SeatID = int(requestedSeatID)
-//
-// 	// 發送選擇座位響應給客戶端
-// 	selectResponse := &pb.GameMessage{
-// 		Type: pb.MessageType_SELECT_SEAT_RESPONSE,
-// 		Data: &pb.GameMessage_SelectSeatResponse{
-// 			SelectSeatResponse: &pb.SelectSeatResponse{
-// 				Success:   true,
-// 				SeatId:    requestedSeatID,
-// 				Message:   "Seat selected successfully",
-// 				Timestamp: time.Now().Unix(),
-// 			},
-// 		},
-// 	}
-// 	client.sendProtobuf(selectResponse)
-//
-// 	rm.logger.Infof("Player %s selected seat %d (previous: %d) in room %s",
-// 		client.ID, requestedSeatID, oldSeatID, rm.roomID)
-//
-// 	// 廣播座位狀態更新給所有玩家
-// 	rm.broadcastRoomState()
-// }
+func (rm *RoomManager) handleSelectSeat(action *GameActionMessage) {
+	client := action.Client
+
+	// 檢查玩家是否在房間中
+	playerInfo, exists := rm.gameState.Players[client.ID]
+	if !exists {
+		client.sendError("Player not in game")
+		return
+	}
+
+	// 解析 Protobuf 消息獲取座位信息
+	gameMsg, ok := action.Data.(*pb.GameMessage)
+	if !ok {
+		client.sendError("Invalid message format")
+		return
+	}
+
+	// 獲取選擇的座位 ID
+	selectData := gameMsg.GetSelectSeat()
+	if selectData == nil {
+		client.sendError("Invalid select seat data")
+		return
+	}
+
+	requestedSeatID := selectData.SeatId
+
+	// 驗證座位 ID 範圍（根據房間配置動態驗證）
+	maxSeatID := int32(rm.gameState.MaxPlayers - 1)
+	if requestedSeatID < 0 || requestedSeatID > maxSeatID {
+		client.sendError(fmt.Sprintf("Invalid seat ID, must be between 0 and %d", maxSeatID))
+		return
+	}
+
+	// 檢查座位是否已被佔用
+	for _, p := range rm.gameState.Players {
+		if p.SeatID == int(requestedSeatID) && p.ID != client.ID {
+			client.sendError("Seat already taken")
+			return
+		}
+	}
+
+	// 分配座位
+	oldSeatID := playerInfo.SeatID
+	playerInfo.SeatID = int(requestedSeatID)
+
+	// 發送選擇座位響應給客戶端
+	selectResponse := &pb.GameMessage{
+		Type: pb.MessageType_SELECT_SEAT_RESPONSE,
+		Data: &pb.GameMessage_SelectSeatResponse{
+			SelectSeatResponse: &pb.SelectSeatResponse{
+				Success:   true,
+				SeatId:    requestedSeatID,
+				Message:   "Seat selected successfully",
+				Timestamp: time.Now().Unix(),
+			},
+		},
+	}
+	client.sendProtobuf(selectResponse)
+
+	rm.logger.Infof("Player %s selected seat %d (previous: %d) in room %s",
+		client.ID, requestedSeatID, oldSeatID, rm.roomID)
+
+	// 座位狀態會在下一次房間狀態更新時自動廣播
+}
 
 // gameLoop 遊戲主循環
 func (rm *RoomManager) gameLoop() {

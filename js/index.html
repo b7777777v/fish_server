@@ -191,19 +191,9 @@
     <div id="seatSelectionPanel" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
         <h3 style="margin-top: 0; color: #856404;">🪑 選擇座位</h3>
         <p style="color: #856404; font-size: 14px; margin-bottom: 10px;">請選擇一個座位開始遊戲</p>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
-            <button class="seat-btn" data-seat="0" style="padding: 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
-                座位 1<br><small id="seat0Status">可用</small>
-            </button>
-            <button class="seat-btn" data-seat="1" style="padding: 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
-                座位 2<br><small id="seat1Status">可用</small>
-            </button>
-            <button class="seat-btn" data-seat="2" style="padding: 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
-                座位 3<br><small id="seat2Status">可用</small>
-            </button>
-            <button class="seat-btn" data-seat="3" style="padding: 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
-                座位 4<br><small id="seat3Status">可用</small>
-            </button>
+        <div id="seatButtonsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+            <!-- 座位按鈕將根據房間配置動態生成 -->
+            <p style="color: #888; grid-column: 1/-1; text-align: center;">等待加入房間...</p>
         </div>
         <p id="currentSeatInfo" style="margin-top: 10px; padding: 8px; background: #d1ecf1; border-radius: 4px; font-size: 13px; color: #0c5460; display: none;">
             <strong>當前座位:</strong> <span id="currentSeatId">未選擇</span>

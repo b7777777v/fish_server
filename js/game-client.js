@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 新增：座位選擇面板元素 ---
     const seatSelectionPanel = document.getElementById('seatSelectionPanel');
-    const seatButtons = document.querySelectorAll('.seat-btn');
+    const seatButtonsContainer = document.getElementById('seatButtonsContainer');
     const currentSeatInfo = document.getElementById('currentSeatInfo');
     const currentSeatId = document.getElementById('currentSeatId');
     const fireWarning = document.getElementById('fireWarning');
@@ -263,6 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (playerInfoPanel) playerInfoPanel.style.display = 'block';
             if (roomListPanel) roomListPanel.style.display = 'block';
             if (cannonSelectorPanel) cannonSelectorPanel.style.display = 'block';
+            if (seatSelectionPanel) seatSelectionPanel.style.display = 'block';
 
             // 啟動遊戲渲染器
             if (window.gameRenderer) {
@@ -354,6 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (playerInfoPanel) playerInfoPanel.style.display = 'none';
             if (roomListPanel) roomListPanel.style.display = 'none';
             if (cannonSelectorPanel) cannonSelectorPanel.style.display = 'none';
+            if (seatSelectionPanel) seatSelectionPanel.style.display = 'none';
 
             // 停止遊戲渲染器
             if (window.gameRenderer) {
@@ -538,6 +540,10 @@ document.addEventListener('DOMContentLoaded', () => {
             case MessageType.FISH_SPAWNED:
                 const fishSpawnedEvent = gameMessage.getFishSpawned();
                 log(`🐟 新魚出現: ID=${fishSpawnedEvent.getFishId()}, 類型=${fishSpawnedEvent.getFishType()}`);
+                break;
+            case MessageType.SELECT_SEAT_RESPONSE:
+                const selectSeatResp = gameMessage.getSelectSeatResponse();
+                handleSelectSeatResponse(selectSeatResp);
                 break;
             // 在這裡添加更多 case 來處理其他消息類型
             default:
@@ -836,6 +842,62 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         seatsContainer.innerHTML = html || '<div style="color: #888;">無座位資訊</div>';
+
+        // 同時更新座位選擇按鈕
+        updateSeatSelectionButtons(seats);
+    }
+
+    /**
+     * 根據座位信息動態生成座位選擇按鈕
+     * @param {Array} seats - 座位列表
+     */
+    function updateSeatSelectionButtons(seats) {
+        if (!seatButtonsContainer) return;
+
+        // 如果還沒有座位信息，保持等待狀態
+        if (!seats || seats.length === 0) {
+            return;
+        }
+
+        // 清空容器
+        seatButtonsContainer.innerHTML = '';
+
+        // 為每個座位生成按鈕
+        seats.forEach(seat => {
+            const seatId = seat.getSeatId();
+            const playerId = seat.getPlayerId();
+            const nickname = seat.getNickname();
+            const isEmpty = !playerId || playerId === '0';
+            const isOccupied = !isEmpty;
+            const isMySet = currentSeat === seatId;
+
+            // 創建按鈕
+            const button = document.createElement('button');
+            button.className = 'seat-btn';
+            button.setAttribute('data-seat', seatId);
+            button.style.cssText = `
+                padding: 15px;
+                border: none;
+                border-radius: 4px;
+                cursor: ${isOccupied && !isMySet ? 'not-allowed' : 'pointer'};
+                font-size: 16px;
+                color: white;
+                background: ${isMySet ? '#007bff' : isOccupied ? '#6c757d' : '#28a745'};
+                opacity: ${isOccupied && !isMySet ? '0.6' : '1'};
+            `;
+
+            const statusText = isMySet ? '已選擇' : isOccupied ? `${nickname || '已佔用'}` : '可用';
+            button.innerHTML = `座位 ${seatId + 1}<br><small>${statusText}</small>`;
+
+            // 綁定點擊事件
+            if (!isOccupied || isMySet) {
+                button.addEventListener('click', () => selectSeat(seatId));
+            } else {
+                button.disabled = true;
+            }
+
+            seatButtonsContainer.appendChild(button);
+        });
     }
 
     // --- 新增功能的事件監聽器 ---
@@ -873,6 +935,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
             log(`🔧 切換砲台: Type ${cannonType}, Level ${cannonLevel}, Power ${power}`, 'system');
         });
+    }
+
+    // 座位選擇事件監聽器已經在 updateSeatSelectionButtons 中動態綁定
+
+    /**
+     * 選擇座位函數
+     * @param {number} seatId - 座位 ID (0-3)
+     */
+    function selectSeat(seatId) {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            log('無法選擇座位：未連接到伺服器', 'error');
+            return;
+        }
+
+        const gameMessage = new proto.v1.GameMessage();
+        gameMessage.setType(MessageType.SELECT_SEAT);
+        const selectSeatReq = new proto.v1.SelectSeatRequest();
+        selectSeatReq.setSeatId(seatId);
+        gameMessage.setSelectSeat(selectSeatReq);
+        sendMessage(gameMessage);
+
+        log(`正在選擇座位 ${seatId + 1}...`, 'system');
+    }
+
+    /**
+     * 處理座位選擇響應
+     * @param {proto.v1.SelectSeatResponse} response - 座位選擇響應
+     */
+    function handleSelectSeatResponse(response) {
+        if (response.getSuccess()) {
+            const seatId = response.getSeatId();
+            currentSeat = seatId;
+            hasSelectedSeat = true;
+
+            log(`✅ 成功選擇座位 ${seatId + 1}`, 'system');
+
+            // 更新座位信息顯示
+            if (currentSeatInfo) currentSeatInfo.style.display = 'block';
+            if (currentSeatId) currentSeatId.textContent = `座位 ${seatId + 1}`;
+
+            // 座位按鈕狀態會在下次 RoomStateUpdate 時自動更新
+
+            // 啟用開火按鈕
+            if (fireBulletBtn) fireBulletBtn.disabled = false;
+            if (fireWarning) fireWarning.style.display = 'none';
+            if (fireTip) fireTip.style.display = 'block';
+        } else {
+            const errorMsg = response.getMessage() || '選擇座位失敗';
+            log(`❌ ${errorMsg}`, 'error');
+        }
     }
 
     // 初始化統計顯示
