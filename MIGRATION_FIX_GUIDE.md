@@ -1,5 +1,7 @@
 # 🔧 Dirty Migration Fix Guide
 
+> **Windows 用戶**: 請查看 [WINDOWS_GUIDE.md](WINDOWS_GUIDE.md) 獲取 Windows 專用的使用說明和腳本。
+
 ## Problem
 
 You're seeing this error:
@@ -93,6 +95,7 @@ SELECT * FROM schema_migrations;  # Check migration state
 
 If the `users` table doesn't exist or is incomplete:
 
+**Linux/Mac:**
 ```bash
 # Using the provided script:
 ./scripts/fix-dirty-migration.sh 5
@@ -101,9 +104,31 @@ If the `users` table doesn't exist or is incomplete:
 go run cmd/migrator/main.go force 5
 ```
 
+**Windows (CMD):**
+```cmd
+REM Using the provided script:
+scripts\fix-dirty-migration.bat 5
+
+REM Or manually:
+go run cmd\migrator\main.go force 5
+```
+
+**Windows (PowerShell):**
+```powershell
+# Using the provided script:
+.\scripts\fix-dirty-migration.ps1 -Version 5
+
+# Or manually:
+go run cmd\migrator\main.go force 5
+```
+
 Then re-run migrations:
 ```bash
+# Linux/Mac
 go run cmd/migrator/main.go up
+
+# Windows
+go run cmd\migrator\main.go up
 ```
 
 #### Option B: Force to Version 6 (If migration mostly completed)
