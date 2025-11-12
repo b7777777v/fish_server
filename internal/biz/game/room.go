@@ -402,8 +402,16 @@ func (rm *RoomManager) updateRoom(room *Room) {
 	independentFishCount := 0
 	for _, fish := range room.Fishes {
 		if !fishInFormations[fish.ID] {
+			// Debug: log fish state before update
+			oldX, oldY := fish.Position.X, fish.Position.Y
 			rm.updateFishPosition(fish, room.Config)
 			independentFishCount++
+
+			// Debug: log if position didn't change
+			if fish.Position.X == oldX && fish.Position.Y == oldY {
+				rm.logger.Warnf("Fish %d didn't move! Speed=%.2f, Direction=%.4f, Pos=(%.1f,%.1f)",
+					fish.ID, fish.Speed, fish.Direction, fish.Position.X, fish.Position.Y)
+			}
 		}
 	}
 
