@@ -1,5 +1,17 @@
 # 座位選擇流程實現文檔
 
+## ⚠️ 當前狀態
+
+**座位選擇功能已設計和編碼完成，但需要 protobuf 代碼重新生成才能啟用。**
+
+由於開發環境無法安裝 protoc 編譯器，後端座位選擇代碼已暫時注釋（帶有 TODO 標記）。
+
+**啟用步驟：**
+1. 安裝 protoc 編譯器
+2. 運行 `make proto` 重新生成 protobuf 代碼
+3. 取消注釋 `internal/app/game/websocket.go` 和 `internal/app/game/room_manager.go` 中帶有 "TODO: Uncomment after running `make proto`" 標記的代碼
+4. 重新編譯項目
+
 ## 概述
 
 實現了進入房間後必須先選擇座位才能開火的流程，提升遊戲體驗和座位管理。
@@ -321,19 +333,37 @@ socket.onopen = () => {
 
 ## 待生成Protobuf
 
-**重要**: 需要重新生成 protobuf 代碼才能編譯和運行：
+**重要**: 需要重新生成 protobuf 代碼才能編譯和運行座位選擇功能。
+
+### 當前實現狀態
+
+- ✅ Protobuf 定義已完成（`api/proto/v1/game.proto`）
+- ✅ 後端處理邏輯已編寫（已暫時注釋）
+- ✅ 前端 UI 已完成（`js/index.html`）
+- ⏸️ 後端代碼已注釋，等待 protobuf 生成後啟用
+
+### 生成 Protobuf 代碼
 
 ```bash
+# 方法 1: 使用 Makefile
 make proto
-```
 
-或手動運行：
-
-```bash
+# 方法 2: 手動運行 protoc
 protoc --go_out=. --go_opt=paths=source_relative \
        --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+       --js_out=import_style=browser,binary:js/generated \
        api/proto/v1/*.proto
 ```
+
+### 啟用後端代碼
+
+生成 protobuf 代碼後，在以下文件中取消注釋帶有 `TODO: Uncomment after running 'make proto'` 標記的代碼：
+
+1. `internal/app/game/websocket.go:463-465` - SELECT_SEAT case statement
+2. `internal/app/game/websocket.go:655-671` - handleSelectSeat function
+3. `internal/app/game/room_manager.go:350-352` - "select_seat" case statement
+4. `internal/app/game/room_manager.go:546-611` - handleSelectSeat function
+5. `internal/app/game/room_manager.go:370-375` - Seat selection validation in handleFireBullet
 
 ## 未來改進
 
