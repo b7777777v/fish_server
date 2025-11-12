@@ -8,6 +8,7 @@ import (
 	"net/http/pprof"
 	"time"
 
+	"github.com/b7777777v/fish_server/internal/biz/account"
 	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
@@ -34,6 +35,9 @@ type GameApp struct {
 	// 遊戲用例
 	gameUsecase *game.GameUsecase
 
+	// 帳號用例
+	accountUsecase account.AccountUsecase
+
 	// 配置
 	config *conf.Config
 
@@ -48,6 +52,7 @@ type GameApp struct {
 // NewGameApp 創建遊戲應用程序
 func NewGameApp(
 	gameUsecase *game.GameUsecase,
+	accountUsecase account.AccountUsecase,
 	config *conf.Config, // Changed: Accept full config
 	logger logger.Logger,
 	hub *Hub,
@@ -61,6 +66,7 @@ func NewGameApp(
 		wsHandler:      wsHandler,
 		messageHandler: messageHandler,
 		gameUsecase:    gameUsecase,
+		accountUsecase: accountUsecase,
 		config:         config, // Changed: Store full config
 		logger:         logger.With("component", "game_app"),
 		ctx:            ctx,
@@ -86,6 +92,9 @@ func (app *GameApp) setupHTTPServer() {
 
 	// WebSocket 端點
 	mux.HandleFunc("/ws", app.wsHandler.ServeWS)
+
+	// 遊客登入端點
+	mux.HandleFunc("/guest-login", app.handleGuestLogin)
 
 	// 健康檢查端點
 	mux.HandleFunc("/health", app.handleHealth)
@@ -210,6 +219,32 @@ func (app *GameApp) handleRooms(w http.ResponseWriter, r *http.Request) {
 	}
 
 	app.respondJSON(w, http.StatusOK, map[string]interface{}{"rooms": roomInfos})
+}
+
+// handleGuestLogin 處理遊客登入請求
+func (app *GameApp) handleGuestLogin(w http.ResponseWriter, r *http.Request) {
+	// 只接受 POST 請求
+	if r.Method != http.MethodPost {
+		app.respondError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	ctx := r.Context()
+
+	// 調用 AccountUsecase 創建遊客用戶並生成 token
+	token, err := app.accountUsecase.GuestLogin(ctx)
+	if err != nil {
+		app.logger.Errorf("Failed to create guest user: %v", err)
+		app.respondError(w, http.StatusInternalServerError, "Failed to create guest account")
+		return
+	}
+
+	// 返回 token 給客戶端
+	app.respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"token":   token,
+		"message": "Guest login successful",
+	})
 }
 
 

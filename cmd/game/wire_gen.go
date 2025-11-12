@@ -8,6 +8,7 @@ package main
 
 import (
 	"github.com/b7777777v/fish_server/internal/app/game"
+	"github.com/b7777777v/fish_server/internal/biz/account"
 	game2 "github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/conf"
@@ -49,10 +50,14 @@ func initApp(config *conf.Config) (*game.GameApp, func(), error) {
 	jwt := config.JWT
 	tokenHelper := token.NewTokenHelper(jwt)
 	playerUsecase := player.NewPlayerUsecase(playerPlayerRepo, tokenHelper, sugaredLogger)
+	postgresClient := data.ProvidePostgresClient(dataData)
+	accountRepo := data.NewAccountRepo(postgresClient)
+	oauthService := account.NewOAuthService()
+	accountUsecase := account.NewAccountUsecase(accountRepo, tokenHelper, oauthService)
 	hub := game.NewHub(gameUsecase, playerUsecase, sugaredLogger)
-	webSocketHandler := game.NewWebSocketHandler(hub, sugaredLogger)
+	webSocketHandler := game.NewWebSocketHandler(hub, tokenHelper, accountUsecase, sugaredLogger)
 	messageHandler := game.NewMessageHandler(gameUsecase, hub, sugaredLogger)
-	gameApp := game.NewGameApp(gameUsecase, config, sugaredLogger, hub, webSocketHandler, messageHandler)
+	gameApp := game.NewGameApp(gameUsecase, accountUsecase, config, sugaredLogger, hub, webSocketHandler, messageHandler)
 	return gameApp, func() {
 		cleanup2()
 		cleanup()

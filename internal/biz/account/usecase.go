@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -231,5 +232,5 @@ func (uc *accountUsecase) UpdateUser(ctx context.Context, userID int64, nickname
 
 // generateGuestID 生成遊客 ID（使用納秒級時間戳）
 func generateGuestID() int64 {
-	return 1000000000 + (int64(1) << 32) // 簡單示例，實際應該使用更複雜的生成邏輯
+	return time.Now().UnixNano() / 1000000 // 毫秒級時間戳
 }
