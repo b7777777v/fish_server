@@ -263,6 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (playerInfoPanel) playerInfoPanel.style.display = 'block';
             if (roomListPanel) roomListPanel.style.display = 'block';
             if (cannonSelectorPanel) cannonSelectorPanel.style.display = 'block';
+            if (seatSelectionPanel) seatSelectionPanel.style.display = 'block';
 
             // 啟動遊戲渲染器
             if (window.gameRenderer) {
@@ -354,6 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (playerInfoPanel) playerInfoPanel.style.display = 'none';
             if (roomListPanel) roomListPanel.style.display = 'none';
             if (cannonSelectorPanel) cannonSelectorPanel.style.display = 'none';
+            if (seatSelectionPanel) seatSelectionPanel.style.display = 'none';
 
             // 停止遊戲渲染器
             if (window.gameRenderer) {
@@ -538,6 +540,10 @@ document.addEventListener('DOMContentLoaded', () => {
             case MessageType.FISH_SPAWNED:
                 const fishSpawnedEvent = gameMessage.getFishSpawned();
                 log(`🐟 新魚出現: ID=${fishSpawnedEvent.getFishId()}, 類型=${fishSpawnedEvent.getFishType()}`);
+                break;
+            case MessageType.SELECT_SEAT_RESPONSE:
+                const selectSeatResp = gameMessage.getSelectSeatResponse();
+                handleSelectSeatResponse(selectSeatResp);
                 break;
             // 在這裡添加更多 case 來處理其他消息類型
             default:
@@ -872,6 +878,84 @@ document.addEventListener('DOMContentLoaded', () => {
             sendMessage(gameMessage);
 
             log(`🔧 切換砲台: Type ${cannonType}, Level ${cannonLevel}, Power ${power}`, 'system');
+        });
+    }
+
+    // --- 座位選擇事件監聽器 ---
+    if (seatButtons && seatButtons.length > 0) {
+        seatButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const seatId = parseInt(btn.getAttribute('data-seat'));
+                selectSeat(seatId);
+            });
+        });
+    }
+
+    /**
+     * 選擇座位函數
+     * @param {number} seatId - 座位 ID (0-3)
+     */
+    function selectSeat(seatId) {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            log('無法選擇座位：未連接到伺服器', 'error');
+            return;
+        }
+
+        const gameMessage = new proto.v1.GameMessage();
+        gameMessage.setType(MessageType.SELECT_SEAT);
+        const selectSeatReq = new proto.v1.SelectSeatRequest();
+        selectSeatReq.setSeatId(seatId);
+        gameMessage.setSelectSeat(selectSeatReq);
+        sendMessage(gameMessage);
+
+        log(`正在選擇座位 ${seatId + 1}...`, 'system');
+    }
+
+    /**
+     * 處理座位選擇響應
+     * @param {proto.v1.SelectSeatResponse} response - 座位選擇響應
+     */
+    function handleSelectSeatResponse(response) {
+        if (response.getSuccess()) {
+            const seatId = response.getSeatId();
+            currentSeat = seatId;
+            hasSelectedSeat = true;
+
+            log(`✅ 成功選擇座位 ${seatId + 1}`, 'system');
+
+            // 更新座位信息顯示
+            if (currentSeatInfo) currentSeatInfo.style.display = 'block';
+            if (currentSeatId) currentSeatId.textContent = `座位 ${seatId + 1}`;
+
+            // 更新座位按鈕狀態
+            updateSeatButtonStates(seatId);
+
+            // 啟用開火按鈕
+            if (fireBulletBtn) fireBulletBtn.disabled = false;
+            if (fireWarning) fireWarning.style.display = 'none';
+            if (fireTip) fireTip.style.display = 'block';
+        } else {
+            const errorMsg = response.getMessage() || '選擇座位失敗';
+            log(`❌ ${errorMsg}`, 'error');
+        }
+    }
+
+    /**
+     * 更新座位按鈕狀態
+     * @param {number} selectedSeatId - 已選擇的座位 ID
+     */
+    function updateSeatButtonStates(selectedSeatId) {
+        seatButtons.forEach((btn, index) => {
+            const seatId = parseInt(btn.getAttribute('data-seat'));
+            if (seatId === selectedSeatId) {
+                btn.style.background = '#007bff';
+                btn.querySelector('small').textContent = '已選擇';
+                btn.disabled = false;
+            } else {
+                btn.style.background = '#28a745';
+                btn.querySelector('small').textContent = '可用';
+                btn.disabled = false;
+            }
         });
     }
 

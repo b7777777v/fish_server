@@ -460,9 +460,8 @@ func (c *Client) handleMessageByType(gameMsg *pb.GameMessage) {
 		c.handleGetRoomList(gameMsg)
 	case pb.MessageType_HEARTBEAT:
 		c.handleHeartbeat(gameMsg)
-	// TODO: Uncomment after running `make proto` to regenerate protobuf code
-	// case pb.MessageType_SELECT_SEAT:
-	// 	c.handleSelectSeat(gameMsg)
+	case pb.MessageType_SELECT_SEAT:
+		c.handleSelectSeat(gameMsg)
 	default:
 		c.logger.Warnf("Unknown protobuf message type: %v", gameMsg.Type)
 		c.sendErrorPB(fmt.Sprintf("Unsupported message type: %v", gameMsg.Type))
@@ -652,23 +651,22 @@ func (c *Client) handleHeartbeat(msg *pb.GameMessage) {
 	c.sendProtobuf(responseMsg)
 }
 
-// TODO: Uncomment after running `make proto` to regenerate protobuf code
 // handleSelectSeat 處理選擇座位請求
-// func (c *Client) handleSelectSeat(msg *pb.GameMessage) {
-// 	if c.RoomID == "" {
-// 		c.sendErrorPB("Not in any room")
-// 		return
-// 	}
-//
-// 	// 轉發到房間處理
-// 	c.hub.gameAction <- &GameActionMessage{
-// 		Client:    c,
-// 		RoomID:    c.RoomID,
-// 		Action:    "select_seat",
-// 		Data:      msg,
-// 		Timestamp: time.Now(),
-// 	}
-// }
+func (c *Client) handleSelectSeat(msg *pb.GameMessage) {
+	if c.RoomID == "" {
+		c.sendErrorPB("Not in any room")
+		return
+	}
+
+	// 轉發到房間處理
+	c.hub.gameAction <- &GameActionMessage{
+		Client:    c,
+		RoomID:    c.RoomID,
+		Action:    "select_seat",
+		Data:      msg,
+		Timestamp: time.Now(),
+	}
+}
 
 // GetConnectionInfo 獲取連接信息
 func (c *Client) GetConnectionInfo() map[string]interface{} {
