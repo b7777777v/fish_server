@@ -37,12 +37,19 @@ set DB_PASSWORD=password
 set PGPASSWORD=%DB_PASSWORD%
 
 echo Step 1/4: Terminating existing connections...
-docker exec -i fish_server-postgres-1 psql -U %DB_USER% -d postgres << EOF
-SELECT pg_terminate_backend(pg_stat_activity.pid)
-FROM pg_stat_activity
-WHERE pg_stat_activity.datname = '%DB_NAME%'
-  AND pid <> pg_backend_pid();
-EOF
+
+REM Create temporary SQL file for terminating connections
+set TEMP_SQL=%TEMP%\terminate_connections_%RANDOM%.sql
+echo SELECT pg_terminate_backend(pg_stat_activity.pid) > "%TEMP_SQL%"
+echo FROM pg_stat_activity >> "%TEMP_SQL%"
+echo WHERE pg_stat_activity.datname = '%DB_NAME%' >> "%TEMP_SQL%"
+echo   AND pid ^<^> pg_backend_pid(); >> "%TEMP_SQL%"
+
+REM Execute the SQL
+docker exec -i fish_server-postgres-1 psql -U %DB_USER% -d postgres -f - < "%TEMP_SQL%" 2>nul
+
+REM Clean up temp file
+del "%TEMP_SQL%" 2>nul
 
 echo Successfully terminated connections
 echo.
