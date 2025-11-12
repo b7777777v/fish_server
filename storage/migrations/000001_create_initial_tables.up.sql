@@ -47,22 +47,36 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- 創建用戶表的約束
+-- 創建用戶表的約束（使用 DO 語句確保冪等性）
 -- 約束：第三方登入的使用者必須有 provider 和 id
-ALTER TABLE users ADD CONSTRAINT check_third_party
-    CHECK (
-        (third_party_provider IS NULL AND third_party_id IS NULL) OR
-        (third_party_provider IS NOT NULL AND third_party_id IS NOT NULL)
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'check_third_party'
+    ) THEN
+        ALTER TABLE users ADD CONSTRAINT check_third_party
+            CHECK (
+                (third_party_provider IS NULL AND third_party_id IS NULL) OR
+                (third_party_provider IS NOT NULL AND third_party_id IS NOT NULL)
+            );
+    END IF;
+END $$;
 
 -- 約束：一般註冊的使用者必須有 username 和 password_hash
-ALTER TABLE users ADD CONSTRAINT check_regular_user
-    CHECK (
-        is_guest = TRUE OR
-        (username IS NOT NULL AND password_hash IS NOT NULL)
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'check_regular_user'
+    ) THEN
+        ALTER TABLE users ADD CONSTRAINT check_regular_user
+            CHECK (
+                is_guest = TRUE OR
+                (username IS NOT NULL AND password_hash IS NOT NULL)
+            );
+    END IF;
+END $$;
 
--- 創建更新時間觸發器
+-- 創建更新時間觸發器（使用 OR REPLACE 確保冪等性）
 CREATE OR REPLACE FUNCTION update_users_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -71,6 +85,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- 創建觸發器（先刪除如果存在，確保冪等性）
+DROP TRIGGER IF EXISTS trigger_update_users_updated_at ON users;
 CREATE TRIGGER trigger_update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
