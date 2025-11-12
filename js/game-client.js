@@ -754,48 +754,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 新增：畫布點擊開火功能
-    const canvas = document.getElementById('gameCanvas');
-    if (canvas) {
-        canvas.addEventListener('click', (e) => {
-            if (!socket || socket.readyState !== WebSocket.OPEN) {
-                return;
-            }
-
-            // 獲取點擊位置相對於畫布的座標
-            const rect = canvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
-
-            // 獲取當前玩家的砲台位置
-            const currentPlayerId = playerIdInput.value;
-            let cannonPosition = { x: 600, y: 750 }; // 默認位置
-            let cannonAngle = -Math.PI / 2;
-
-            if (window.gameRenderer && gameRenderer.players.has(currentPlayerId)) {
-                const barrelEnd = gameRenderer.getBarrelEndPosition(currentPlayerId);
-                if (barrelEnd) {
-                    cannonPosition = { x: barrelEnd.x, y: barrelEnd.y };
-                    // 計算從砲台到點擊位置的角度
-                    cannonAngle = Math.atan2(clickY - barrelEnd.y, clickX - barrelEnd.x);
-                }
-            }
-
-            // 發送開火請求
-            const gameMessage = new proto.v1.GameMessage();
-            gameMessage.setType(MessageType.FIRE_BULLET);
-            const fireBulletReq = new proto.v1.FireBulletRequest();
-            fireBulletReq.setDirection(cannonAngle);
-            fireBulletReq.setPower(parseInt(cannonPowerSlider?.value || 50));
-            const position = new proto.v1.Position();
-            position.setX(cannonPosition.x);
-            position.setY(cannonPosition.y);
-            fireBulletReq.setPosition(position);
-            gameMessage.setFireBullet(fireBulletReq);
-            sendMessage(gameMessage);
-        });
-    }
-
     // 初始化統計顯示
     updateStats();
     log('🚀 遊戲客戶端已載入，準備連接...', 'system');

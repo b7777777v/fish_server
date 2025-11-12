@@ -212,14 +212,14 @@ func (gu *GameUsecase) GetRoomList(ctx context.Context, roomType RoomType) ([]*R
 // ========================================
 
 // FireBullet 玩家開火
-func (gu *GameUsecase) FireBullet(ctx context.Context, roomID string, playerID int64, direction float64, power int32) (*Bullet, error) {
+func (gu *GameUsecase) FireBullet(ctx context.Context, roomID string, playerID int64, direction float64, power int32, position Position) (*Bullet, error) {
 	// 檢查參數
 	if power < 1 || power > 100 {
 		return nil, fmt.Errorf("invalid bullet power: %d", power)
 	}
-	
+
 	// 發射子彈
-	bullet, err := gu.roomManager.FireBullet(roomID, playerID, direction, power)
+	bullet, err := gu.roomManager.FireBullet(roomID, playerID, direction, power, position)
 	if err != nil {
 		gu.logger.Errorf("Failed to fire bullet: %v", err)
 		return nil, err

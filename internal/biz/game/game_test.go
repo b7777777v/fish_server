@@ -222,7 +222,7 @@ func TestGameFlowWithRTP(t *testing.T) {
 	assert.NoError(t, err)
 
 	// 2. Fire a bullet
-	bullet, err := te.gameUsecase.FireBullet(te.ctx, room.ID, playerID, 1.0, 10)
+	bullet, err := te.gameUsecase.FireBullet(te.ctx, room.ID, playerID, 1.0, 10, Position{X: 600, Y: 750})
 	assert.NoError(t, err)
 
 	// Check that the bet was recorded
@@ -257,7 +257,7 @@ func TestGameFlowWithRTP(t *testing.T) {
 		}
 		// If first attempt fails, create a new bullet for next attempt
 		if i < 9 {
-			bullet, err = te.gameUsecase.FireBullet(te.ctx, room.ID, playerID, 1.0, 10)
+			bullet, err = te.gameUsecase.FireBullet(te.ctx, room.ID, playerID, 1.0, 10, Position{X: 600, Y: 750})
 			assert.NoError(t, err)
 		}
 	}

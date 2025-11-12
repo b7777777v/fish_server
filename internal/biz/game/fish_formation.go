@@ -33,6 +33,7 @@ type FishRoute struct {
 	Type        FishRouteType       `json:"type"`        // 路線類型
 	Difficulty  float64             `json:"difficulty"`  // 難度係數 (0.5-2.0)
 	Looping     bool                `json:"looping"`     // 是否循環
+	Smooth      bool                `json:"smooth"`      // 是否使用平滑插值（Catmull-Rom樣條）
 	CreatedAt   time.Time          `json:"created_at"`
 }
 
@@ -537,15 +538,36 @@ func (fm *FishFormationManager) calculateRouteLength(route *FishRoute) float64 {
 	return totalLength
 }
 
+// catmullRomSpline 計算 Catmull-Rom 樣條插值
+// t: 插值參數 (0-1)
+// p0, p1, p2, p3: 四個控制點
+func catmullRomSpline(t float64, p0, p1, p2, p3 Position) Position {
+	t2 := t * t
+	t3 := t2 * t
+
+	// Catmull-Rom 基函數
+	x := 0.5 * ((2 * p1.X) +
+		(-p0.X + p2.X) * t +
+		(2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2 +
+		(-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3)
+
+	y := 0.5 * ((2 * p1.Y) +
+		(-p0.Y + p2.Y) * t +
+		(2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2 +
+		(-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3)
+
+	return Position{X: x, Y: y}
+}
+
 func (fm *FishFormationManager) interpolateRoutePosition(route *FishRoute, progress float64) Position {
 	if len(route.Points) == 0 {
 		return Position{X: 0, Y: 0}
 	}
-	
+
 	if len(route.Points) == 1 {
 		return route.Points[0]
 	}
-	
+
 	// 限制進度範圍
 	if progress < 0 {
 		progress = 0
@@ -553,20 +575,25 @@ func (fm *FishFormationManager) interpolateRoutePosition(route *FishRoute, progr
 	if progress > 1 {
 		progress = 1
 	}
-	
-	// 計算總長度和當前位置
+
+	// 如果啟用平滑插值且點數足夠，使用 Catmull-Rom 樣條
+	if route.Smooth && len(route.Points) >= 3 {
+		return fm.interpolateSmoothRoute(route, progress)
+	}
+
+	// 否則使用線性插值
 	totalLength := fm.calculateRouteLength(route)
 	targetDistance := progress * totalLength
-	
+
 	currentDistance := 0.0
 	for i := 1; i < len(route.Points); i++ {
 		segmentStart := route.Points[i-1]
 		segmentEnd := route.Points[i]
-		
+
 		dx := segmentEnd.X - segmentStart.X
 		dy := segmentEnd.Y - segmentStart.Y
 		segmentLength := math.Sqrt(dx*dx + dy*dy)
-		
+
 		if currentDistance+segmentLength >= targetDistance {
 			// 在這個線段內
 			segmentProgress := (targetDistance - currentDistance) / segmentLength
@@ -575,10 +602,89 @@ func (fm *FishFormationManager) interpolateRoutePosition(route *FishRoute, progr
 				Y: segmentStart.Y + dy*segmentProgress,
 			}
 		}
-		
+
 		currentDistance += segmentLength
 	}
-	
+
 	// 如果超出範圍，返回最後一個點
+	return route.Points[len(route.Points)-1]
+}
+
+// interpolateSmoothRoute 使用 Catmull-Rom 樣條進行平滑插值
+func (fm *FishFormationManager) interpolateSmoothRoute(route *FishRoute, progress float64) Position {
+	points := route.Points
+	n := len(points)
+
+	if n < 3 {
+		return fm.interpolateLinearRoute(route, progress)
+	}
+
+	// 計算應該在哪個線段上
+	segmentProgress := progress * float64(n-1)
+	segmentIndex := int(segmentProgress)
+
+	if segmentIndex >= n-1 {
+		return points[n-1]
+	}
+
+	t := segmentProgress - float64(segmentIndex)
+
+	// 獲取四個控制點
+	var p0, p1, p2, p3 Position
+
+	// p1 和 p2 是當前線段的兩個端點
+	p1 = points[segmentIndex]
+	p2 = points[segmentIndex+1]
+
+	// p0 是前一個點（如果存在）
+	if segmentIndex > 0 {
+		p0 = points[segmentIndex-1]
+	} else {
+		// 外推第一個點
+		p0 = Position{
+			X: 2*p1.X - p2.X,
+			Y: 2*p1.Y - p2.Y,
+		}
+	}
+
+	// p3 是後一個點（如果存在）
+	if segmentIndex+2 < n {
+		p3 = points[segmentIndex+2]
+	} else {
+		// 外推最後一個點
+		p3 = Position{
+			X: 2*p2.X - p1.X,
+			Y: 2*p2.Y - p1.Y,
+		}
+	}
+
+	return catmullRomSpline(t, p0, p1, p2, p3)
+}
+
+// interpolateLinearRoute 使用線性插值（原始方法）
+func (fm *FishFormationManager) interpolateLinearRoute(route *FishRoute, progress float64) Position {
+	totalLength := fm.calculateRouteLength(route)
+	targetDistance := progress * totalLength
+
+	currentDistance := 0.0
+	for i := 1; i < len(route.Points); i++ {
+		segmentStart := route.Points[i-1]
+		segmentEnd := route.Points[i]
+
+		dx := segmentEnd.X - segmentStart.X
+		dy := segmentEnd.Y - segmentStart.Y
+		segmentLength := math.Sqrt(dx*dx + dy*dy)
+
+		if currentDistance+segmentLength >= targetDistance {
+			segmentProgress := (targetDistance - currentDistance) / segmentLength
+			return Position{
+				X: segmentStart.X + dx*segmentProgress,
+				Y: segmentStart.Y + dy*segmentProgress,
+			}
+		}
+
+		currentDistance += segmentLength
+	}
+
 	return route.Points[len(route.Points)-1]
 }
