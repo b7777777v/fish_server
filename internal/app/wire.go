@@ -5,7 +5,6 @@ import (
 	"github.com/b7777777v/fish_server/internal/app/admin"
 	"github.com/b7777777v/fish_server/internal/app/game"
 	"github.com/b7777777v/fish_server/internal/biz"
-	"github.com/b7777777v/fish_server/internal/biz/account"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/data"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
@@ -29,7 +28,4 @@ var AdminProviderSet = wire.NewSet(
 	admin.ProviderSet,
 	game.ProviderSet,
 	token.ProviderSet,
-
-	// Bind TokenHelper to TokenService interface
-	wire.Bind(new(account.TokenService), new(*token.TokenHelper)),
 )
