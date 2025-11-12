@@ -605,11 +605,17 @@ func (rm *RoomManager) updateBullets(deltaTime float64) {
 
 // syncFishesFromBizLayer 從業務邏輯層同步魚類數據
 func (rm *RoomManager) syncFishesFromBizLayer() {
+	// 檢查 businessRoomID 是否已設置
+	if rm.businessRoomID == "" {
+		// 業務邏輯層房間尚未創建，跳過同步
+		return
+	}
+
 	// 從業務邏輯層獲取房間數據
 	ctx := context.Background()
 	room, err := rm.gameUsecase.GetRoom(ctx, rm.businessRoomID)
 	if err != nil {
-		rm.logger.Debugf("Cannot sync fishes from biz layer: %v", err)
+		rm.logger.Errorf("Cannot sync fishes from biz layer (room: %s): %v", rm.businessRoomID, err)
 		return
 	}
 
@@ -632,7 +638,22 @@ func (rm *RoomManager) syncFishesFromBizLayer() {
 		}
 	}
 
-	rm.logger.Debugf("Synced %d fishes from biz layer to WebSocket layer", len(rm.gameState.Fishes))
+	if len(rm.gameState.Fishes) > 0 {
+		rm.logger.Debugf("Synced %d fishes from biz layer (room: %s) to WebSocket layer",
+			len(rm.gameState.Fishes), rm.businessRoomID)
+
+		// 记录前几条鱼的位置用于调试
+		count := 0
+		for _, fish := range rm.gameState.Fishes {
+			if count < 3 {
+				rm.logger.Debugf("  Fish[%d]: ID=%d, Pos=(%.1f, %.1f), Type=%d",
+					count, fish.ID, fish.Position.X, fish.Position.Y, fish.Type)
+				count++
+			} else {
+				break
+			}
+		}
+	}
 }
 
 // updateFishes 更新魚類位置（已廢棄，由業務邏輯層處理）
@@ -756,23 +777,22 @@ func (rm *RoomManager) startGame() {
 	rm.logger.Infof("Game state changed to 'playing' for room: %s", rm.roomID)
 	rm.logger.Infof("Ticker should start working now. Status: %s", rm.gameState.Status)
 
-	// 非阻塞地創建業務邏輯層的房間
+	// 同步創建業務邏輯層的房間（不能異步，否則 syncFishesFromBizLayer 會失敗）
 	// 注意：業務邏輯層的房間 ID 和 WebSocket 房間 ID 不同
-	// 創建業務邏輯房間並保存其 ID
-	go func() {
+	if rm.businessRoomID == "" {
 		createdRoom, err := rm.gameUsecase.CreateRoom(rm.ctx, game.RoomTypeNovice, 4)
 		if err != nil {
-			rm.logger.Errorf("Failed to create game room: %v", err)
+			rm.logger.Errorf("Failed to create business logic room: %v", err)
 		} else {
 			rm.businessRoomID = createdRoom.ID
 			rm.logger.Infof("Successfully created business logic room: %s for WebSocket room: %s",
 				createdRoom.ID, rm.roomID)
 		}
-	}()
+	}
 
 	// 不再發送 game_started JSON 事件，前端已經通過 ROOM_STATE_UPDATE 知道遊戲狀態
 
-	rm.logger.Infof("Game started in room: %s", rm.roomID)
+	rm.logger.Infof("Game started in room: %s (business room: %s)", rm.roomID, rm.businessRoomID)
 }
 
 // pauseGame 暫停遊戲
@@ -866,6 +886,10 @@ func (rm *RoomManager) sendGameStateProtobufToClient(client *Client) {
 
 // broadcastGameStateProtobuf 使用 Protobuf 格式廣播遊戲狀態
 func (rm *RoomManager) broadcastGameStateProtobuf() {
+	// 記錄廣播前的狀態
+	rm.logger.Debugf("Broadcasting game state: %d fishes, %d bullets, %d clients",
+		len(rm.gameState.Fishes), len(rm.gameState.Bullets), len(rm.clients))
+
 	// 轉換魚類信息到 Protobuf 格式
 	var fishInfos []*pb.FishInfo
 	for _, fish := range rm.gameState.Fishes {
