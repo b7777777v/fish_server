@@ -63,6 +63,7 @@ type RoomManager struct {
 type GameState struct {
 	RoomID        string                 `json:"room_id"`
 	Status        string                 `json:"status"` // waiting, playing, paused
+	MaxPlayers    int                    `json:"max_players"` // 最大玩家數（座位數）
 	Players       map[string]*PlayerInfo `json:"players"`
 	Fishes        map[int64]*FishInfo    `json:"fishes"`
 	Bullets       map[int64]*BulletInfo  `json:"bullets"`
@@ -128,6 +129,9 @@ type CannonInfo struct {
 func NewRoomManager(roomID string, gameUsecase *game.GameUsecase, hub *Hub, logger logger.Logger) *RoomManager {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// 默認座位數，如果無法獲取房間配置則使用此值
+	maxPlayers := 4
+
 	return &RoomManager{
 		roomID:         roomID,
 		clients:        make(map[*Client]bool),
@@ -138,7 +142,7 @@ func NewRoomManager(roomID string, gameUsecase *game.GameUsecase, hub *Hub, logg
 		addClient:      make(chan *Client, 10),            // 添加緩衝區避免阻塞
 		removeClient:   make(chan *Client, 10),            // 添加緩衝區避免阻塞
 		gameAction:     make(chan *GameActionMessage, 100), // 添加緩衝區避免阻塞
-		gameState:      NewGameState(roomID),
+		gameState:      NewGameState(roomID, maxPlayers),
 		logger:         logger.With("component", "room_manager", "room_id", roomID),
 		ctx:            ctx,
 		cancel:         cancel,
@@ -146,10 +150,11 @@ func NewRoomManager(roomID string, gameUsecase *game.GameUsecase, hub *Hub, logg
 }
 
 // NewGameState 創建新的遊戲狀態
-func NewGameState(roomID string) *GameState {
+func NewGameState(roomID string, maxPlayers int) *GameState {
 	return &GameState{
 		RoomID:        roomID,
 		Status:        "waiting",
+		MaxPlayers:    maxPlayers,
 		Players:       make(map[string]*PlayerInfo),
 		Fishes:        make(map[int64]*FishInfo),
 		Bullets:       make(map[int64]*BulletInfo),
@@ -571,9 +576,10 @@ func (rm *RoomManager) handleSelectSeat(action *GameActionMessage) {
 
 	requestedSeatID := selectData.SeatId
 
-	// 驗證座位 ID 範圍 (0-3)
-	if requestedSeatID < 0 || requestedSeatID > 3 {
-		client.sendError("Invalid seat ID, must be between 0 and 3")
+	// 驗證座位 ID 範圍（根據房間配置動態驗證）
+	maxSeatID := int32(rm.gameState.MaxPlayers - 1)
+	if requestedSeatID < 0 || requestedSeatID > maxSeatID {
+		client.sendError(fmt.Sprintf("Invalid seat ID, must be between 0 and %d", maxSeatID))
 		return
 	}
 
