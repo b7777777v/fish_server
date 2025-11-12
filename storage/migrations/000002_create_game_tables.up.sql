@@ -36,10 +36,10 @@ CREATE TABLE IF NOT EXISTS game_events (
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- 為新表創建索引
-CREATE INDEX idx_rooms_type ON rooms(type);
-CREATE INDEX idx_game_statistics_user_id ON game_statistics(user_id);
-CREATE INDEX idx_game_events_room_id ON game_events(room_id);
-CREATE INDEX idx_game_events_user_id ON game_events(user_id);
-CREATE INDEX idx_game_events_event_type ON game_events(event_type);
-CREATE INDEX idx_game_events_timestamp ON game_events(timestamp);
+-- 為新表創建索引（使用 IF NOT EXISTS 確保冪等性）
+CREATE INDEX IF NOT EXISTS idx_rooms_type ON rooms(type);
+CREATE INDEX IF NOT EXISTS idx_game_statistics_user_id ON game_statistics(user_id);
+CREATE INDEX IF NOT EXISTS idx_game_events_room_id ON game_events(room_id);
+CREATE INDEX IF NOT EXISTS idx_game_events_user_id ON game_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_game_events_event_type ON game_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_game_events_timestamp ON game_events(timestamp);

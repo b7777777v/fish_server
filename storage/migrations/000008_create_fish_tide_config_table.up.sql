@@ -17,10 +17,10 @@ CREATE TABLE IF NOT EXISTS fish_tide_config (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- 創建索引
-CREATE INDEX idx_fish_tide_config_is_active ON fish_tide_config(is_active);
-CREATE INDEX idx_fish_tide_config_fish_type ON fish_tide_config(fish_type_id);
-CREATE INDEX idx_fish_tide_config_trigger_rule ON fish_tide_config(trigger_rule);
+-- 創建索引（使用 IF NOT EXISTS 確保冪等性）
+CREATE INDEX IF NOT EXISTS idx_fish_tide_config_is_active ON fish_tide_config(is_active);
+CREATE INDEX IF NOT EXISTS idx_fish_tide_config_fish_type ON fish_tide_config(fish_type_id);
+CREATE INDEX IF NOT EXISTS idx_fish_tide_config_trigger_rule ON fish_tide_config(trigger_rule);
 
 -- 添加外鍵約束（關聯到 fish_types 表）
 ALTER TABLE fish_tide_config

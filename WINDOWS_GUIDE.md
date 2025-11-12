@@ -196,9 +196,8 @@ go mod tidy
 |---------|--------------|-------------------|------|
 | 啟動數據庫 | `scripts\start-database.bat` | `.\scripts\start-database.ps1` | 啟動 PostgreSQL 和 Redis |
 | 停止數據庫 | `scripts\stop-database.bat` | - | 停止所有數據庫服務 |
+| **重置數據庫** | `scripts\reset-database.bat` | `.\scripts\reset-database.ps1` | **完全重置數據庫（推薦）** |
 | 運行遷移 | `scripts\run-migration.bat [命令]` | `.\scripts\run-migration.ps1 [命令]` | 執行數據庫遷移 |
-| 修復 Dirty Migration | `scripts\fix-dirty-migration.bat [版本]` | `.\scripts\fix-dirty-migration.ps1 -Version [版本]` | 修復損壞的遷移 |
-| 清理部分遷移 | `scripts\cleanup-migration-6.bat` | `.\scripts\cleanup-migration-6.ps1` | 清理部分應用的 migration 6 |
 
 ## 🔍 常見問題
 
@@ -240,21 +239,19 @@ go run cmd/migrator/main.go
 
 但在 Go 代碼中和 Git Bash 中可以使用正斜線 `/`。
 
-### Q: 遇到 "relation idx_users_username already exists" 錯誤
+### Q: 遇到任何遷移錯誤（包括 "already exists" 等）
 
-**A:** 這表示 migration 6 部分執行了。請參考 [FIX_PARTIAL_MIGRATION.md](FIX_PARTIAL_MIGRATION.md) 獲取詳細的修復步驟。
+**A:** 最簡單的解決方案是完全重置數據庫。
 
-快速修復：
 ```cmd
-REM 1. 清理部分應用的更改
-scripts\cleanup-migration-6.bat
+REM 使用重置腳本（推薦）
+scripts\reset-database.bat
 
-REM 2. 強制版本到 5
-go run cmd\migrator\main.go force 5
-
-REM 3. 重新應用遷移
-go run cmd\migrator\main.go up
+REM 或使用 PowerShell
+.\scripts\reset-database.ps1
 ```
+
+這會刪除並重建整個數據庫，解決所有遷移問題。詳見 [DATABASE_MANAGEMENT.md](DATABASE_MANAGEMENT.md)
 
 ### Q: 資料庫連接失敗
 

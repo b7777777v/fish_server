@@ -14,11 +14,11 @@ CREATE TABLE IF NOT EXISTS announcements (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- 創建索引
-CREATE INDEX idx_announcements_is_active ON announcements(is_active);
-CREATE INDEX idx_announcements_priority ON announcements(priority DESC);
-CREATE INDEX idx_announcements_time_range ON announcements(start_time, end_time);
-CREATE INDEX idx_announcements_created_at ON announcements(created_at DESC);
+-- 創建索引（使用 IF NOT EXISTS 確保冪等性）
+CREATE INDEX IF NOT EXISTS idx_announcements_is_active ON announcements(is_active);
+CREATE INDEX IF NOT EXISTS idx_announcements_priority ON announcements(priority DESC);
+CREATE INDEX IF NOT EXISTS idx_announcements_time_range ON announcements(start_time, end_time);
+CREATE INDEX IF NOT EXISTS idx_announcements_created_at ON announcements(created_at DESC);
 
 -- 創建更新時間觸發器
 CREATE OR REPLACE FUNCTION update_announcements_updated_at()

@@ -21,9 +21,9 @@ CREATE TABLE IF NOT EXISTS room_configs (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- 创建索引
-CREATE INDEX idx_room_configs_room_type ON room_configs(room_type);
-CREATE INDEX idx_room_configs_is_active ON room_configs(is_active);
+-- 创建索引（使用 IF NOT EXISTS 確保冪等性）
+CREATE INDEX IF NOT EXISTS idx_room_configs_room_type ON room_configs(room_type);
+CREATE INDEX IF NOT EXISTS idx_room_configs_is_active ON room_configs(is_active);
 
 -- 创建更新时间触发器
 CREATE OR REPLACE FUNCTION update_room_configs_updated_at()
