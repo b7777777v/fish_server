@@ -736,26 +736,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.getElementById('gameCanvas');
         if (canvas) {
             canvas.addEventListener('mousemove', (event) => {
+                // 🔧 只有在玩家已加入渲染器時才更新角度（即已選擇座位）
                 if (window.gameRenderer && gameRenderer.isRunning && gameRenderer.currentPlayerId) {
-                    const rect = canvas.getBoundingClientRect();
-                    const mouseX = event.clientX - rect.left;
-                    const mouseY = event.clientY - rect.top;
-                    gameRenderer.updateCannonAngle(gameRenderer.currentPlayerId, mouseX, mouseY);
+                    const player = gameRenderer.players.get(gameRenderer.currentPlayerId);
+                    if (player) {
+                        const rect = canvas.getBoundingClientRect();
+                        const mouseX = event.clientX - rect.left;
+                        const mouseY = event.clientY - rect.top;
+                        gameRenderer.updateCannonAngle(gameRenderer.currentPlayerId, mouseX, mouseY);
+                    }
                 }
             });
 
             // 添加點擊事件：點擊發射子彈
             canvas.addEventListener('click', (event) => {
                 if (window.gameRenderer && gameRenderer.isRunning && gameRenderer.currentPlayerId) {
-                    const rect = canvas.getBoundingClientRect();
-                    const clickX = event.clientX - rect.left;
-                    const clickY = event.clientY - rect.top;
-                    console.log(`[Renderer] Canvas clicked at (${clickX}, ${clickY}) - triggering fire`);
+                    const player = gameRenderer.players.get(gameRenderer.currentPlayerId);
+                    if (player) {
+                        const rect = canvas.getBoundingClientRect();
+                        const clickX = event.clientX - rect.left;
+                        const clickY = event.clientY - rect.top;
+                        console.log(`[Renderer] Canvas clicked at (${clickX}, ${clickY}) - triggering fire`);
 
-                    // 觸發開火按鈕點擊事件
-                    const fireBulletBtn = document.getElementById('fireBulletBtn');
-                    if (fireBulletBtn) {
-                        fireBulletBtn.click();
+                        // 觸發開火按鈕點擊事件
+                        const fireBulletBtn = document.getElementById('fireBulletBtn');
+                        if (fireBulletBtn && !fireBulletBtn.disabled) {
+                            fireBulletBtn.click();
+                        } else {
+                            console.log('[Renderer] Fire button disabled - please select a seat first');
+                        }
+                    } else {
+                        console.log('[Renderer] Player not in renderer - please select a seat first');
                     }
                 }
             });
