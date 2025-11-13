@@ -20,7 +20,13 @@ var ProviderSet = wire.NewSet(
 	// Account module providers
 	account.NewAccountUsecase,
 	account.NewOAuthService,
+	ProvideWalletCreator, // 提供 WalletCreator 給 AccountUsecase
 
 	// Lobby module providers
 	lobby.NewLobbyUsecase,
 )
+
+// ProvideWalletCreator 將 WalletUsecase 轉換為 WalletCreator 介面
+func ProvideWalletCreator(uc *wallet.WalletUsecase) account.WalletCreator {
+	return account.NewWalletCreatorFromUsecase(uc)
+}

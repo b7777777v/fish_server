@@ -53,19 +53,34 @@ type TokenService interface {
 	GenerateTokenWithClaims(userID int64, isGuest bool) (string, error)
 }
 
+// WalletCreator 定義錢包創建服務介面
+type WalletCreator interface {
+	CreateWallet(ctx context.Context, userID uint, currency string) (*WalletInfo, error)
+}
+
+// WalletInfo 錢包基本信息
+type WalletInfo struct {
+	ID       uint
+	UserID   uint
+	Balance  float64
+	Currency string
+}
+
 // accountUsecase 實現 AccountUsecase 介面
 type accountUsecase struct {
-	repo         AccountRepo
-	tokenService TokenService
-	oauthService OAuthService
+	repo          AccountRepo
+	tokenService  TokenService
+	oauthService  OAuthService
+	walletCreator WalletCreator
 }
 
 // NewAccountUsecase 建立新的 AccountUsecase 實例
-func NewAccountUsecase(repo AccountRepo, tokenService TokenService, oauthService OAuthService) AccountUsecase {
+func NewAccountUsecase(repo AccountRepo, tokenService TokenService, oauthService OAuthService, walletCreator WalletCreator) AccountUsecase {
 	return &accountUsecase{
-		repo:         repo,
-		tokenService: tokenService,
-		oauthService: oauthService,
+		repo:          repo,
+		tokenService:  tokenService,
+		oauthService:  oauthService,
+		walletCreator: walletCreator,
 	}
 }
 
@@ -96,6 +111,16 @@ func (uc *accountUsecase) Register(ctx context.Context, username, password strin
 	createdUser, err := uc.repo.CreateUser(ctx, user, string(passwordHash))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	// 自動創建初始錢包（CNY幣種）
+	if uc.walletCreator != nil {
+		_, err = uc.walletCreator.CreateWallet(ctx, uint(createdUser.ID), "CNY")
+		if err != nil {
+			// 錢包創建失敗記錄錯誤，但不影響註冊流程
+			// TODO: 可以考慮使用消息隊列異步創建
+			fmt.Printf("Warning: failed to create initial wallet for user %d: %v\n", createdUser.ID, err)
+		}
 	}
 
 	return createdUser, nil
@@ -233,4 +258,22 @@ func (uc *accountUsecase) UpdateUser(ctx context.Context, userID int64, nickname
 // generateGuestID 生成遊客 ID（使用納秒級時間戳）
 func generateGuestID() int64 {
 	return time.Now().UnixNano() / 1000000 // 毫秒級時間戳
+}
+
+// walletCreatorAdapter 是 WalletCreator 介面的適配器
+type walletCreatorAdapter struct {
+	createWalletFunc func(ctx context.Context, userID uint, currency string) (*WalletInfo, error)
+}
+
+func (a *walletCreatorAdapter) CreateWallet(ctx context.Context, userID uint, currency string) (*WalletInfo, error) {
+	return a.createWalletFunc(ctx, userID, currency)
+}
+
+// NewWalletCreatorFromUsecase 創建 WalletCreator 適配器（用於 Wire 依賴注入）
+func NewWalletCreatorFromUsecase(uc interface {
+	CreateWalletSimple(ctx context.Context, userID uint, currency string) (*WalletInfo, error)
+}) WalletCreator {
+	return &walletCreatorAdapter{
+		createWalletFunc: uc.CreateWalletSimple,
+	}
 }

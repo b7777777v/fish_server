@@ -31,12 +31,18 @@ func (uc *WalletUsecase) GetWalletByUserID(ctx context.Context, userID uint, cur
 	return uc.repo.FindByUserID(ctx, userID, currency)
 }
 
+// GetWalletsByUserID 根據用戶ID獲取所有錢包
+func (uc *WalletUsecase) GetWalletsByUserID(ctx context.Context, userID uint) ([]*Wallet, error) {
+	return uc.repo.FindAllByUserID(ctx, userID)
+}
+
 // CreateWallet 創建錢包
 func (uc *WalletUsecase) CreateWallet(ctx context.Context, userID uint, currency string) (*Wallet, error) {
 	// 檢查用戶是否已有該幣種的錢包
 	existingWallet, err := uc.repo.FindByUserID(ctx, userID, currency)
 	if err == nil && existingWallet != nil {
 		// 用戶已有該幣種的錢包
+		uc.logger.Infof("User %d already has %s wallet", userID, currency)
 		return existingWallet, nil
 	}
 
@@ -54,7 +60,30 @@ func (uc *WalletUsecase) CreateWallet(ctx context.Context, userID uint, currency
 		return nil, err
 	}
 
+	uc.logger.Infof("Created initial %s wallet for user %d", currency, userID)
 	return wallet, nil
+}
+
+// CreateWalletSimple 創建錢包（簡化版本，用於適配 account 模塊）
+func (uc *WalletUsecase) CreateWalletSimple(ctx context.Context, userID uint, currency string) (*WalletInfo, error) {
+	wallet, err := uc.CreateWallet(ctx, userID, currency)
+	if err != nil {
+		return nil, err
+	}
+	return &WalletInfo{
+		ID:       wallet.ID,
+		UserID:   wallet.UserID,
+		Balance:  wallet.Balance,
+		Currency: wallet.Currency,
+	}, nil
+}
+
+// WalletInfo 錢包基本信息（用於跨模塊通信）
+type WalletInfo struct {
+	ID       uint
+	UserID   uint
+	Balance  float64
+	Currency string
 }
 
 // Deposit 存款
