@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>座位系統測試 - 多人捕魚遊戲</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a2e;
+            color: white;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+
+        .info-panel {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #4CAF50;
+        }
+
+        .info-panel h2 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+
+        .seat-layout {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 20px;
+            align-items: center;
+            margin: 30px 0;
+        }
+
+        .seat-card {
+            background: #0f3460;
+            border: 3px solid #4CAF50;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .seat-card:hover {
+            border-color: #FFD700;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+        }
+
+        .seat-card h3 {
+            margin-top: 0;
+            color: #FFD700;
+        }
+
+        .seat-info {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .arrow {
+            font-size: 48px;
+            color: #FFD700;
+        }
+
+        /* 座位佈局 */
+        .seat-top {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .seat-left {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .game-area {
+            grid-column: 2;
+            grid-row: 2;
+            background: #16213e;
+            border: 3px solid #4CAF50;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .seat-right {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        .seat-bottom {
+            grid-column: 2;
+            grid-row: 3;
+        }
+
+        .canvas-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        canvas {
+            border: 3px solid #4CAF50;
+            border-radius: 10px;
+            background: linear-gradient(to bottom, #1e3a8a 0%, #3b82f6 50%, #1e3a8a 100%);
+            cursor: crosshair;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .btn-secondary {
+            background: #607D8B;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #546E7A;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .stat-box {
+            background: #0f3460;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #FFD700;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .legend {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 2px solid #4CAF50;
+        }
+
+        .legend h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+
+        .legend-item {
+            display: inline-block;
+            margin: 5px 15px;
+        }
+
+        .legend-color {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 座位系統測試 - 4人捕魚遊戲</h1>
+
+        <div class="info-panel">
+            <h2>📋 座位系統說明</h2>
+            <p>這個測試頁面展示了多人捕魚遊戲的4個座位佈局系統：</p>
+            <ul>
+                <li><strong>座位 1（底部）：</strong>砲台向上發射（↑）- 默認玩家位置</li>
+                <li><strong>座位 2（頂部）：</strong>砲台向下發射（↓）- 適合上方玩家</li>
+                <li><strong>座位 3（左側）：</strong>砲台向右發射（→）- 適合左側玩家</li>
+                <li><strong>座位 4（右側）：</strong>砲台向左發射（←）- 適合右側玩家</li>
+            </ul>
+            <p><strong>✨ 特點：</strong>每個座位都有獨立的砲台方向，可以用滑鼠控制砲台角度，點擊畫布發射子彈（測試模式）。</p>
+        </div>
+
+        <div class="legend">
+            <h3>🎨 視覺圖例</h3>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #4CAF50;"></span>
+                <span>當前玩家砲台</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #607D8B;"></span>
+                <span>其他玩家砲台</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #FFD700;"></span>
+                <span>魚類（不同顏色代表不同類型）</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #FF6600;"></span>
+                <span>子彈</span>
+            </div>
+        </div>
+
+        <div class="seat-layout">
+            <!-- 頂部座位 -->
+            <div class="seat-card seat-top">
+                <h3>🪑 座位 2 - 頂部</h3>
+                <div class="arrow">↓</div>
+                <div class="seat-info">
+                    <strong>位置：</strong> 頂部中央<br>
+                    <strong>初始方向：</strong> 向下（90°）<br>
+                    <strong>玩家：</strong> player2
+                </div>
+            </div>
+
+            <!-- 左側座位 -->
+            <div class="seat-card seat-left">
+                <h3>🪑 座位 3 - 左側</h3>
+                <div class="arrow">→</div>
+                <div class="seat-info">
+                    <strong>位置：</strong> 左側中央<br>
+                    <strong>初始方向：</strong> 向右（0°）<br>
+                    <strong>玩家：</strong> player3
+                </div>
+            </div>
+
+            <!-- 遊戲區域 -->
+            <div class="game-area">
+                <div>
+                    <h2>🐟 遊戲區域</h2>
+                    <p>魚類在此區域遊動</p>
+                    <p>玩家從四個方向發射子彈</p>
+                </div>
+            </div>
+
+            <!-- 右側座位 -->
+            <div class="seat-card seat-right">
+                <h3>🪑 座位 4 - 右側</h3>
+                <div class="arrow">←</div>
+                <div class="seat-info">
+                    <strong>位置：</strong> 右側中央<br>
+                    <strong>初始方向：</strong> 向左（180°）<br>
+                    <strong>玩家：</strong> player4
+                </div>
+            </div>
+
+            <!-- 底部座位 -->
+            <div class="seat-card seat-bottom">
+                <h3>🪑 座位 1 - 底部</h3>
+                <div class="arrow">↑</div>
+                <div class="seat-info">
+                    <strong>位置：</strong> 底部中央<br>
+                    <strong>初始方向：</strong> 向上（-90°）<br>
+                    <strong>玩家：</strong> player1（你）
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-primary" id="testBtn">🧪 載入測試數據</button>
+            <button class="btn-secondary" id="clearBtn">🗑️ 清空畫面</button>
+            <button class="btn-primary" id="startBtn">▶️ 開始渲染</button>
+            <button class="btn-secondary" id="stopBtn">⏸️ 停止渲染</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-value" id="fpsDisplay">0</div>
+                <div class="stat-label">FPS</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="playerCount">0</div>
+                <div class="stat-label">玩家數量</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="fishCount">0</div>
+                <div class="stat-label">魚類數量</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="bulletCount">0</div>
+                <div class="stat-label">子彈數量</div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="gameCanvas" width="1200" height="800"></canvas>
+        </div>
+
+        <div class="info-panel">
+            <h2>🎯 測試說明</h2>
+            <ol>
+                <li>點擊 <strong>「載入測試數據」</strong> 按鈕添加4個玩家和測試魚類</li>
+                <li>點擊 <strong>「開始渲染」</strong> 開始動畫循環</li>
+                <li><strong>移動滑鼠</strong> 可以控制當前玩家（player1，底部綠色砲台）的砲台方向</li>
+                <li><strong>點擊畫布</strong> 可以模擬開火（需要在實際遊戲中連接服務器）</li>
+                <li>觀察4個不同座位的砲台初始方向是否正確</li>
+            </ol>
+            <p><strong>🔍 驗證重點：</strong></p>
+            <ul>
+                <li>✅ 座位 1（底部）砲台向上</li>
+                <li>✅ 座位 2（頂部）砲台向下</li>
+                <li>✅ 座位 3（左側）砲台向右</li>
+                <li>✅ 座位 4（右側）砲台向左</li>
+                <li>✅ 每個座位標籤顯示正確</li>
+                <li>✅ 滑鼠可以控制砲台角度</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="game-renderer.js"></script>
+    <script>
+        // 初始化渲染器
+        const renderer = new GameRenderer('gameCanvas');
+        const testBtn = document.getElementById('testBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+
+        // 測試按鈕
+        testBtn.addEventListener('click', () => {
+            renderer.addTestData();
+            updateStats();
+            alert('✅ 測試數據已載入！\n\n已添加：\n- 4個玩家（不同座位）\n- 4條測試魚\n- 2發測試子彈\n\n請點擊「開始渲染」查看效果。');
+        });
+
+        // 清空按鈕
+        clearBtn.addEventListener('click', () => {
+            renderer.clear();
+            updateStats();
+        });
+
+        // 開始渲染
+        startBtn.addEventListener('click', () => {
+            renderer.start();
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+        });
+
+        // 停止渲染
+        stopBtn.addEventListener('click', () => {
+            renderer.stop();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
+
+        // 更新統計
+        function updateStats() {
+            document.getElementById('playerCount').textContent = renderer.players.size;
+            document.getElementById('fishCount').textContent = renderer.fishes.length;
+            document.getElementById('bulletCount').textContent = renderer.bullets.length;
+        }
+
+        // 自動更新 FPS（從渲染器讀取）
+        setInterval(() => {
+            if (renderer.isRunning) {
+                document.getElementById('fpsDisplay').textContent = renderer.fps;
+            }
+        }, 1000);
+
+        console.log('Seat test page ready!');
+    </script>
+</body>
+</html>
