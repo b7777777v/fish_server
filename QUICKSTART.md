@@ -2,6 +2,8 @@
 
 这份指南将帮助你在 5 分钟内启动鱼游戏服务器并创建测试玩家账户。
 
+> **🪟 Windows 用户专属指南**: 请查看 [WINDOWS_QUICKSTART.md](docs/WINDOWS_QUICKSTART.md) 获取针对 Windows 优化的完整指南！
+
 ## 📋 前置要求
 
 确保你已安装：
@@ -90,7 +92,7 @@ tail -f logs/game-server.log
 
 服务启动后，现在可以创建测试玩家了！
 
-### 方法 1: 使用 Makefile（最简单）
+### 方法 1: 使用 Makefile（Linux/Mac）
 
 ```bash
 # 创建单个玩家
@@ -111,12 +113,22 @@ make create-test-players
 
 ### 方法 2: 使用脚本
 
+**Linux/Mac:**
 ```bash
-# Linux/Mac
 ./scripts/create-test-player.sh alice
+./scripts/create-test-player.sh bob mypassword
+```
 
-# Windows
+**Windows (PowerShell - 推荐):**
+```powershell
+.\scripts\create-test-player.ps1 -Username alice
+.\scripts\create-test-player.ps1 -Username bob -Password mypassword
+```
+
+**Windows (批处理):**
+```cmd
 scripts\create-test-player.bat alice
+scripts\create-test-player.bat bob mypassword
 ```
 
 ### 方法 3: 直接使用 Go

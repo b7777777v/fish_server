@@ -175,6 +175,8 @@ make run-admin
 > **詳細指南**: 查看 [TEST_PLAYER_GUIDE.md](docs/TEST_PLAYER_GUIDE.md) 獲取完整使用說明
 >
 > **快速開始**: 查看 [QUICKSTART.md](QUICKSTART.md) 了解 5 分鐘快速部署
+>
+> **🪟 Windows 用戶**: 查看 [WINDOWS_QUICKSTART.md](docs/WINDOWS_QUICKSTART.md) 獲取 Windows 專用指南
 
 #### 使用 Makefile (推薦)
 
@@ -197,7 +199,13 @@ make create-test-players
 ./scripts/create-test-player.sh bob mypassword
 ```
 
-**Windows:**
+**Windows (PowerShell - 推薦):**
+```powershell
+.\scripts\create-test-player.ps1 -Username alice
+.\scripts\create-test-player.ps1 -Username bob -Password mypassword
+```
+
+**Windows (批處理):**
 ```cmd
 scripts\create-test-player.bat alice
 scripts\create-test-player.bat bob mypassword
@@ -236,12 +244,28 @@ go run cmd/test-player/main.go -username alice -password test123456
 
 執行完整的自動化測試腳本：
 
+**Linux/Mac:**
 ```bash
 # 自動啟動所有服務並創建測試玩家
 ./scripts/e2e-test.sh
 
 # 保持服務運行（不自動關閉）
 ./scripts/e2e-test.sh --keep-running
+```
+
+**Windows (PowerShell - 推薦):**
+```powershell
+# 自動啟動所有服務並創建測試玩家
+.\scripts\e2e-test.ps1
+
+# 保持服務運行（不自動關閉）
+.\scripts\e2e-test.ps1 -KeepRunning
+```
+
+**Windows (批處理):**
+```cmd
+scripts\e2e-test.bat
+scripts\e2e-test.bat --keep-running
 ```
 
 ### 5. 訪問前端測試客戶端
