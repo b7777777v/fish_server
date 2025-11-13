@@ -462,19 +462,25 @@ class GameRenderer {
         // 添加測試子彈
         this.bullets = [
             { id: 'test-bullet-1', playerId: 'player1', x: 300, y: 500, direction: -Math.PI / 2, speed: 5, power: 50 },
-            { id: 'test-bullet-2', playerId: 'player1', x: 700, y: 600, direction: Math.PI / 3, speed: 6, power: 75 },
+            { id: 'test-bullet-2', playerId: 'player2', x: 700, y: 100, direction: Math.PI / 2, speed: 6, power: 75 },
         ];
 
-        // 添加測試玩家（砲台）
+        // 添加4個測試玩家（砲台）到不同座位
         this.setCurrentPlayer('player1');
-        this.addPlayer('player1');
-        this.addPlayer('player2');
+        this.addPlayer('player1', 0);  // 座位0 - 底部
+        this.addPlayer('player2', 1);  // 座位1 - 頂部
+        this.addPlayer('player3', 2);  // 座位2 - 左側
+        this.addPlayer('player4', 3);  // 座位3 - 右側
 
         // 更新統計
         document.getElementById('renderFishCount').textContent = this.fishes.length;
         document.getElementById('renderBulletCount').textContent = this.bullets.length;
 
         console.log('[Renderer] Test data added:', this.fishes.length, 'fishes,', this.bullets.length, 'bullets', this.players.size, 'players');
+        console.log('[Renderer] Players in different seats:');
+        this.players.forEach((player, id) => {
+            console.log(`  ${id}: seat ${player.seatId}, angle ${(player.angle * 180 / Math.PI).toFixed(1)}°`);
+        });
     }
 
     /**
@@ -487,21 +493,25 @@ class GameRenderer {
 
     /**
      * 添加玩家（砲台）
+     * @param {string} playerId - 玩家ID
+     * @param {number} [seatId] - 座位ID (0-3)，如果不提供則自動分配
      */
-    addPlayer(playerId) {
+    addPlayer(playerId, seatId) {
         if (!this.players.has(playerId)) {
-            const playerIndex = this.players.size;
-            const position = this.getCannonPosition(playerIndex);
+            // 如果提供了座位ID，使用座位ID；否則使用當前玩家數量作為索引
+            const index = seatId !== undefined ? seatId : this.players.size;
+            const positionData = this.getCannonPosition(index);
 
             this.players.set(playerId, {
                 id: playerId,
-                position: position,
+                position: { x: positionData.x, y: positionData.y },
                 cannonType: 1,
                 level: 1,
-                angle: -Math.PI / 2 // 默認向上
+                angle: positionData.angle,  // 使用座位對應的初始角度
+                seatId: index               // 保存座位ID
             });
 
-            console.log(`[Renderer] Player added: ${playerId} at position (${position.x}, ${position.y})`);
+            console.log(`[Renderer] Player added: ${playerId} at seat ${index}, position (${positionData.x.toFixed(1)}, ${positionData.y.toFixed(1)}), angle ${(positionData.angle * 180 / Math.PI).toFixed(1)}°`);
         }
     }
 
@@ -525,29 +535,34 @@ class GameRenderer {
         const playerIds = Array.from(this.players.keys());
         playerIds.forEach((playerId, index) => {
             const player = this.players.get(playerId);
-            player.position = this.getCannonPosition(index);
+            const positionData = this.getCannonPosition(index);
+            player.position = { x: positionData.x, y: positionData.y };
+            player.angle = positionData.angle;  // 更新角度
+            player.seatId = index;               // 更新座位ID
         });
     }
 
     /**
-     * 獲取砲台位置（根據玩家索引）
+     * 獲取砲台位置和初始方向（根據玩家索引或座位ID）
+     * @param {number} playerIndex - 玩家索引或座位ID (0-3)
+     * @returns {{x: number, y: number, angle: number}} 位置和初始角度
      */
     getCannonPosition(playerIndex) {
         // 捕魚遊戲典型佈局：
-        // - 主玩家（索引0）：底部中央
-        // - 玩家2（索引1）：頂部中央
-        // - 玩家3（索引2）：左側中央
-        // - 玩家4（索引3）：右側中央
+        // - 座位0（索引0）：底部中央 - 向上發射
+        // - 座位1（索引1）：頂部中央 - 向下發射
+        // - 座位2（索引2）：左側中央 - 向右發射
+        // - 座位3（索引3）：右側中央 - 向左發射
 
         const centerX = this.width / 2;
         const centerY = this.height / 2;
         const margin = 50;
 
         const positions = [
-            { x: centerX, y: this.height - margin }, // 底部中央
-            { x: centerX, y: margin },               // 頂部中央
-            { x: margin, y: centerY },               // 左側中央
-            { x: this.width - margin, y: centerY }   // 右側中央
+            { x: centerX, y: this.height - margin, angle: -Math.PI / 2 },  // 底部 - 向上 (-90°)
+            { x: centerX, y: margin, angle: Math.PI / 2 },                 // 頂部 - 向下 (90°)
+            { x: margin, y: centerY, angle: 0 },                           // 左側 - 向右 (0°)
+            { x: this.width - margin, y: centerY, angle: Math.PI }         // 右側 - 向左 (180°)
         ];
 
         return positions[playerIndex % positions.length];
@@ -655,6 +670,39 @@ class GameRenderer {
 
         this.ctx.restore();
 
+        // 獲取座位位置標籤偏移
+        const seatId = player.seatId !== undefined ? player.seatId : -1;
+        let labelOffsetX = 0, labelOffsetY = -45;
+
+        // 根據座位位置調整標籤位置
+        if (seatId === 0) {
+            // 底部座位 - 標籤在上方
+            labelOffsetY = -45;
+        } else if (seatId === 1) {
+            // 頂部座位 - 標籤在下方
+            labelOffsetY = 60;
+        } else if (seatId === 2) {
+            // 左側座位 - 標籤在右方
+            labelOffsetX = 50;
+            labelOffsetY = 0;
+        } else if (seatId === 3) {
+            // 右側座位 - 標籤在左方
+            labelOffsetX = -50;
+            labelOffsetY = 0;
+        }
+
+        // 繪製座位標籤
+        this.ctx.save();
+        this.ctx.font = 'bold 10px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.lineWidth = 2;
+        const seatLabel = seatId >= 0 ? `🪑 座位 ${seatId + 1}` : '未分配';
+        this.ctx.strokeText(seatLabel, x + labelOffsetX, y + labelOffsetY - 15);
+        this.ctx.fillText(seatLabel, x + labelOffsetX, y + labelOffsetY - 15);
+        this.ctx.restore();
+
         // 繪製玩家ID標籤
         this.ctx.save();
         this.ctx.font = 'bold 12px Arial';
@@ -662,15 +710,15 @@ class GameRenderer {
         this.ctx.textAlign = 'center';
         this.ctx.strokeStyle = '#000000';
         this.ctx.lineWidth = 3;
-        this.ctx.strokeText(player.id, x, y - 45);
-        this.ctx.fillText(player.id, x, y - 45);
+        this.ctx.strokeText(player.id, x + labelOffsetX, y + labelOffsetY);
+        this.ctx.fillText(player.id, x + labelOffsetX, y + labelOffsetY);
 
         // 顯示等級
         if (player.level > 1) {
             this.ctx.font = '10px Arial';
             this.ctx.fillStyle = '#FFD700';
-            this.ctx.strokeText(`Lv.${player.level}`, x, y - 60);
-            this.ctx.fillText(`Lv.${player.level}`, x, y - 60);
+            this.ctx.strokeText(`Lv.${player.level}`, x + labelOffsetX, y + labelOffsetY + 15);
+            this.ctx.fillText(`Lv.${player.level}`, x + labelOffsetX, y + labelOffsetY + 15);
         }
         this.ctx.restore();
     }
