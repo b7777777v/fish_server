@@ -279,8 +279,40 @@
     <script src="https://unpkg.com/google-protobuf@3.21.2/google-protobuf.js"></script>
     <script src="generated/proto/v1/common_pb.js"></script>
     <script src="generated/proto/v1/game_pb.js"></script>
+    <script src="auth-client.js"></script>
     <script src="game-renderer.js"></script>
     <script src="game-client.js"></script>
+    <script>
+        // 檢查認證狀態
+        (function() {
+            // 如果沒有認證 token，重定向到認證頁面
+            if (!window.authClient || !window.authClient.isAuthenticated()) {
+                console.log('未登入，重定向到認證頁面');
+                window.location.href = 'auth.html';
+                return;
+            }
+
+            // 顯示用戶資訊
+            const user = window.authClient.getUser();
+            if (user) {
+                console.log('已登入用戶:', user);
+
+                // 可以在這裡更新 UI 顯示用戶資訊
+                const displayName = user.nickname || user.username || '玩家';
+                document.addEventListener('DOMContentLoaded', () => {
+                    // 可以添加一個用戶資訊顯示區域
+                    const header = document.createElement('div');
+                    header.style.cssText = 'position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px 15px; border-radius: 5px; z-index: 1000; font-size: 14px;';
+                    header.innerHTML = `
+                        <span style="margin-right: 10px;">👤 ${displayName}</span>
+                        <button onclick="window.authClient.logout(); window.location.href='auth.html';" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">登出</button>
+                        <button onclick="window.location.href='auth.html';" style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-left: 5px;">錢包</button>
+                    `;
+                    document.body.appendChild(header);
+                });
+            }
+        })();
+    </script>
 </body>
 
 </html>

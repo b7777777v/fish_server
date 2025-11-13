@@ -1076,4 +1076,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化統計顯示
     updateStats();
     log('🚀 遊戲客戶端已載入，準備連接...', 'system');
+
+    // 自動使用認證 token 連接
+    if (window.authClient && window.authClient.isAuthenticated()) {
+        const token = window.authClient.getToken();
+        const user = window.authClient.getUser();
+
+        if (token && user) {
+            // 設置認證資訊
+            authToken = token;
+            isGuestMode = window.authClient.isGuest();
+
+            // 更新玩家 ID 輸入框（如果不是遊客模式）
+            if (!isGuestMode && user.username) {
+                playerIdInput.value = user.username;
+            }
+
+            // 顯示遊客資訊（如果是遊客模式）
+            if (isGuestMode && guestInfo && guestNickname) {
+                const displayName = user.nickname || user.username || 'Guest';
+                guestNickname.textContent = displayName;
+                guestInfo.style.display = 'block';
+            }
+
+            log('✅ 已載入認證資訊，準備自動連接...', 'system');
+
+            // 自動連接到 Game Server
+            setTimeout(() => {
+                connectWithToken();
+            }, 500);
+        }
+    }
 });

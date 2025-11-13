@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>捕魚遊戲 - 登入系統</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            max-width: 1200px;
+            width: 100%;
+            display: flex;
+            min-height: 600px;
+        }
+
+        .left-panel {
+            flex: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 60px 40px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .left-panel h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        .left-panel p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        .right-panel {
+            flex: 1;
+            padding: 60px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .auth-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .alert {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* 主面板 - 登入後顯示 */
+        .main-panel {
+            display: none;
+            padding: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .main-panel.active {
+            display: block;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .wallet-section {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .wallet-balance {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .wallet-balance h2 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .balance-amount {
+            font-size: 3em;
+            font-weight: bold;
+        }
+
+        .wallet-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .action-card {
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .action-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .action-card .icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .action-card h3 {
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .transactions-section {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .transaction-item {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-type {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .transaction-type.deposit {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .transaction-type.withdraw {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            font-size: 1.5em;
+        }
+
+        .close-btn {
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .game-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.3em;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: all 0.3s;
+        }
+
+        .game-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(17, 153, 142, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .left-panel {
+                padding: 40px 20px;
+            }
+
+            .right-panel {
+                padding: 40px 20px;
+            }
+
+            .wallet-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 認證面板 -->
+    <div class="container" id="authPanel">
+        <div class="left-panel">
+            <h1>🐟 捕魚遊戲</h1>
+            <p>歡迎來到最刺激的多人捕魚遊戲！立即註冊或登入開始遊戲，贏取豐富獎勵。</p>
+        </div>
+
+        <div class="right-panel">
+            <div class="auth-tabs">
+                <div class="auth-tab active" data-tab="login">登入</div>
+                <div class="auth-tab" data-tab="register">註冊</div>
+                <div class="auth-tab" data-tab="guest">遊客模式</div>
+            </div>
+
+            <div id="alertBox" class="alert"></div>
+
+            <!-- 登入表單 -->
+            <form id="loginForm" class="auth-form active">
+                <div class="form-group">
+                    <label for="loginUsername">使用者名稱</label>
+                    <input type="text" id="loginUsername" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">密碼</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary">登入</button>
+            </form>
+
+            <!-- 註冊表單 -->
+            <form id="registerForm" class="auth-form">
+                <div class="form-group">
+                    <label for="registerUsername">使用者名稱</label>
+                    <input type="text" id="registerUsername" required minlength="3">
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">密碼</label>
+                    <input type="password" id="registerPassword" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="registerPasswordConfirm">確認密碼</label>
+                    <input type="password" id="registerPasswordConfirm" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="registerNickname">暱稱（選填）</label>
+                    <input type="text" id="registerNickname">
+                </div>
+                <button type="submit" class="btn btn-primary">註冊</button>
+            </form>
+
+            <!-- 遊客模式 -->
+            <div id="guestPanel" class="auth-form">
+                <p style="text-align: center; color: #666; margin-bottom: 20px;">
+                    快速體驗遊戲，無需註冊！
+                </p>
+                <button id="guestLoginBtn" class="btn btn-primary">以遊客身份進入</button>
+                <p style="text-align: center; color: #999; margin-top: 15px; font-size: 0.9em;">
+                    ⚠️ 遊客模式下的數據不會永久保存
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主面板（登入後） -->
+    <div class="main-panel" id="mainPanel">
+        <div class="header">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div>
+                    <h2 id="userName">用戶名稱</h2>
+                    <p style="color: #666; font-size: 0.9em;" id="userStatus">已登入</p>
+                </div>
+            </div>
+            <button class="btn btn-secondary" id="logoutBtn" style="width: auto; padding: 10px 20px;">登出</button>
+        </div>
+
+        <!-- 錢包區域 -->
+        <div class="wallet-section">
+            <h2 style="margin-bottom: 20px;">💰 我的錢包</h2>
+
+            <div class="wallet-balance">
+                <h2>目前餘額</h2>
+                <div class="balance-amount" id="walletBalance">0</div>
+                <p style="opacity: 0.8; margin-top: 10px;">CNY</p>
+            </div>
+
+            <div class="wallet-actions">
+                <div class="action-card" onclick="openDepositModal()">
+                    <div class="icon">💳</div>
+                    <h3>儲值</h3>
+                </div>
+                <div class="action-card" onclick="openWithdrawModal()">
+                    <div class="icon">💸</div>
+                    <h3>提款</h3>
+                </div>
+                <div class="action-card" onclick="refreshWallet()">
+                    <div class="icon">🔄</div>
+                    <h3>刷新餘額</h3>
+                </div>
+                <div class="action-card" onclick="loadTransactions()">
+                    <div class="icon">📜</div>
+                    <h3>交易記錄</h3>
+                </div>
+            </div>
+
+            <button class="game-btn" onclick="startGame()">🎮 開始遊戲</button>
+        </div>
+
+        <!-- 交易記錄 -->
+        <div class="transactions-section">
+            <h2 style="margin-bottom: 20px;">📋 交易記錄</h2>
+            <div id="transactionsList">
+                <p style="text-align: center; color: #999;">點擊「交易記錄」載入歷史交易</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 儲值Modal -->
+    <div class="modal" id="depositModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>💳 儲值</h2>
+                <span class="close-btn" onclick="closeDepositModal()">&times;</span>
+            </div>
+            <form id="depositForm">
+                <div class="form-group">
+                    <label for="depositAmount">儲值金額</label>
+                    <input type="number" id="depositAmount" min="1" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="depositDescription">備註（選填）</label>
+                    <input type="text" id="depositDescription" placeholder="例如：充值遊戲幣">
+                </div>
+                <button type="submit" class="btn btn-primary">確認儲值</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 提款Modal -->
+    <div class="modal" id="withdrawModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>💸 提款</h2>
+                <span class="close-btn" onclick="closeWithdrawModal()">&times;</span>
+            </div>
+            <form id="withdrawForm">
+                <div class="form-group">
+                    <label for="withdrawAmount">提款金額</label>
+                    <input type="number" id="withdrawAmount" min="1" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="withdrawDescription">備註（選填）</label>
+                    <input type="text" id="withdrawDescription" placeholder="例如：提現到銀行">
+                </div>
+                <button type="submit" class="btn btn-primary">確認提款</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="auth-client.js"></script>
+</body>
+
+</html>
