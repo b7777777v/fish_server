@@ -38,6 +38,7 @@ type WalletRepo interface {
 	// 查詢錢包
 	FindByID(ctx context.Context, id uint) (*Wallet, error)
 	FindByUserID(ctx context.Context, userID uint, currency string) (*Wallet, error)
+	FindAllByUserID(ctx context.Context, userID uint) ([]*Wallet, error)
 
 	// 創建錢包
 	Create(ctx context.Context, w *Wallet) error

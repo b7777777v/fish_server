@@ -221,6 +221,37 @@ func (r *walletRepo) FindByUserID(ctx context.Context, userID uint, currency str
 	return w, nil
 }
 
+// FindAllByUserID 根據用戶ID查詢所有錢包
+func (r *walletRepo) FindAllByUserID(ctx context.Context, userID uint) ([]*wallet.Wallet, error) {
+	r.logger.Debugf("Fetching all wallets for user_id: %d from DB", userID)
+
+	query := `SELECT id, user_id, balance, currency, status, created_at, updated_at FROM wallets WHERE user_id = $1 ORDER BY created_at DESC`
+	rows, err := r.data.db.Query(ctx, query, userID)
+	if err != nil {
+		r.logger.Errorf("failed to query wallets by user_id: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var wallets []*wallet.Wallet
+	for rows.Next() {
+		var po WalletPO
+		err := rows.Scan(&po.ID, &po.UserID, &po.Balance, &po.Currency, &po.Status, &po.CreatedAt, &po.UpdatedAt)
+		if err != nil {
+			r.logger.Errorf("failed to scan wallet row: %v", err)
+			return nil, err
+		}
+		wallets = append(wallets, r.po2do(&po))
+	}
+
+	if err = rows.Err(); err != nil {
+		r.logger.Errorf("error iterating wallet rows: %v", err)
+		return nil, err
+	}
+
+	return wallets, nil
+}
+
 // Create 創建錢包
 func (r *walletRepo) Create(ctx context.Context, w *wallet.Wallet) error {
 	// 準備SQL查詢

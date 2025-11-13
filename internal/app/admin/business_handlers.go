@@ -142,27 +142,29 @@ func (s *AdminService) GetPlayerWallets(c *gin.Context) {
 
 	s.logger.Infof("Getting wallets for player ID: %d", userID)
 
-	// 這裡應該通過 WalletUsecase 獲取用戶的所有錢包
-	// 暫時返回模擬數據
-	wallets := []WalletResponse{
-		{
-			ID:        100 + uint(userID),
-			UserID:    uint(userID),
-			Balance:   1000.0,
-			Currency:  "USD",
-			Status:    1,
-			CreatedAt: "2024-01-01T00:00:00Z",
-			UpdatedAt: "2024-01-01T00:00:00Z",
-		},
-		{
-			ID:        200 + uint(userID),
-			UserID:    uint(userID),
-			Balance:   500.0,
-			Currency:  "CNY",
-			Status:    1,
-			CreatedAt: "2024-01-01T00:00:00Z",
-			UpdatedAt: "2024-01-01T00:00:00Z",
-		},
+	// 通過 WalletUsecase 獲取用戶的所有錢包
+	walletList, err := s.walletUC.GetWalletsByUserID(c.Request.Context(), uint(userID))
+	if err != nil {
+		s.logger.Errorf("Failed to get wallets for user %d: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Failed to get wallets",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// 轉換為響應格式
+	wallets := make([]WalletResponse, 0, len(walletList))
+	for _, w := range walletList {
+		wallets = append(wallets, WalletResponse{
+			ID:        w.ID,
+			UserID:    w.UserID,
+			Balance:   w.Balance,
+			Currency:  w.Currency,
+			Status:    int(w.Status),
+			CreatedAt: w.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt: w.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
