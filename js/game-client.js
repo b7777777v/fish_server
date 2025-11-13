@@ -693,33 +693,46 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.gameRenderer && gameRenderer.isRunning) {
                 console.log(`[Client] RoomStateUpdate: syncing seats, currentPlayerId="${gameRenderer.currentPlayerId}"`);
 
+                // 先記錄當前所有在渲染器中的玩家
+                const playersInRenderer = new Set(gameRenderer.players.keys());
+
+                // 處理座位中的玩家
                 seats.forEach(seat => {
                     const seatId = seat.getSeatId();
-                    // 🔧 關鍵修復：使用 nickname（字符串 ID）而不是 playerId（數字 ID）
                     const nickname = seat.getNickname();
                     const isEmpty = !nickname || nickname === '';
 
                     if (!isEmpty) {
                         console.log(`[Client] Processing seat ${seatId}: nickname="${nickname}"`);
 
-                        // 如果玩家不在渲染器中，添加到對應座位
                         if (!gameRenderer.players.has(nickname)) {
+                            // 玩家不在渲染器中，添加
                             gameRenderer.addPlayer(nickname, seatId);
-                            console.log(`[Client] ✓ Added player ${nickname} to seat ${seatId} from RoomStateUpdate`);
+                            console.log(`[Client] ✓ Added player ${nickname} to seat ${seatId}`);
                         } else {
-                            // 如果玩家已在渲染器中，檢查座位是否正確
+                            // 玩家已在渲染器中，檢查座位是否需要更新
                             const player = gameRenderer.players.get(nickname);
                             if (player.seatId !== seatId) {
-                                // 座位變更，重新添加
-                                console.log(`[Client] Seat mismatch for ${nickname}: current=${player.seatId}, new=${seatId}`);
-                                gameRenderer.removePlayer(nickname);
-                                gameRenderer.addPlayer(nickname, seatId);
-                                console.log(`[Client] ✓ Moved player ${nickname} from seat ${player.seatId} to seat ${seatId}`);
+                                // 🔧 座位變更：直接更新位置，不刪除再添加
+                                const positionData = gameRenderer.getCannonPosition(seatId);
+                                player.position = { x: positionData.x, y: positionData.y };
+                                player.angle = positionData.angle;
+                                player.seatId = seatId;
+                                console.log(`[Client] ✓ Updated player ${nickname} position to seat ${seatId}`);
                             } else {
                                 console.log(`[Client] Player ${nickname} already at correct seat ${seatId}`);
                             }
                         }
+
+                        // 從集合中移除，表示這個玩家已處理
+                        playersInRenderer.delete(nickname);
                     }
+                });
+
+                // 🔧 移除不在座位中的玩家（玩家離開了房間）
+                playersInRenderer.forEach(nickname => {
+                    console.log(`[Client] Player ${nickname} not in seats, removing from renderer`);
+                    gameRenderer.removePlayer(nickname);
                 });
             }
         }
@@ -1017,23 +1030,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentSeatInfo) currentSeatInfo.style.display = 'block';
             if (currentSeatId) currentSeatId.textContent = `座位 ${seatId + 1}`;
 
-            // 🔧 重要：更新渲染器中的玩家位置到所選座位
-            if (window.gameRenderer && gameRenderer.isRunning) {
-                const currentPlayerId = isGuestMode
-                    ? (guestNickname ? guestNickname.textContent : 'Guest')
-                    : playerIdInput.value;
+            // 🔧 不在這裡操作渲染器！
+            // 讓 RoomStateUpdate 統一處理所有玩家的位置同步
+            // 這樣可以避免 SelectSeatResponse 和 RoomStateUpdate 的衝突
+            console.log(`[Client] SelectSeatResponse: seatId=${seatId}, waiting for RoomStateUpdate to sync renderer`);
 
-                console.log(`[Client] SelectSeatResponse: currentPlayerId="${currentPlayerId}", seatId=${seatId}`);
-                console.log(`[Client] Existing players:`, Array.from(gameRenderer.players.keys()));
-
-                // 移除玩家然後重新添加到正確的座位
-                gameRenderer.removePlayer(currentPlayerId);
-                gameRenderer.addPlayer(currentPlayerId, seatId);
-
-                log(`🪑 已將砲台移動到座位 ${seatId + 1}`, 'system');
-            }
-
-            // 座位按鈕狀態會在下次 RoomStateUpdate 時自動更新
+            log(`🪑 已選擇座位 ${seatId + 1}，等待伺服器同步...`, 'system');
 
             // 啟用開火按鈕
             if (fireBulletBtn) fireBulletBtn.disabled = false;
