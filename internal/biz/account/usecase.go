@@ -55,15 +55,7 @@ type TokenService interface {
 
 // WalletCreator 定義錢包創建服務介面
 type WalletCreator interface {
-	CreateWallet(ctx context.Context, userID uint, currency string) (*WalletInfo, error)
-}
-
-// WalletInfo 錢包基本信息
-type WalletInfo struct {
-	ID       uint
-	UserID   uint
-	Balance  float64
-	Currency string
+	CreateWallet(ctx context.Context, userID uint, currency string) error
 }
 
 // accountUsecase 實現 AccountUsecase 介面
@@ -115,7 +107,7 @@ func (uc *accountUsecase) Register(ctx context.Context, username, password strin
 
 	// 自動創建初始錢包（CNY幣種）
 	if uc.walletCreator != nil {
-		_, err = uc.walletCreator.CreateWallet(ctx, uint(createdUser.ID), "CNY")
+		err = uc.walletCreator.CreateWallet(ctx, uint(createdUser.ID), "CNY")
 		if err != nil {
 			// 錢包創建失敗記錄錯誤，但不影響註冊流程
 			// TODO: 可以考慮使用消息隊列異步創建
@@ -262,18 +254,18 @@ func generateGuestID() int64 {
 
 // walletCreatorAdapter 是 WalletCreator 介面的適配器
 type walletCreatorAdapter struct {
-	createWalletFunc func(ctx context.Context, userID uint, currency string) (*WalletInfo, error)
+	createWalletFunc func(ctx context.Context, userID uint, currency string) error
 }
 
-func (a *walletCreatorAdapter) CreateWallet(ctx context.Context, userID uint, currency string) (*WalletInfo, error) {
+func (a *walletCreatorAdapter) CreateWallet(ctx context.Context, userID uint, currency string) error {
 	return a.createWalletFunc(ctx, userID, currency)
 }
 
 // NewWalletCreatorFromUsecase 創建 WalletCreator 適配器（用於 Wire 依賴注入）
 func NewWalletCreatorFromUsecase(uc interface {
-	CreateWalletSimple(ctx context.Context, userID uint, currency string) (*WalletInfo, error)
+	CreateWallet(ctx context.Context, userID uint, currency string) error
 }) WalletCreator {
 	return &walletCreatorAdapter{
-		createWalletFunc: uc.CreateWalletSimple,
+		createWalletFunc: uc.CreateWallet,
 	}
 }
