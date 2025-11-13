@@ -693,22 +693,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.gameRenderer && gameRenderer.isRunning) {
                 seats.forEach(seat => {
                     const seatId = seat.getSeatId();
-                    const playerId = seat.getPlayerId();
-                    const isEmpty = !playerId || playerId === '0';
+                    // 🔧 關鍵修復：使用 nickname（字符串 ID）而不是 playerId（數字 ID）
+                    const nickname = seat.getNickname();
+                    const isEmpty = !nickname || nickname === '';
 
                     if (!isEmpty) {
                         // 如果玩家不在渲染器中，添加到對應座位
-                        if (!gameRenderer.players.has(playerId)) {
-                            gameRenderer.addPlayer(playerId, seatId);
-                            console.log(`[Client] Added player ${playerId} to seat ${seatId} from RoomStateUpdate`);
+                        if (!gameRenderer.players.has(nickname)) {
+                            gameRenderer.addPlayer(nickname, seatId);
+                            console.log(`[Client] Added player ${nickname} to seat ${seatId} from RoomStateUpdate`);
                         } else {
                             // 如果玩家已在渲染器中，檢查座位是否正確
-                            const player = gameRenderer.players.get(playerId);
+                            const player = gameRenderer.players.get(nickname);
                             if (player.seatId !== seatId) {
                                 // 座位變更，重新添加
-                                gameRenderer.removePlayer(playerId);
-                                gameRenderer.addPlayer(playerId, seatId);
-                                console.log(`[Client] Moved player ${playerId} to seat ${seatId}`);
+                                gameRenderer.removePlayer(nickname);
+                                gameRenderer.addPlayer(nickname, seatId);
+                                console.log(`[Client] Moved player ${nickname} to seat ${seatId}`);
                             }
                         }
                     }
@@ -850,16 +851,19 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSeatsInfo(seats) {
         if (!seatsContainer) return;
 
-        const currentPlayerId = playerIdInput.value;
+        // 🔧 獲取當前玩家ID（支持遊客模式）
+        const currentPlayerId = isGuestMode
+            ? (guestNickname ? guestNickname.textContent : 'Guest')
+            : playerIdInput.value;
         let html = '';
 
         seats.forEach(seat => {
             const seatId = seat.getSeatId();
-            const playerId = seat.getPlayerId();
-            const nickname = seat.getNickname();
+            const nickname = seat.getNickname(); // 使用 nickname（字符串 ID）
 
-            const isEmpty = !playerId || playerId === '0';
-            const isCurrentPlayer = playerId === currentPlayerId;
+            // 🔧 使用 nickname 來判斷是否為空和是否是當前玩家
+            const isEmpty = !nickname || nickname === '';
+            const isCurrentPlayer = nickname === currentPlayerId;
             const seatColor = isCurrentPlayer ? '#28a745' : isEmpty ? '#6c757d' : '#007bff';
             const seatIcon = isEmpty ? '🪑' : isCurrentPlayer ? '⭐' : '👤';
 
@@ -867,7 +871,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="margin-bottom: 3px; padding: 3px 6px; background: ${isEmpty ? 'rgba(108,117,125,0.1)' : isCurrentPlayer ? 'rgba(40,167,69,0.2)' : 'rgba(0,123,255,0.1)'}; border-radius: 3px; display: flex; justify-content: space-between;">
                     <span>${seatIcon} 座位 ${seatId + 1}</span>
                     <span style="color: ${seatColor}; font-weight: ${isCurrentPlayer ? 'bold' : 'normal'};">
-                        ${isEmpty ? '空位' : nickname || `玩家${playerId}`}
+                        ${isEmpty ? '空位' : nickname}
                     </span>
                 </div>
             `;
@@ -897,9 +901,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 為每個座位生成按鈕
         seats.forEach(seat => {
             const seatId = seat.getSeatId();
-            const playerId = seat.getPlayerId();
-            const nickname = seat.getNickname();
-            const isEmpty = !playerId || playerId === '0';
+            const nickname = seat.getNickname(); // 🔧 使用 nickname（字符串 ID）
+            const isEmpty = !nickname || nickname === ''; // 🔧 使用 nickname 判斷是否為空
             const isOccupied = !isEmpty;
             const isMySet = currentSeat === seatId;
 
@@ -918,7 +921,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 opacity: ${isOccupied && !isMySet ? '0.6' : '1'};
             `;
 
-            const statusText = isMySet ? '已選擇' : isOccupied ? `${nickname || '已佔用'}` : '可用';
+            const statusText = isMySet ? '已選擇' : isOccupied ? `${nickname}` : '可用';
             button.innerHTML = `座位 ${seatId + 1}<br><small>${statusText}</small>`;
 
             // 綁定點擊事件
