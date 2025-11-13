@@ -168,104 +168,99 @@ make run-game
 make run-admin
 ```
 
-### 4. 創建測試玩家 🎮
+### 4. 建立測試玩家賬號 🎮
 
-在開始遊戲之前，需要創建測試玩家賬號。專案提供了完整的測試工具。
+在開始遊戲之前，需要創建測試玩家賬號。本專案提供**通過 Admin Server REST API** 創建會員的完整流程。
 
-> **詳細指南**: 查看 [TEST_PLAYER_GUIDE.md](docs/TEST_PLAYER_GUIDE.md) 獲取完整使用說明
->
-> **快速開始**: 查看 [QUICKSTART.md](QUICKSTART.md) 了解 5 分鐘快速部署
->
-> **🪟 Windows 用戶**: 查看 [WINDOWS_QUICKSTART.md](docs/WINDOWS_QUICKSTART.md) 獲取 Windows 專用指南
+> **📚 完整 API 文檔**: [API_TESTING_GUIDE.md](docs/API_TESTING_GUIDE.md)
 
-#### 使用 Makefile (推薦)
+#### 方式一：使用腳本（推薦）
+
+**快速創建單個測試玩家：**
 
 ```bash
-# 創建單個測試玩家
-make test-player USERNAME=alice
+# Linux/Mac
+./scripts/create-player-via-api.sh player1 test123456
 
-# 創建並指定密碼
-make test-player USERNAME=bob PASSWORD=mypassword
-
-# 一鍵創建 4 個測試玩家（用於多人遊戲測試）
-make create-test-players
+# 輸出:
+# ✅ 注册成功!
+#    用户 ID: 1
+#    昵称: player1
+#    Token: eyJhbGciOiJIUzI1NiIs...
 ```
 
-#### 使用腳本
-
-**Linux/Mac:**
-```bash
-./scripts/create-test-player.sh alice
-./scripts/create-test-player.sh bob mypassword
-```
-
-**Windows (PowerShell - 推薦):**
-```powershell
-.\scripts\create-test-player.ps1 -Username alice
-.\scripts\create-test-player.ps1 -Username bob -Password mypassword
-```
-
-**Windows (批處理):**
-```cmd
-scripts\create-test-player.bat alice
-scripts\create-test-player.bat bob mypassword
-```
-
-#### 直接使用 Go
+**完整游戲流程測試：**
 
 ```bash
-go run cmd/test-player/main.go -username alice -password test123456
+# 測試完整流程：註冊 → 登入 → 驗證 → 連接遊戲
+./scripts/test-game-flow-via-api.sh myplayer mypassword
+
+# 輸出完整的測試報告和連接信息
 ```
 
-#### 測試工具功能
+#### 方式二：直接使用 API
 
-測試工具會自動驗證完整的遊戲流程：
+**1. 註冊新用戶**
 
-- ✅ 玩家註冊 (POST /api/v1/auth/register)
-- ✅ 玩家登入 (POST /api/v1/auth/login)
-- ✅ 獲取玩家資料 (GET /api/v1/user/profile)
-- ✅ WebSocket 連接到遊戲服務器
-- ✅ 獲取房間列表、發送心跳、獲取玩家信息
-
-**成功輸出示例：**
-```
-🐟 鱼游戏测试工具
-==================
-✅ 玩家注册成功: alice
-✅ 登入成功
-   Token: eyJhbGciOiJIUzI1NiIs...
-   用户ID: 123
-✅ 玩家资料验证成功
-✅ WebSocket连接成功
-✅ 所有测试通过！
-```
-
-#### 端到端測試
-
-執行完整的自動化測試腳本：
-
-**Linux/Mac:**
 ```bash
-# 自動啟動所有服務並創建測試玩家
-./scripts/e2e-test.sh
-
-# 保持服務運行（不自動關閉）
-./scripts/e2e-test.sh --keep-running
+curl -X POST http://localhost:6060/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "player1",
+    "password": "test123456"
+  }'
 ```
 
-**Windows (PowerShell - 推薦):**
-```powershell
-# 自動啟動所有服務並創建測試玩家
-.\scripts\e2e-test.ps1
-
-# 保持服務運行（不自動關閉）
-.\scripts\e2e-test.ps1 -KeepRunning
+**響應：**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "username": "player1",
+    "nickname": "player1",
+    "is_guest": false
+  }
+}
 ```
 
-**Windows (批處理):**
-```cmd
-scripts\e2e-test.bat
-scripts\e2e-test.bat --keep-running
+**2. 使用 Token 獲取用戶資料**
+
+```bash
+TOKEN="<your_token_here>"
+
+curl -X GET http://localhost:6060/api/v1/user/profile \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**3. 連接到遊戲服務器**
+
+使用獲取的 Token 通過 WebSocket 連接：
+
+```
+ws://localhost:9090?token=<your_token>
+```
+
+#### 可用的 API 端點
+
+| 端點 | 方法 | 說明 |
+|------|------|------|
+| `/api/v1/auth/register` | POST | 註冊新用戶 |
+| `/api/v1/auth/login` | POST | 用戶登入 |
+| `/api/v1/auth/guest-login` | POST | 游客登入 |
+| `/api/v1/user/profile` | GET | 獲取用戶資料 |
+| `/api/v1/user/profile` | PUT | 更新用戶資料 |
+
+> **詳細文檔**: 查看 [API_TESTING_GUIDE.md](docs/API_TESTING_GUIDE.md) 獲取完整的 API 文檔、請求示例和故障排除指南。
+
+#### 批量創建測試玩家
+
+```bash
+# 創建 4 個測試玩家用於多人遊戲測試
+for i in {1..4}; do
+  ./scripts/create-player-via-api.sh "player$i" "test123"
+  sleep 1
+done
 ```
 
 ### 5. 訪問前端測試客戶端
