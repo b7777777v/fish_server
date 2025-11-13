@@ -110,14 +110,21 @@ type UpdateProfileRequest struct {
 func (h *AccountHandler) handleRegister(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		// 記錄詳細的綁定錯誤
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+			"message": "請求數據格式不正確或缺少必要字段",
+		})
 		return
 	}
 
 	// 呼叫 AccountUsecase.Register
 	user, err := h.accountUsecase.Register(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+			"message": "註冊失敗",
+		})
 		return
 	}
 
