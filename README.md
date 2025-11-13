@@ -168,7 +168,107 @@ make run-game
 make run-admin
 ```
 
-### 4. 訪問前端測試客戶端
+### 4. 創建測試玩家 🎮
+
+在開始遊戲之前，需要創建測試玩家賬號。專案提供了完整的測試工具。
+
+> **詳細指南**: 查看 [TEST_PLAYER_GUIDE.md](docs/TEST_PLAYER_GUIDE.md) 獲取完整使用說明
+>
+> **快速開始**: 查看 [QUICKSTART.md](QUICKSTART.md) 了解 5 分鐘快速部署
+>
+> **🪟 Windows 用戶**: 查看 [WINDOWS_QUICKSTART.md](docs/WINDOWS_QUICKSTART.md) 獲取 Windows 專用指南
+
+#### 使用 Makefile (推薦)
+
+```bash
+# 創建單個測試玩家
+make test-player USERNAME=alice
+
+# 創建並指定密碼
+make test-player USERNAME=bob PASSWORD=mypassword
+
+# 一鍵創建 4 個測試玩家（用於多人遊戲測試）
+make create-test-players
+```
+
+#### 使用腳本
+
+**Linux/Mac:**
+```bash
+./scripts/create-test-player.sh alice
+./scripts/create-test-player.sh bob mypassword
+```
+
+**Windows (PowerShell - 推薦):**
+```powershell
+.\scripts\create-test-player.ps1 -Username alice
+.\scripts\create-test-player.ps1 -Username bob -Password mypassword
+```
+
+**Windows (批處理):**
+```cmd
+scripts\create-test-player.bat alice
+scripts\create-test-player.bat bob mypassword
+```
+
+#### 直接使用 Go
+
+```bash
+go run cmd/test-player/main.go -username alice -password test123456
+```
+
+#### 測試工具功能
+
+測試工具會自動驗證完整的遊戲流程：
+
+- ✅ 玩家註冊 (POST /api/v1/auth/register)
+- ✅ 玩家登入 (POST /api/v1/auth/login)
+- ✅ 獲取玩家資料 (GET /api/v1/user/profile)
+- ✅ WebSocket 連接到遊戲服務器
+- ✅ 獲取房間列表、發送心跳、獲取玩家信息
+
+**成功輸出示例：**
+```
+🐟 鱼游戏测试工具
+==================
+✅ 玩家注册成功: alice
+✅ 登入成功
+   Token: eyJhbGciOiJIUzI1NiIs...
+   用户ID: 123
+✅ 玩家资料验证成功
+✅ WebSocket连接成功
+✅ 所有测试通过！
+```
+
+#### 端到端測試
+
+執行完整的自動化測試腳本：
+
+**Linux/Mac:**
+```bash
+# 自動啟動所有服務並創建測試玩家
+./scripts/e2e-test.sh
+
+# 保持服務運行（不自動關閉）
+./scripts/e2e-test.sh --keep-running
+```
+
+**Windows (PowerShell - 推薦):**
+```powershell
+# 自動啟動所有服務並創建測試玩家
+.\scripts\e2e-test.ps1
+
+# 保持服務運行（不自動關閉）
+.\scripts\e2e-test.ps1 -KeepRunning
+```
+
+**Windows (批處理):**
+```cmd
+scripts\e2e-test.bat
+scripts\e2e-test.bat --keep-running
+```
+
+### 5. 訪問前端測試客戶端
 
 前端測試客戶端已經集成到 `admin-server` 中，無需額外啟動服務。
 

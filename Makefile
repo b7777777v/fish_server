@@ -3,7 +3,8 @@
 
 # 將所有目標聲明為 .PHONY，避免與同名文件衝突
 .PHONY: all proto wire gen build build-game build-admin run-game run-admin test lint tidy clean help \
-        docker-build run-dev docker-down docker-logs migrate-up migrate-down
+        docker-build run-dev docker-down docker-logs migrate-up migrate-down \
+        test-player create-test-players
 
 ## ===================================================================================
 ## Go & Project Variables
@@ -140,6 +141,35 @@ docker-down: ## Stop and remove docker-compose containers
 docker-logs: ## Follow logs from docker-compose services
 	@echo ">> Following logs..."
 	@$(DOCKER_COMPOSE) logs -f
+
+## ===================================================================================
+## Testing & Development Tools
+## ===================================================================================
+
+test-player: ## Run test player tool (usage: make test-player USERNAME=player1 PASSWORD=test123)
+	@if [ -z "$(USERNAME)" ]; then \
+		echo "错误: 必须提供 USERNAME"; \
+		echo "用法: make test-player USERNAME=player1 [PASSWORD=test123]"; \
+		exit 1; \
+	fi
+	@echo ">> Creating test player: $(USERNAME)"
+	@$(GO_RUN) cmd/test-player/main.go \
+		-username $(USERNAME) \
+		-password $(or $(PASSWORD),test123456) \
+		$(if $(VERBOSE),-verbose) \
+		$(if $(CREATE_ONLY),-create-only)
+
+create-test-players: ## Create multiple test players (creates player1-4)
+	@echo ">> Creating 4 test players..."
+	@for i in 1 2 3 4; do \
+		echo "Creating player$$i..."; \
+		$(GO_RUN) cmd/test-player/main.go \
+			-username "player$$i" \
+			-password "test123" \
+			-create-only || true; \
+		sleep 1; \
+	done
+	@echo "✓ All test players created!"
 
 ## ===================================================================================
 ## Cleanup & Help
