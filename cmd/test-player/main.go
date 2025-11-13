@@ -5,7 +5,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -20,7 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
-	pb "fish_server/api/proto/v1"
+	pb "github.com/b7777777v/fish_server/pkg/pb/v1"
 )
 
 const (
@@ -278,10 +277,6 @@ func testGameFlow(player *TestPlayer) error {
 
 	fmt.Println("✅ WebSocket连接成功")
 
-	// 创建context用于优雅关闭
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// 处理中断信号
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
@@ -338,7 +333,6 @@ func testGameFlow(player *TestPlayer) error {
 		fmt.Println("连接已关闭")
 	case <-interrupt:
 		fmt.Println("\n收到中断信号，正在关闭...")
-		cancel()
 	case <-time.After(2 * time.Second):
 		fmt.Println("测试完成")
 	}
@@ -352,7 +346,7 @@ func waitForWelcome(messages <-chan *pb.GameMessage) error {
 	case msg := <-messages:
 		if msg.Type == pb.MessageType_WELCOME {
 			if *verbose {
-				fmt.Printf("   收到欢迎消息: %s\n", msg.GetWelcome().GetMessage())
+				fmt.Printf("   收到欢迎消息，客户端ID: %s\n", msg.GetWelcome().GetClientId())
 			}
 			return nil
 		}
@@ -365,7 +359,9 @@ func waitForWelcome(messages <-chan *pb.GameMessage) error {
 // getRoomList 获取房间列表
 func getRoomList(ws *websocket.Conn, messages <-chan *pb.GameMessage) error {
 	msg := &pb.GameMessage{
-		Type:        pb.MessageType_GET_ROOM_LIST,
+		Type: pb.MessageType_GET_ROOM_LIST,
+	}
+	msg.Data = &pb.GameMessage_GetRoomList{
 		GetRoomList: &pb.GetRoomListRequest{},
 	}
 
@@ -381,18 +377,18 @@ func getRoomList(ws *websocket.Conn, messages <-chan *pb.GameMessage) error {
 	// 等待响应
 	select {
 	case resp := <-messages:
-		if resp.Type == pb.MessageType_GET_ROOM_LIST_RESPONSE {
-			rooms := resp.GetGetRoomListResponse().GetRooms()
+		if resp.Type == pb.MessageType_ROOM_LIST_RESPONSE {
+			rooms := resp.GetRoomListResponse().GetRooms()
 			if *verbose {
 				fmt.Printf("   房间数量: %d\n", len(rooms))
 				for i, room := range rooms {
-					fmt.Printf("   房间%d: ID=%d, 玩家=%d/%d, 状态=%s\n",
-						i+1, room.GetId(), room.GetCurrentPlayers(), room.GetMaxPlayers(), room.GetStatus())
+					fmt.Printf("   房间%d: ID=%s, 玩家=%d/%d, 状态=%s\n",
+						i+1, room.GetRoomId(), room.GetPlayerCount(), room.GetMaxPlayers(), room.GetStatus())
 				}
 			}
 			return nil
 		}
-		return fmt.Errorf("期望GET_ROOM_LIST_RESPONSE，收到: %s", resp.Type.String())
+		return fmt.Errorf("期望ROOM_LIST_RESPONSE，收到: %s", resp.Type.String())
 	case <-time.After(5 * time.Second):
 		return fmt.Errorf("等待房间列表响应超时")
 	}
@@ -401,8 +397,12 @@ func getRoomList(ws *websocket.Conn, messages <-chan *pb.GameMessage) error {
 // sendHeartbeat 发送心跳
 func sendHeartbeat(ws *websocket.Conn, messages <-chan *pb.GameMessage) error {
 	msg := &pb.GameMessage{
-		Type:      pb.MessageType_HEARTBEAT,
-		Heartbeat: &pb.HeartbeatRequest{},
+		Type: pb.MessageType_HEARTBEAT,
+	}
+	msg.Data = &pb.GameMessage_Heartbeat{
+		Heartbeat: &pb.HeartbeatMessage{
+			Timestamp: time.Now().Unix(),
+		},
 	}
 
 	data, err := proto.Marshal(msg)
@@ -419,7 +419,8 @@ func sendHeartbeat(ws *websocket.Conn, messages <-chan *pb.GameMessage) error {
 	case resp := <-messages:
 		if resp.Type == pb.MessageType_HEARTBEAT_RESPONSE {
 			if *verbose {
-				fmt.Printf("   服务器时间: %d\n", resp.GetHeartbeatResponse().GetServerTime())
+				heartbeatResp := resp.GetHeartbeatResponse()
+				fmt.Printf("   服务器时间: %d\n", heartbeatResp.GetServerTime())
 			}
 			return nil
 		}
@@ -432,7 +433,9 @@ func sendHeartbeat(ws *websocket.Conn, messages <-chan *pb.GameMessage) error {
 // getPlayerInfo 获取玩家信息
 func getPlayerInfo(ws *websocket.Conn, messages <-chan *pb.GameMessage) error {
 	msg := &pb.GameMessage{
-		Type:          pb.MessageType_GET_PLAYER_INFO,
+		Type: pb.MessageType_GET_PLAYER_INFO,
+	}
+	msg.Data = &pb.GameMessage_GetPlayerInfo{
 		GetPlayerInfo: &pb.GetPlayerInfoRequest{},
 	}
 
@@ -448,16 +451,16 @@ func getPlayerInfo(ws *websocket.Conn, messages <-chan *pb.GameMessage) error {
 	// 等待响应
 	select {
 	case resp := <-messages:
-		if resp.Type == pb.MessageType_GET_PLAYER_INFO_RESPONSE {
-			playerResp := resp.GetGetPlayerInfoResponse()
+		if resp.Type == pb.MessageType_PLAYER_INFO_RESPONSE {
+			playerResp := resp.GetPlayerInfoResponse()
 			if *verbose {
 				fmt.Printf("   玩家ID: %d\n", playerResp.GetPlayerId())
-				fmt.Printf("   用户名: %s\n", playerResp.GetUsername())
+				fmt.Printf("   昵称: %s\n", playerResp.GetNickname())
 				fmt.Printf("   余额: %d\n", playerResp.GetBalance())
 			}
 			return nil
 		}
-		return fmt.Errorf("期望GET_PLAYER_INFO_RESPONSE，收到: %s", resp.Type.String())
+		return fmt.Errorf("期望PLAYER_INFO_RESPONSE，收到: %s", resp.Type.String())
 	case <-time.After(5 * time.Second):
 		return fmt.Errorf("等待玩家信息响应超时")
 	}
