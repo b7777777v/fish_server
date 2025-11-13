@@ -415,7 +415,20 @@ document.addEventListener('DOMContentLoaded', () => {
             case MessageType.WELCOME:
                 const welcomeMsg = gameMessage.getWelcome();
                 if (welcomeMsg) {
-                    log(`伺服器歡迎您: ClientID=${welcomeMsg.getClientId()}, ServerTime=${welcomeMsg.getServerTime()}`);
+                    const serverClientId = welcomeMsg.getClientId();
+                    log(`伺服器歡迎您: ClientID=${serverClientId}, ServerTime=${welcomeMsg.getServerTime()}`);
+
+                    // 🔧 關鍵修復：使用服務器返回的 ClientID 更新 currentPlayerId
+                    // 這樣可以確保前端和後端的玩家ID完全一致
+                    if (window.gameRenderer && gameRenderer.isRunning) {
+                        console.log(`[Client] WELCOME: Updating currentPlayerId from "${gameRenderer.currentPlayerId}" to "${serverClientId}"`);
+                        gameRenderer.setCurrentPlayer(serverClientId);
+
+                        // 🔧 如果是遊客模式，也更新顯示的 nickname
+                        if (isGuestMode && guestNickname) {
+                            guestNickname.textContent = serverClientId;
+                        }
+                    }
                 } else {
                     log('收到 WELCOME 訊息，但缺少 payload。', 'error');
                 }
