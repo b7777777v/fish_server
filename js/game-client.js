@@ -691,6 +691,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 🔧 根據座位信息同步渲染器中的玩家位置
             if (window.gameRenderer && gameRenderer.isRunning) {
+                console.log(`[Client] RoomStateUpdate: syncing seats, currentPlayerId="${gameRenderer.currentPlayerId}"`);
+
                 seats.forEach(seat => {
                     const seatId = seat.getSeatId();
                     // 🔧 關鍵修復：使用 nickname（字符串 ID）而不是 playerId（數字 ID）
@@ -698,18 +700,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     const isEmpty = !nickname || nickname === '';
 
                     if (!isEmpty) {
+                        console.log(`[Client] Processing seat ${seatId}: nickname="${nickname}"`);
+
                         // 如果玩家不在渲染器中，添加到對應座位
                         if (!gameRenderer.players.has(nickname)) {
                             gameRenderer.addPlayer(nickname, seatId);
-                            console.log(`[Client] Added player ${nickname} to seat ${seatId} from RoomStateUpdate`);
+                            console.log(`[Client] ✓ Added player ${nickname} to seat ${seatId} from RoomStateUpdate`);
                         } else {
                             // 如果玩家已在渲染器中，檢查座位是否正確
                             const player = gameRenderer.players.get(nickname);
                             if (player.seatId !== seatId) {
                                 // 座位變更，重新添加
+                                console.log(`[Client] Seat mismatch for ${nickname}: current=${player.seatId}, new=${seatId}`);
                                 gameRenderer.removePlayer(nickname);
                                 gameRenderer.addPlayer(nickname, seatId);
-                                console.log(`[Client] Moved player ${nickname} to seat ${seatId}`);
+                                console.log(`[Client] ✓ Moved player ${nickname} from seat ${player.seatId} to seat ${seatId}`);
+                            } else {
+                                console.log(`[Client] Player ${nickname} already at correct seat ${seatId}`);
                             }
                         }
                     }
@@ -1015,6 +1022,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const currentPlayerId = isGuestMode
                     ? (guestNickname ? guestNickname.textContent : 'Guest')
                     : playerIdInput.value;
+
+                console.log(`[Client] SelectSeatResponse: currentPlayerId="${currentPlayerId}", seatId=${seatId}`);
+                console.log(`[Client] Existing players:`, Array.from(gameRenderer.players.keys()));
 
                 // 移除玩家然後重新添加到正確的座位
                 gameRenderer.removePlayer(currentPlayerId);

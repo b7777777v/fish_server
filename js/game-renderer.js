@@ -497,22 +497,28 @@ class GameRenderer {
      * @param {number} [seatId] - 座位ID (0-3)，如果不提供則自動分配
      */
     addPlayer(playerId, seatId) {
-        if (!this.players.has(playerId)) {
-            // 如果提供了座位ID，使用座位ID；否則使用當前玩家數量作為索引
-            const index = seatId !== undefined ? seatId : this.players.size;
-            const positionData = this.getCannonPosition(index);
-
-            this.players.set(playerId, {
-                id: playerId,
-                position: { x: positionData.x, y: positionData.y },
-                cannonType: 1,
-                level: 1,
-                angle: positionData.angle,  // 使用座位對應的初始角度
-                seatId: index               // 保存座位ID
-            });
-
-            console.log(`[Renderer] Player added: ${playerId} at seat ${index}, position (${positionData.x.toFixed(1)}, ${positionData.y.toFixed(1)}), angle ${(positionData.angle * 180 / Math.PI).toFixed(1)}°`);
+        // 🔧 檢查是否已存在
+        if (this.players.has(playerId)) {
+            const existingPlayer = this.players.get(playerId);
+            console.warn(`[Renderer] Player ${playerId} already exists at seat ${existingPlayer.seatId}. Skipping add.`);
+            return;
         }
+
+        // 如果提供了座位ID，使用座位ID；否則使用當前玩家數量作為索引
+        const index = seatId !== undefined ? seatId : this.players.size;
+        const positionData = this.getCannonPosition(index);
+
+        this.players.set(playerId, {
+            id: playerId,
+            position: { x: positionData.x, y: positionData.y },
+            cannonType: 1,
+            level: 1,
+            angle: positionData.angle,  // 使用座位對應的初始角度
+            seatId: index               // 保存座位ID
+        });
+
+        console.log(`[Renderer] ✓ Player added: ${playerId} at seat ${index}, position (${positionData.x.toFixed(1)}, ${positionData.y.toFixed(1)}), angle ${(positionData.angle * 180 / Math.PI).toFixed(1)}°`);
+        console.log(`[Renderer] Total players: ${this.players.size}, Current player: ${this.currentPlayerId}`);
     }
 
     /**
@@ -520,11 +526,12 @@ class GameRenderer {
      */
     removePlayer(playerId) {
         if (this.players.has(playerId)) {
+            const player = this.players.get(playerId);
+            console.log(`[Renderer] Removing player ${playerId} from seat ${player.seatId}`);
             this.players.delete(playerId);
-            console.log(`[Renderer] Player removed: ${playerId}`);
 
-            // 重新分配所有玩家位置
-            this.reassignPlayerPositions();
+            // 🔧 不要重新分配其他玩家的位置！座位系統應該保持固定
+            // this.reassignPlayerPositions();
         }
     }
 
