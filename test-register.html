@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>測試註冊 API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>測試註冊 API</h1>
+
+    <form id="testForm">
+        <div class="form-group">
+            <label for="username">使用者名稱：</label>
+            <input type="text" id="username" value="testuser123" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">密碼（至少6個字符）：</label>
+            <input type="password" id="password" value="password123" required>
+        </div>
+
+        <div class="form-group">
+            <label for="nickname">暱稱（選填）：</label>
+            <input type="text" id="nickname" value="測試用戶">
+        </div>
+
+        <button type="submit">測試註冊</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('testForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const nickname = document.getElementById('nickname').value;
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'none';
+
+            try {
+                console.log('發送註冊請求:', { username, password, nickname });
+
+                const response = await fetch('http://localhost:6060/api/v1/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password,
+                        nickname: nickname || username,
+                    }),
+                });
+
+                const data = await response.json();
+                console.log('響應數據:', data);
+
+                resultDiv.style.display = 'block';
+
+                if (response.ok) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ 註冊成功！</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ 註冊失敗 (HTTP ${response.status})</h3>
+                        <p><strong>錯誤信息：</strong> ${data.error || data.message || '未知錯誤'}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('請求失敗:', error);
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `
+                    <h3>❌ 請求失敗</h3>
+                    <p><strong>錯誤：</strong> ${error.message}</p>
+                    <p>請確保 Admin Server 正在運行 (http://localhost:6060)</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
