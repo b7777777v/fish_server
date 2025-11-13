@@ -64,28 +64,6 @@ func (uc *WalletUsecase) CreateWallet(ctx context.Context, userID uint, currency
 	return wallet, nil
 }
 
-// CreateWalletSimple 創建錢包（簡化版本，用於適配 account 模塊）
-func (uc *WalletUsecase) CreateWalletSimple(ctx context.Context, userID uint, currency string) (*WalletInfo, error) {
-	wallet, err := uc.CreateWallet(ctx, userID, currency)
-	if err != nil {
-		return nil, err
-	}
-	return &WalletInfo{
-		ID:       wallet.ID,
-		UserID:   wallet.UserID,
-		Balance:  wallet.Balance,
-		Currency: wallet.Currency,
-	}, nil
-}
-
-// WalletInfo 錢包基本信息（用於跨模塊通信）
-type WalletInfo struct {
-	ID       uint
-	UserID   uint
-	Balance  float64
-	Currency string
-}
-
 // Deposit 存款
 func (uc *WalletUsecase) Deposit(ctx context.Context, walletID uint, amount float64, txType, referenceID, description string, metadata map[string]interface{}) error {
 	return uc.repo.Deposit(ctx, walletID, amount, txType, referenceID, description, metadata)
