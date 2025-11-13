@@ -273,8 +273,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     : playerIdInput.value;
                 gameRenderer.setCurrentPlayer(currentPlayerId);
 
-                // 添加當前玩家到渲染器
-                gameRenderer.addPlayer(currentPlayerId);
+                // 🔧 不要立即添加玩家，等待玩家選擇座位
+                // gameRenderer.addPlayer(currentPlayerId);
 
                 gameRenderer.start();
             }
@@ -440,10 +440,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const joinedPlayerId = playerJoined.getPlayerId();
                 log(`玩家 ${joinedPlayerId} 加入了房間 ${playerJoined.getRoomId()}。`);
 
-                // 添加玩家到渲染器
-                if (window.gameRenderer && gameRenderer.isRunning) {
-                    gameRenderer.addPlayer(joinedPlayerId);
-                }
+                // 🔧 不在這裡添加玩家，等待 RoomStateUpdate 中的座位信息
+                // 玩家會在選擇座位後，通過 RoomStateUpdate 自動添加到渲染器
                 break;
             case MessageType.BULLET_FIRED:
                 const bulletFired = gameMessage.getBulletFired();
@@ -580,8 +578,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     fireBulletBtn.addEventListener('click', () => {
-        // 獲取當前玩家的砲台信息
-        const currentPlayerId = playerIdInput.value;
+        // 🔧 獲取當前玩家ID（支持遊客模式）
+        const currentPlayerId = isGuestMode
+            ? (guestNickname ? guestNickname.textContent : 'Guest')
+            : playerIdInput.value;
+
+        // 檢查是否已選擇座位
+        if (!hasSelectedSeat || currentSeat < 0) {
+            log('⚠️ 請先選擇座位才能開火！', 'error');
+            return;
+        }
+
         let cannonPosition = null;
         let cannonAngle = -Math.PI / 2; // 默認向上
 
@@ -594,16 +601,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // 只在開火時記錄，不是每次都記錄
                 if (stats.messagesSent % 10 === 0) { // 每10次記錄一次
-                    log(`🎯 從砲口發射: 位置(${cannonPosition.x.toFixed(1)}, ${cannonPosition.y.toFixed(1)}), 角度=${(cannonAngle * 180 / Math.PI).toFixed(1)}°, 砲管長=${barrelEnd.barrelLength}`, 'system');
+                    log(`🎯 從砲口發射: 位置(${cannonPosition.x.toFixed(1)}, ${cannonPosition.y.toFixed(1)}), 角度=${(cannonAngle * 180 / Math.PI).toFixed(1)}°, 座位=${currentSeat + 1}`, 'system');
                 }
             } else {
-                cannonPosition = { x: 600, y: 750 };
-                log(`⚠️ 無法獲取砲台位置`, 'error');
+                log(`⚠️ 無法獲取砲台位置，請確保已選擇座位`, 'error');
+                return;
             }
         } else {
-            // 如果渲染器沒有運行，使用默認位置（畫布底部中央）
-            cannonPosition = { x: 600, y: 750 };
-            log(`⚠️ 使用默認砲台位置`, 'system');
+            log(`⚠️ 無法找到玩家砲台，請先選擇座位`, 'error');
+            return;
         }
 
         const gameMessage = new proto.v1.GameMessage();
@@ -682,6 +688,32 @@ document.addEventListener('DOMContentLoaded', () => {
         const seats = roomStateUpdate.getSeatsList();
         if (seats && seats.length > 0) {
             updateSeatsInfo(seats);
+
+            // 🔧 根據座位信息同步渲染器中的玩家位置
+            if (window.gameRenderer && gameRenderer.isRunning) {
+                seats.forEach(seat => {
+                    const seatId = seat.getSeatId();
+                    const playerId = seat.getPlayerId();
+                    const isEmpty = !playerId || playerId === '0';
+
+                    if (!isEmpty) {
+                        // 如果玩家不在渲染器中，添加到對應座位
+                        if (!gameRenderer.players.has(playerId)) {
+                            gameRenderer.addPlayer(playerId, seatId);
+                            console.log(`[Client] Added player ${playerId} to seat ${seatId} from RoomStateUpdate`);
+                        } else {
+                            // 如果玩家已在渲染器中，檢查座位是否正確
+                            const player = gameRenderer.players.get(playerId);
+                            if (player.seatId !== seatId) {
+                                // 座位變更，重新添加
+                                gameRenderer.removePlayer(playerId);
+                                gameRenderer.addPlayer(playerId, seatId);
+                                console.log(`[Client] Moved player ${playerId} to seat ${seatId}`);
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         // 計算延遲
@@ -974,6 +1006,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // 更新座位信息顯示
             if (currentSeatInfo) currentSeatInfo.style.display = 'block';
             if (currentSeatId) currentSeatId.textContent = `座位 ${seatId + 1}`;
+
+            // 🔧 重要：更新渲染器中的玩家位置到所選座位
+            if (window.gameRenderer && gameRenderer.isRunning) {
+                const currentPlayerId = isGuestMode
+                    ? (guestNickname ? guestNickname.textContent : 'Guest')
+                    : playerIdInput.value;
+
+                // 移除玩家然後重新添加到正確的座位
+                gameRenderer.removePlayer(currentPlayerId);
+                gameRenderer.addPlayer(currentPlayerId, seatId);
+
+                log(`🪑 已將砲台移動到座位 ${seatId + 1}`, 'system');
+            }
 
             // 座位按鈕狀態會在下次 RoomStateUpdate 時自動更新
 
