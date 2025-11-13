@@ -576,7 +576,18 @@ class GameRenderer {
         if (player) {
             const dx = targetX - player.position.x;
             const dy = targetY - player.position.y;
-            player.angle = Math.atan2(dy, dx);
+            const newAngle = Math.atan2(dy, dx);
+
+            // 調試：每100幀記錄一次
+            if (this.frameCount % 100 === 0) {
+                console.log(`[Renderer] Updating angle for ${playerId}: (${targetX.toFixed(0)}, ${targetY.toFixed(0)}) -> ${(newAngle * 180 / Math.PI).toFixed(1)}°`);
+            }
+
+            player.angle = newAngle;
+        } else {
+            if (this.frameCount % 100 === 0) {
+                console.warn(`[Renderer] Player ${playerId} not found in players map`);
+            }
         }
     }
 
@@ -614,6 +625,14 @@ class GameRenderer {
      * 繪製所有砲台
      */
     drawCannons() {
+        // 調試：每100幀記錄一次砲台數量
+        if (this.frameCount % 100 === 0 && this.players.size > 0) {
+            console.log(`[Renderer] Drawing ${this.players.size} cannons`);
+            this.players.forEach((player, playerId) => {
+                console.log(`  - ${playerId}: seat ${player.seatId}, pos (${player.position.x.toFixed(0)}, ${player.position.y.toFixed(0)}), angle ${(player.angle * 180 / Math.PI).toFixed(1)}°`);
+            });
+        }
+
         this.players.forEach((player, playerId) => {
             const isCurrentPlayer = playerId === this.currentPlayerId;
             this.drawCannon(player, isCurrentPlayer);
@@ -735,7 +754,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // 添加滑鼠移動事件，讓砲台跟隨滑鼠
         const canvas = document.getElementById('gameCanvas');
         if (canvas) {
+            let mouseMoveCount = 0; // 用於控制日誌頻率
+
             canvas.addEventListener('mousemove', (event) => {
+                mouseMoveCount++;
+
                 // 🔧 只有在玩家已加入渲染器時才更新角度（即已選擇座位）
                 if (window.gameRenderer && gameRenderer.isRunning && gameRenderer.currentPlayerId) {
                     const player = gameRenderer.players.get(gameRenderer.currentPlayerId);
@@ -744,6 +767,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         const mouseX = event.clientX - rect.left;
                         const mouseY = event.clientY - rect.top;
                         gameRenderer.updateCannonAngle(gameRenderer.currentPlayerId, mouseX, mouseY);
+                    } else {
+                        // 玩家不存在，每200次記錄一次
+                        if (mouseMoveCount % 200 === 0) {
+                            console.warn(`[Renderer] Mouse move but player ${gameRenderer.currentPlayerId} not in renderer. Players: ${Array.from(gameRenderer.players.keys()).join(', ')}`);
+                        }
+                    }
+                } else {
+                    // 條件不滿足，每200次記錄一次
+                    if (mouseMoveCount % 200 === 0) {
+                        console.warn(`[Renderer] Mouse move but conditions not met: renderer=${!!window.gameRenderer}, running=${gameRenderer?.isRunning}, playerId=${gameRenderer?.currentPlayerId}`);
                     }
                 }
             });
