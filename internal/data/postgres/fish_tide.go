@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/b7777777v/fish_server/internal/biz/game"
 )
@@ -12,11 +11,11 @@ import (
 
 // fishTideRepo 實現 game.FishTideRepo 介面
 type fishTideRepo struct {
-	db *sql.DB
+	db *Client
 }
 
 // NewFishTideRepo 建立新的 FishTideRepo 實例
-func NewFishTideRepo(db *sql.DB) game.FishTideRepo {
+func NewFishTideRepo(db *Client) game.FishTideRepo {
 	return &fishTideRepo{
 		db: db,
 	}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/b7777777v/fish_server/internal/biz/lobby"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
+	"github.com/jackc/pgx/v5"
 )
 
 // lobbyPlayerRepo 實現 lobby.PlayerRepo 介面
@@ -42,7 +43,7 @@ func (r *lobbyPlayerRepo) GetPlayerInfo(ctx context.Context, userID int64) (*lob
 	)
 
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if err == pgx.ErrNoRows {
 			return nil, nil // 玩家不存在
 		}
 		r.logger.Errorf("failed to get player info: %v", err)
@@ -81,7 +82,7 @@ func (r *lobbyWalletRepo) GetBalance(ctx context.Context, userID int64) (int64, 
 	var balance int64
 	err := r.data.db.QueryRow(ctx, query, userID).Scan(&balance)
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if err == pgx.ErrNoRows {
 			return 0, nil // 玩家不存在，返回 0
 		}
 		r.logger.Errorf("failed to get balance: %v", err)

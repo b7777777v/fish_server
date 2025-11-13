@@ -11,6 +11,7 @@ import (
 	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	"github.com/go-redis/redis/v8"
+	"github.com/jackc/pgx/v5"
 )
 
 // playerRepo 實現了 biz.PlayerRepo 接口
@@ -70,7 +71,7 @@ func (r *gamePlayerRepo) GetPlayer(ctx context.Context, playerID int64) (*game.P
 	}
 	err = r.data.db.QueryRow(ctx, query, playerID).Scan(&po.ID, &po.Nickname, &po.Status, &po.Balance)
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if err == pgx.ErrNoRows {
 			return nil, fmt.Errorf("player with id %d not found", playerID)
 		}
 		r.logger.Errorf("failed to get player from db: %v", err)
@@ -188,7 +189,7 @@ func (r *playerRepo) FindByUsername(ctx context.Context, username string) (*play
 			Username:     po.Username,
 			PasswordHash: po.PasswordHash,
 		}
-	} else if err.Error() != "no rows in result set" {
+	} else if err != pgx.ErrNoRows {
 		r.logger.Errorf("failed to find user by username: %v", err)
 		return nil, err
 	}

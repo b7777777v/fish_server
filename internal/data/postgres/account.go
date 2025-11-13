@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/b7777777v/fish_server/internal/biz/account"
+	"github.com/jackc/pgx/v5"
 )
 
 // TODO: 實現帳號資料庫訪問層
@@ -77,7 +78,7 @@ func (r *accountRepo) GetUserByUsername(ctx context.Context, username string) (*
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return nil, "", nil // 使用者不存在
 		}
 		return nil, "", err
@@ -115,7 +116,7 @@ func (r *accountRepo) GetUserByID(ctx context.Context, userID int64) (*account.U
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return nil, nil // 使用者不存在
 		}
 		return nil, err
@@ -153,7 +154,7 @@ func (r *accountRepo) GetUserByThirdParty(ctx context.Context, provider, thirdPa
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return nil, nil // 使用者不存在
 		}
 		return nil, err

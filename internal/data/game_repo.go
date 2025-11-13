@@ -9,6 +9,7 @@ import (
 
 	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
+	"github.com/jackc/pgx/v5"
 )
 
 // gameRepo 實現了 biz/game.GameRepo 接口
@@ -86,7 +87,7 @@ func (r *gameRepo) GetRoom(ctx context.Context, roomID string) (*game.Room, erro
 		&room.ID, &room.Name, &room.Type, &room.Status, &room.MaxPlayers, &configBytes, &room.CreatedAt, &room.UpdatedAt,
 	)
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if err == pgx.ErrNoRows {
 			return nil, fmt.Errorf("room with id %s not found", roomID)
 		}
 		r.logger.Errorf("failed to get room from db: %v", err)
@@ -205,7 +206,7 @@ func (r *gameRepo) GetGameStatistics(ctx context.Context, playerID int64) (*game
 	)
 
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if err == pgx.ErrNoRows {
 			// 如果沒有統計數據，返回一個空的統計對象，而不是錯誤
 			return &game.GameStatistics{}, nil
 		}
