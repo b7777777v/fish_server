@@ -168,7 +168,102 @@ make run-game
 make run-admin
 ```
 
-### 4. 訪問前端測試客戶端
+### 4. 建立測試玩家賬號 🎮
+
+在開始遊戲之前，需要創建測試玩家賬號。本專案提供**通過 Admin Server REST API** 創建會員的完整流程。
+
+> **📚 完整 API 文檔**: [API_TESTING_GUIDE.md](docs/API_TESTING_GUIDE.md)
+
+#### 方式一：使用腳本（推薦）
+
+**快速創建單個測試玩家：**
+
+```bash
+# Linux/Mac
+./scripts/create-player-via-api.sh player1 test123456
+
+# 輸出:
+# ✅ 注册成功!
+#    用户 ID: 1
+#    昵称: player1
+#    Token: eyJhbGciOiJIUzI1NiIs...
+```
+
+**完整游戲流程測試：**
+
+```bash
+# 測試完整流程：註冊 → 登入 → 驗證 → 連接遊戲
+./scripts/test-game-flow-via-api.sh myplayer mypassword
+
+# 輸出完整的測試報告和連接信息
+```
+
+#### 方式二：直接使用 API
+
+**1. 註冊新用戶**
+
+```bash
+curl -X POST http://localhost:6060/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "player1",
+    "password": "test123456"
+  }'
+```
+
+**響應：**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "username": "player1",
+    "nickname": "player1",
+    "is_guest": false
+  }
+}
+```
+
+**2. 使用 Token 獲取用戶資料**
+
+```bash
+TOKEN="<your_token_here>"
+
+curl -X GET http://localhost:6060/api/v1/user/profile \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**3. 連接到遊戲服務器**
+
+使用獲取的 Token 通過 WebSocket 連接：
+
+```
+ws://localhost:9090?token=<your_token>
+```
+
+#### 可用的 API 端點
+
+| 端點 | 方法 | 說明 |
+|------|------|------|
+| `/api/v1/auth/register` | POST | 註冊新用戶 |
+| `/api/v1/auth/login` | POST | 用戶登入 |
+| `/api/v1/auth/guest-login` | POST | 游客登入 |
+| `/api/v1/user/profile` | GET | 獲取用戶資料 |
+| `/api/v1/user/profile` | PUT | 更新用戶資料 |
+
+> **詳細文檔**: 查看 [API_TESTING_GUIDE.md](docs/API_TESTING_GUIDE.md) 獲取完整的 API 文檔、請求示例和故障排除指南。
+
+#### 批量創建測試玩家
+
+```bash
+# 創建 4 個測試玩家用於多人遊戲測試
+for i in {1..4}; do
+  ./scripts/create-player-via-api.sh "player$i" "test123"
+  sleep 1
+done
+```
+
+### 5. 訪問前端測試客戶端
 
 前端測試客戶端已經集成到 `admin-server` 中，無需額外啟動服務。
 
