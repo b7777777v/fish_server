@@ -11,6 +11,7 @@ import (
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	"github.com/go-redis/redis/v8"
+	"github.com/jackc/pgx/v5"
 )
 
 // WalletPO 是錢包的持久化對象
@@ -150,7 +151,7 @@ func (r *walletRepo) FindByID(ctx context.Context, id uint) (*wallet.Wallet, err
 	)
 
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if err == pgx.ErrNoRows {
 			return nil, errors.New("wallet not found")
 		}
 		r.logger.Errorf("failed to find wallet by id: %v", err)
@@ -198,7 +199,7 @@ func (r *walletRepo) FindByUserID(ctx context.Context, userID uint, currency str
 	)
 
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if err == pgx.ErrNoRows {
 			return nil, errors.New("wallet not found")
 		}
 		r.logger.Errorf("failed to find wallet by user_id and currency: %v", err)
@@ -405,7 +406,7 @@ func (r *walletRepo) Deposit(ctx context.Context, walletID uint, amount float64,
 	query := `SELECT balance FROM wallets WHERE id = $1 FOR UPDATE`
 	err = tx.QueryRow(ctx, query, walletID).Scan(&currentBalance)
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if err == pgx.ErrNoRows {
 			return fmt.Errorf("wallet not found")
 		}
 		r.logger.Errorf("failed to find wallet: %v", err)
@@ -489,7 +490,7 @@ func (r *walletRepo) Withdraw(ctx context.Context, walletID uint, amount float64
 	)
 
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if err == pgx.ErrNoRows {
 			return fmt.Errorf("wallet not found")
 		}
 		r.logger.Errorf("failed to find wallet: %v", err)
