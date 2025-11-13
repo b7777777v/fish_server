@@ -777,13 +777,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         // 玩家不存在，每200次記錄一次
                         if (mouseMoveCount % 200 === 0) {
-                            console.warn(`[Renderer] Mouse move but player ${gameRenderer.currentPlayerId} not in renderer. Players: ${Array.from(gameRenderer.players.keys()).join(', ')}`);
+                            const playersArray = Array.from(gameRenderer.players.keys());
+                            console.warn(`[Renderer] ⚠️ currentPlayerId="${gameRenderer.currentPlayerId}" not found!`);
+                            console.warn(`[Renderer] Players in renderer: [${playersArray.join(', ')}]`);
+                            console.warn(`[Renderer] Checking exact match:`, playersArray.map(p => `"${p}" === "${gameRenderer.currentPlayerId}" ? ${p === gameRenderer.currentPlayerId}`));
                         }
                     }
                 } else {
                     // 條件不滿足，每200次記錄一次
                     if (mouseMoveCount % 200 === 0) {
-                        console.warn(`[Renderer] Mouse move but conditions not met: renderer=${!!window.gameRenderer}, running=${gameRenderer?.isRunning}, playerId=${gameRenderer?.currentPlayerId}`);
+                        console.warn(`[Renderer] Mouse move but conditions not met: renderer=${!!window.gameRenderer}, running=${gameRenderer?.isRunning}, playerId="${gameRenderer?.currentPlayerId}"`);
                     }
                 }
             });
