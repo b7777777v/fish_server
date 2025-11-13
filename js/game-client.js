@@ -691,7 +691,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 🔧 根據座位信息同步渲染器中的玩家位置
             if (window.gameRenderer && gameRenderer.isRunning) {
-                console.log(`[Client] RoomStateUpdate: syncing seats, currentPlayerId="${gameRenderer.currentPlayerId}"`);
+                // 🔧 獲取當前玩家ID（與其他地方保持一致）
+                const currentPlayerId = isGuestMode
+                    ? (guestNickname ? guestNickname.textContent : 'Guest')
+                    : playerIdInput.value;
+
+                console.log(`[Client] RoomStateUpdate: syncing seats`);
+                console.log(`[Client] currentPlayerId="${currentPlayerId}", renderer.currentPlayerId="${gameRenderer.currentPlayerId}"`);
+
+                // 🔧 確保 currentPlayerId 正確設置
+                if (gameRenderer.currentPlayerId !== currentPlayerId) {
+                    console.warn(`[Client] Updating renderer.currentPlayerId from "${gameRenderer.currentPlayerId}" to "${currentPlayerId}"`);
+                    gameRenderer.setCurrentPlayer(currentPlayerId);
+                }
 
                 // 先記錄當前所有在渲染器中的玩家
                 const playersInRenderer = new Set(gameRenderer.players.keys());
@@ -703,7 +715,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const isEmpty = !nickname || nickname === '';
 
                     if (!isEmpty) {
-                        console.log(`[Client] Processing seat ${seatId}: nickname="${nickname}"`);
+                        const isCurrentPlayer = (nickname === currentPlayerId);
+                        console.log(`[Client] Processing seat ${seatId}: nickname="${nickname}", isCurrentPlayer=${isCurrentPlayer}`);
 
                         if (!gameRenderer.players.has(nickname)) {
                             // 玩家不在渲染器中，添加
