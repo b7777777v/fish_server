@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 )
 
@@ -51,6 +52,7 @@ type PlayerRepo interface {
 type GameUsecase struct {
 	gameRepo         GameRepo
 	playerRepo       PlayerRepo
+	walletUC         *wallet.WalletUsecase
 	roomManager      *RoomManager
 	spawner          *FishSpawner
 	mathModel        *MathModel
@@ -63,6 +65,7 @@ type GameUsecase struct {
 func NewGameUsecase(
 	gameRepo GameRepo,
 	playerRepo PlayerRepo,
+	walletUC *wallet.WalletUsecase,
 	roomManager *RoomManager,
 	spawner *FishSpawner,
 	mathModel *MathModel,
@@ -73,6 +76,7 @@ func NewGameUsecase(
 	return &GameUsecase{
 		gameRepo:         gameRepo,
 		playerRepo:       playerRepo,
+		walletUC:         walletUC,
 		roomManager:      roomManager,
 		spawner:          spawner,
 		mathModel:        mathModel,
@@ -225,14 +229,37 @@ func (gu *GameUsecase) FireBullet(ctx context.Context, roomID string, playerID i
 		return nil, err
 	}
 	
-	// 更新玩家餘額到數據庫
+	// 更新玩家餘額到數據庫並創建錢包交易記錄
 	room, _ := gu.roomManager.GetRoom(roomID)
 	if room != nil {
 		if player, exists := room.Players[playerID]; exists {
+			// 更新數據庫中的餘額
 			gu.playerRepo.UpdatePlayerBalance(ctx, playerID, player.Balance)
+
+			// 創建錢包交易記錄（如果玩家有錢包）
+			if player.WalletID > 0 {
+				bulletCost := float64(bullet.Cost) / 100.0 // 轉換為元
+				err := gu.walletUC.Withdraw(
+					ctx,
+					player.WalletID,
+					bulletCost,
+					"game_bullet_cost",
+					fmt.Sprintf("game:%s:bullet:%d", roomID, bullet.ID),
+					"子彈發射費用",
+					map[string]interface{}{
+						"room_id":      roomID,
+						"bullet_id":    bullet.ID,
+						"bullet_power": bullet.Power,
+						"player_id":    playerID,
+					},
+				)
+				if err != nil {
+					gu.logger.Warnf("Failed to create wallet transaction for bullet cost: %v", err)
+				}
+			}
 		}
 	}
-	
+
 	// 記錄事件
 	event := &GameEvent{
 		ID:        time.Now().UnixNano(),
@@ -281,11 +308,37 @@ func (gu *GameUsecase) HitFish(ctx context.Context, roomID string, bulletID int6
 		}
 		
 		if playerID > 0 {
-			// 更新玩家餘額到數據庫
+			// 更新玩家餘額到數據庫並創建錢包交易記錄
 			if player, exists := room.Players[playerID]; exists && hitResult.Reward > 0 {
+				// 更新數據庫中的餘額
 				gu.playerRepo.UpdatePlayerBalance(ctx, playerID, player.Balance)
+
+				// 創建錢包交易記錄（如果玩家有錢包且獲得獎勵）
+				if player.WalletID > 0 {
+					reward := float64(hitResult.Reward) / 100.0 // 轉換為元
+					err := gu.walletUC.Deposit(
+						ctx,
+						player.WalletID,
+						reward,
+						"game_fish_reward",
+						fmt.Sprintf("game:%s:fish:%d", roomID, fishID),
+						"捕魚獎勵",
+						map[string]interface{}{
+							"room_id":      roomID,
+							"fish_id":      fishID,
+							"bullet_id":    bulletID,
+							"damage":       hitResult.Damage,
+							"is_critical":  hitResult.IsCritical,
+							"multiplier":   hitResult.Multiplier,
+							"player_id":    playerID,
+						},
+					)
+					if err != nil {
+						gu.logger.Warnf("Failed to create wallet transaction for fish reward: %v", err)
+					}
+				}
 			}
-			
+
 			// 記錄命中事件
 			event := &GameEvent{
 				ID:       time.Now().UnixNano(),

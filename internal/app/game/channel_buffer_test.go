@@ -1,6 +1,7 @@
 package game
 
 import (
+	"context"
 	"os"
 	"sync"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/biz/player"
+	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	"github.com/b7777777v/fish_server/internal/pkg/token"
@@ -46,7 +48,9 @@ func TestChannelBuffers(t *testing.T) {
 
 	rtpController := game.NewRTPController(inventoryManager, log)
 	roomManager := game.NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
-	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
+	walletRepo := &MockWalletRepo{}
+	walletUC := wallet.NewWalletUsecase(walletRepo, log)
+	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
 
 	t.Run("Hub channels have buffers", func(t *testing.T) {
 		hub := NewHub(gameUsecase, playerUsecase, log)
@@ -114,7 +118,9 @@ func TestNoChannelBlocking(t *testing.T) {
 
 	rtpController := game.NewRTPController(inventoryManager, log)
 	roomManager := game.NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
-	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
+	walletRepo := &MockWalletRepo{}
+	walletUC := wallet.NewWalletUsecase(walletRepo, log)
+	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
 
 	t.Run("Hub can handle burst of messages without blocking", func(t *testing.T) {
 		hub := NewHub(gameUsecase, playerUsecase, log)

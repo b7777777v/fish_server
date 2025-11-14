@@ -14,6 +14,7 @@ type Player struct {
 	UserID   int64     `json:"user_id"`
 	Nickname string    `json:"nickname"`
 	Balance  int64     `json:"balance"`  // 玩家餘額（以分為單位）
+	WalletID uint      `json:"wallet_id"` // 錢包ID，用於交易記錄
 	RoomID   string    `json:"room_id"`  // 當前房間ID
 	SeatID   int       `json:"seat_id"`  // 座位ID (0-3)，-1 表示未分配
 	Status   PlayerStatus `json:"status"`

@@ -432,10 +432,12 @@ func (r *walletRepo) Deposit(ctx context.Context, walletID uint, amount float64,
 		return errors.New("deposit amount must be positive")
 	}
 
-	// 查詢錢包並鎖定
+	// 查詢錢包並鎖定（需要獲取 user_id 和 currency 用於緩存失效）
 	var currentBalance float64
-	query := `SELECT balance FROM wallets WHERE id = $1 FOR UPDATE`
-	err = tx.QueryRow(ctx, query, walletID).Scan(&currentBalance)
+	var userID uint
+	var currency string
+	query := `SELECT balance, user_id, currency FROM wallets WHERE id = $1 FOR UPDATE`
+	err = tx.QueryRow(ctx, query, walletID).Scan(&currentBalance, &userID, &currency)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return fmt.Errorf("wallet not found")
@@ -490,8 +492,16 @@ func (r *walletRepo) Deposit(ctx context.Context, walletID uint, amount float64,
 		return err
 	}
 
-	// TODO: [Cache] Implement cache invalidation after the transaction is successfully committed.
-	// The keys to invalidate would be `wallet:<walletID>` and the key for the user ID, which needs to be fetched first or passed in.
+	// 清除緩存
+	cacheKeyByID := fmt.Sprintf("wallet:%d", walletID)
+	if err := r.data.redis.Del(ctx, cacheKeyByID); err != nil {
+		r.logger.Warnf("Failed to delete wallet cache by id: %v", err)
+	}
+
+	cacheKeyByUserID := fmt.Sprintf("wallet:user_id:%d:currency:%s", userID, currency)
+	if err := r.data.redis.Del(ctx, cacheKeyByUserID); err != nil {
+		r.logger.Warnf("Failed to delete wallet cache by user id: %v", err)
+	}
 
 	return nil
 }
@@ -598,8 +608,16 @@ func (r *walletRepo) Withdraw(ctx context.Context, walletID uint, amount float64
 		return err
 	}
 
-	// TODO: [Cache] Implement cache invalidation after the transaction is successfully committed.
-	// The keys to invalidate would be `wallet:<walletID>` and the key for the user ID (`wallet:user_id:{user_id}:currency:{currency}`).
+	// 清除緩存
+	cacheKeyByID := fmt.Sprintf("wallet:%d", walletID)
+	if err := r.data.redis.Del(ctx, cacheKeyByID); err != nil {
+		r.logger.Warnf("Failed to delete wallet cache by id: %v", err)
+	}
+
+	cacheKeyByUserID := fmt.Sprintf("wallet:user_id:%d:currency:%s", w.UserID, w.Currency)
+	if err := r.data.redis.Del(ctx, cacheKeyByUserID); err != nil {
+		r.logger.Warnf("Failed to delete wallet cache by user id: %v", err)
+	}
 
 	return nil
 }
