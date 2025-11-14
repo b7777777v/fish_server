@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/b7777777v/fish_server/internal/biz/player"
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
+	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 )
 
@@ -96,17 +98,25 @@ func (m *MockWalletUsecase) UnfreezeWallet(ctx context.Context, walletID uint) e
 func setupTestAdminService() (*AdminService, *MockPlayerUsecase, *MockWalletUsecase) {
 	mockPlayerUC := new(MockPlayerUsecase)
 	mockWalletUC := new(MockWalletUsecase)
-	
-	log := logger.New(nil, "info", "console")
-	
-	// 為了測試，我們創建一個簡單的 AdminService
-	// 在實際測試中，我們會創建自定義的測試 handlers
+
+	log := logger.New(io.Discard, "info", "console")
+
+	// 創建真實的 usecase 包裝器以便使用 mock
+	// 注意：這裡直接使用 mock 作為 interface，因為 AdminService 期望的是 usecase 類型
+	// 但是為了簡化測試，我們直接將 mock 傳遞給 service
+	// 在實際情況中，這些 mock 應該實現完整的 interface
 	service := &AdminService{
-		playerUC: nil, 
-		walletUC: nil, 
+		playerUC: nil, // TODO: 如果需要測試 player 相關功能，需要設置
+		walletUC: nil, // TODO: 需要重新設計測試架構來支持 mock injection
+		config: &conf.Config{
+			Environment: "test",
+			Debug: &conf.Debug{
+				EnablePprof: false,
+			},
+		},
 		logger:   log.With("module", "app/admin"),
 	}
-	
+
 	return service, mockPlayerUC, mockWalletUC
 }
 

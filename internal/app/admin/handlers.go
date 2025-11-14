@@ -313,6 +313,6 @@ func formatBytes(bytes uint64) string {
 		div *= unit
 		exp++
 	}
-	return strconv.FormatFloat(float64(bytes)/float64(div), 'f', 1, 64) + " " + 
-		[]string{"", "K", "M", "G", "T", "P", "E", "Z", "Y"}[exp] + "B"
+	return strconv.FormatFloat(float64(bytes)/float64(div), 'f', 1, 64) + " " +
+		[]string{"K", "M", "G", "T", "P", "E", "Z", "Y"}[exp] + "B"
 }
