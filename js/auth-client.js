@@ -506,3 +506,14 @@ window.authClient = {
     logout,
     loadAuth,
 };
+
+// 自動載入認證資訊（用於其他頁面如 index.html）
+if (typeof document !== 'undefined' && !document.getElementById('authPanel')) {
+    // 不在 auth.html 頁面時，自動載入認證資訊
+    loadAuth();
+    console.log('[AuthClient] Auto-loaded auth state:', {
+        authenticated: !!appState.token,
+        user: appState.user?.nickname || appState.user?.username,
+        isGuest: appState.isGuest
+    });
+}
