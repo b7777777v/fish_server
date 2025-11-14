@@ -55,8 +55,6 @@ class GameRendererOptimized {
             bulletCount: 0,
             needsUpdate: false
         };
-
-        console.log('GameRendererOptimized initialized with interpolation');
     }
 
     /**
@@ -599,7 +597,6 @@ class GameRendererOptimized {
         if (this.isRunning) return;
         this.isRunning = true;
         this.lastFrameTime = performance.now();
-        console.log('GameRendererOptimized started with interpolation');
         this.animate();
     }
 
@@ -609,7 +606,6 @@ class GameRendererOptimized {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
-        console.log('GameRendererOptimized stopped');
     }
 
     clear() {
@@ -636,7 +632,6 @@ class GameRendererOptimized {
 
     setCurrentPlayer(playerId) {
         this.currentPlayerId = playerId;
-        console.log('[RendererOptimized] Current player set to:', playerId);
     }
 
     addPlayer(playerId, seatId) {
@@ -657,8 +652,6 @@ class GameRendererOptimized {
             seatId: index,
             balance: 0 // 初始餘額為 0
         });
-
-        console.log(`[RendererOptimized] Player added: ${playerId} at seat ${index}`);
     }
 
     removePlayer(playerId) {
@@ -701,7 +694,6 @@ class GameRendererOptimized {
         const player = this.players.get(playerId);
         if (player) {
             player.balance = balance;
-            console.log(`[RendererOptimized] Player ${playerId} balance updated to:`, balance);
         }
     }
 
@@ -723,7 +715,6 @@ class GameRendererOptimized {
 document.addEventListener('DOMContentLoaded', () => {
     try {
         window.gameRenderer = new GameRendererOptimized('gameCanvas');
-        console.log('✨ Optimized game renderer ready with interpolation!');
 
         // 添加滑鼠事件
         const canvas = document.getElementById('gameCanvas');

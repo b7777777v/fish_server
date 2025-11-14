@@ -421,7 +421,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 🔧 關鍵修復：使用服務器返回的 ClientID 更新 currentPlayerId
                     // 這樣可以確保前端和後端的玩家ID完全一致
                     if (window.gameRenderer && gameRenderer.isRunning) {
-                        console.log(`[Client] WELCOME: Updating currentPlayerId from "${gameRenderer.currentPlayerId}" to "${serverClientId}"`);
                         gameRenderer.setCurrentPlayer(serverClientId);
 
                         // 🔧 如果是遊客模式，也更新顯示的 nickname
@@ -507,7 +506,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fireBulletResp = gameMessage.getFireBulletResponse();
                 if (fireBulletResp.getSuccess()) {
                     log(`💥 成功開火！子彈ID: ${fireBulletResp.getBulletId()}, 消耗: ${fireBulletResp.getCost()}`);
-                    console.log('[Client] Fire bullet response received, waiting for ROOM_STATE_UPDATE to show bullet...');
                 } else {
                     log(`❌ 開火失敗`, 'error');
                 }
@@ -709,12 +707,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     ? (guestNickname ? guestNickname.textContent : 'Guest')
                     : playerIdInput.value;
 
-                console.log(`[Client] RoomStateUpdate: syncing seats`);
-                console.log(`[Client] currentPlayerId="${currentPlayerId}", renderer.currentPlayerId="${gameRenderer.currentPlayerId}"`);
-
                 // 🔧 確保 currentPlayerId 正確設置
                 if (gameRenderer.currentPlayerId !== currentPlayerId) {
-                    console.warn(`[Client] Updating renderer.currentPlayerId from "${gameRenderer.currentPlayerId}" to "${currentPlayerId}"`);
                     gameRenderer.setCurrentPlayer(currentPlayerId);
                 }
 
@@ -730,12 +724,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!isEmpty) {
                         const isCurrentPlayer = (nickname === currentPlayerId);
                         const balance = seat.getBalance ? seat.getBalance() : 0; // 獲取餘額
-                        console.log(`[Client] Processing seat ${seatId}: nickname="${nickname}", balance=${balance}, isCurrentPlayer=${isCurrentPlayer}`);
 
                         if (!gameRenderer.players.has(nickname)) {
                             // 玩家不在渲染器中，添加
                             gameRenderer.addPlayer(nickname, seatId);
-                            console.log(`[Client] ✓ Added player ${nickname} to seat ${seatId}`);
                         } else {
                             // 玩家已在渲染器中，檢查座位是否需要更新
                             const player = gameRenderer.players.get(nickname);
@@ -745,9 +737,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 player.position = { x: positionData.x, y: positionData.y };
                                 player.angle = positionData.angle;
                                 player.seatId = seatId;
-                                console.log(`[Client] ✓ Updated player ${nickname} position to seat ${seatId}`);
-                            } else {
-                                console.log(`[Client] Player ${nickname} already at correct seat ${seatId}`);
                             }
                         }
 
@@ -763,7 +752,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // 🔧 移除不在座位中的玩家（玩家離開了房間）
                 playersInRenderer.forEach(nickname => {
-                    console.log(`[Client] Player ${nickname} not in seats, removing from renderer`);
                     gameRenderer.removePlayer(nickname);
                 });
             }
@@ -783,10 +771,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.gameRenderer) {
             if (gameRenderer.isRunning) {
                 gameRenderer.updateGameState(roomStateUpdate);
-                // 減少日誌頻率 - 只在有子彈變化時記錄
-                if (bulletCount !== stats.bulletCount) {
-                    console.log(`[Client] Passed state to renderer: ${fishCount} fish, ${bulletCount} bullets`);
-                }
             } else {
                 console.warn('[Client] Renderer exists but is not running!');
             }
@@ -1076,8 +1060,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // 🔧 不在這裡操作渲染器！
             // 讓 RoomStateUpdate 統一處理所有玩家的位置同步
             // 這樣可以避免 SelectSeatResponse 和 RoomStateUpdate 的衝突
-            console.log(`[Client] SelectSeatResponse: seatId=${seatId}, waiting for RoomStateUpdate to sync renderer`);
-
             log(`🪑 已選擇座位 ${seatId + 1}，等待伺服器同步...`, 'system');
 
             // 啟用開火按鈕
