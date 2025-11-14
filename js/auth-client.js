@@ -265,6 +265,13 @@ async function loadWalletInfo() {
             return;
         }
 
+        // 遊客模式不載入錢包（遊客沒有數據庫記錄）
+        if (appState.isGuest) {
+            console.log('遊客模式，跳過錢包載入');
+            updateWalletBalance(0); // 遊客餘額顯示為 0
+            return;
+        }
+
         // 獲取玩家的錢包列表
         const walletsData = await getPlayerWallets(appState.user.id);
 

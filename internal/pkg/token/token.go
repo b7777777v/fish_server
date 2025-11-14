@@ -11,8 +11,9 @@ import (
 
 // CustomClaims 定義了我們想要在 JWT 中攜帶的自訂資料
 type CustomClaims struct {
-	UserID  int64  `json:"user_id"`
-	IsGuest bool   `json:"is_guest,omitempty"` // 是否為遊客
+	UserID   int64  `json:"user_id"`
+	IsGuest  bool   `json:"is_guest,omitempty"`  // 是否為遊客
+	Nickname string `json:"nickname,omitempty"`  // 遊客昵稱（僅遊客使用）
 	jwt.RegisteredClaims
 }
 
@@ -43,6 +44,24 @@ func (h *TokenHelper) GenerateTokenWithClaims(userID int64, isGuest bool) (strin
 	claims := CustomClaims{
 		UserID:  userID,
 		IsGuest: isGuest,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    h.issuer,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second * time.Duration(h.expire))),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(h.secret)
+}
+
+// GenerateGuestToken 生成遊客專用的 JWT token（不使用數據庫 user_id）
+func (h *TokenHelper) GenerateGuestToken(nickname string) (string, error) {
+	claims := CustomClaims{
+		UserID:   0, // 遊客使用虛擬 ID 0
+		IsGuest:  true,
+		Nickname: nickname,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    h.issuer,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second * time.Duration(h.expire))),

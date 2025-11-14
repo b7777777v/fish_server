@@ -74,9 +74,10 @@ func (h *AccountHandler) authMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 將 user_id 和 is_guest 存入 context
+		// 將 user_id、is_guest 和 nickname 存入 context
 		c.Set("user_id", claims.UserID)
 		c.Set("is_guest", claims.IsGuest)
+		c.Set("nickname", claims.Nickname)
 		c.Next()
 	}
 }
@@ -197,14 +198,30 @@ func (h *AccountHandler) handleOAuthCallback(c *gin.Context) {
 
 // handleGetProfile 獲取使用者資料
 func (h *AccountHandler) handleGetProfile(c *gin.Context) {
-	// 從 context 中獲取 user_id
+	// 從 context 中獲取 user_id 和 is_guest
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	// 呼叫 AccountUsecase.GetUserByID
+	isGuest, _ := c.Get("is_guest")
+
+	// 如果是遊客，返回虛擬用戶信息（不查詢數據庫）
+	if isGuest != nil && isGuest.(bool) {
+		nickname, _ := c.Get("nickname")
+		guestUser := gin.H{
+			"id":       userID,
+			"nickname": nickname,
+			"is_guest": true,
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"user": guestUser,
+		})
+		return
+	}
+
+	// 一般用戶：呼叫 AccountUsecase.GetUserByID
 	user, err := h.accountUsecase.GetUserByID(c.Request.Context(), userID.(int64))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
