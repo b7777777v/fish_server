@@ -19,6 +19,8 @@ const appState = {
 // 顯示提示訊息
 function showAlert(message, type = 'info') {
     const alertBox = document.getElementById('alertBox');
+    if (!alertBox) return; // 元素不存在時直接返回
+
     alertBox.textContent = message;
     alertBox.className = `alert alert-${type} show`;
 
@@ -211,14 +213,22 @@ async function getTransactions(walletId, limit = 10, offset = 0) {
 
 // 顯示認證面板
 function showAuthPanel() {
-    document.getElementById('authPanel').style.display = 'flex';
-    document.getElementById('mainPanel').classList.remove('active');
+    const authPanel = document.getElementById('authPanel');
+    const mainPanel = document.getElementById('mainPanel');
+    if (!authPanel || !mainPanel) return; // 不在 auth.html 頁面
+
+    authPanel.style.display = 'flex';
+    mainPanel.classList.remove('active');
 }
 
 // 顯示主面板
 function showMainPanel() {
-    document.getElementById('authPanel').style.display = 'none';
-    document.getElementById('mainPanel').classList.add('active');
+    const authPanel = document.getElementById('authPanel');
+    const mainPanel = document.getElementById('mainPanel');
+    if (!authPanel || !mainPanel) return; // 不在 auth.html 頁面
+
+    authPanel.style.display = 'none';
+    mainPanel.classList.add('active');
     updateUserInfo();
     loadWalletInfo();
 }
@@ -230,6 +240,9 @@ function updateUserInfo() {
     const userName = document.getElementById('userName');
     const userAvatar = document.getElementById('userAvatar');
     const userStatus = document.getElementById('userStatus');
+
+    // 如果元素不存在（不在 auth.html 頁面），直接返回
+    if (!userName || !userAvatar || !userStatus) return;
 
     const displayName = appState.user.nickname || appState.user.username || '用戶';
     userName.textContent = displayName;
@@ -292,6 +305,8 @@ async function refreshWallet() {
 // 更新錢包餘額顯示
 function updateWalletBalance(balance) {
     const balanceElement = document.getElementById('walletBalance');
+    if (!balanceElement) return; // 元素不存在時直接返回
+
     balanceElement.textContent = parseFloat(balance).toFixed(2);
 }
 

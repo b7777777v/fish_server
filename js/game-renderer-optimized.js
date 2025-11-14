@@ -27,7 +27,7 @@ class GameRendererOptimized {
         this.currentPlayerId = null;
 
         // 插值設置
-        this.interpol ationFactor = 0.3; // 插值強度 (0-1，越大越平滑但延遲越高)
+        this.interpolationFactor = 0.3; // 插值強度 (0-1，越大越平滑但延遲越高)
         this.serverUpdateInterval = 1000 / 20; // 假設服務器 20 Hz
 
         // Delta time 追蹤
