@@ -729,7 +729,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (!isEmpty) {
                         const isCurrentPlayer = (nickname === currentPlayerId);
-                        console.log(`[Client] Processing seat ${seatId}: nickname="${nickname}", isCurrentPlayer=${isCurrentPlayer}`);
+                        const balance = seat.getBalance ? seat.getBalance() : 0; // 獲取餘額
+                        console.log(`[Client] Processing seat ${seatId}: nickname="${nickname}", balance=${balance}, isCurrentPlayer=${isCurrentPlayer}`);
 
                         if (!gameRenderer.players.has(nickname)) {
                             // 玩家不在渲染器中，添加
@@ -748,6 +749,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             } else {
                                 console.log(`[Client] Player ${nickname} already at correct seat ${seatId}`);
                             }
+                        }
+
+                        // 更新玩家餘額
+                        if (gameRenderer.updatePlayerBalance) {
+                            gameRenderer.updatePlayerBalance(nickname, balance);
                         }
 
                         // 從集合中移除，表示這個玩家已處理
@@ -828,6 +834,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playerLevel) playerLevel.textContent = playerInfo.getLevel() || '-';
         if (playerBalance) playerBalance.textContent = playerInfo.getBalance() || '0';
         if (playerExp) playerExp.textContent = playerInfo.getExp() || '0';
+
+        // 同時更新渲染器中的玩家餘額
+        if (window.gameRenderer) {
+            const currentPlayerId = isGuestMode
+                ? (guestNickname ? guestNickname.textContent : 'Guest')
+                : playerIdInput.value;
+            const balance = playerInfo.getBalance() || 0;
+            if (gameRenderer.updatePlayerBalance) {
+                gameRenderer.updatePlayerBalance(currentPlayerId, balance);
+            }
+        }
     }
 
     /**

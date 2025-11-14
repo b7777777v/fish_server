@@ -224,6 +224,7 @@ class GameRendererOptimized {
         this.drawFishes();
         this.drawBullets();
         this.drawCannons();
+        this.drawPlayerInfo();
 
         // 更新 FPS
         this.updateFPS();
@@ -548,6 +549,50 @@ class GameRendererOptimized {
         this.ctx.fillText(player.id, x + labelOffsetX, y + labelOffsetY);
     }
 
+    /**
+     * 繪製玩家信息（餘額等）
+     */
+    drawPlayerInfo() {
+        this.players.forEach((player, playerId) => {
+            const isCurrentPlayer = playerId === this.currentPlayerId;
+            const { x, y } = player.position;
+            const seatId = player.seatId !== undefined ? player.seatId : -1;
+
+            // 計算餘額顯示位置（在玩家標籤下方）
+            let balanceOffsetX = 0, balanceOffsetY = -30;
+
+            if (seatId === 0) balanceOffsetY = -30;
+            else if (seatId === 1) balanceOffsetY = 75;
+            else if (seatId === 2) { balanceOffsetX = 50; balanceOffsetY = 15; }
+            else if (seatId === 3) { balanceOffsetX = -50; balanceOffsetY = 15; }
+
+            // 格式化餘額顯示（轉換為元並格式化）
+            const balanceInYuan = (player.balance / 100).toFixed(2);
+            const balanceText = `💰 ${balanceInYuan}`;
+
+            // 繪製餘額背景
+            this.ctx.font = 'bold 11px Arial';
+            const textMetrics = this.ctx.measureText(balanceText);
+            const padding = 4;
+            const bgX = x + balanceOffsetX - textMetrics.width / 2 - padding;
+            const bgY = y + balanceOffsetY - 11 - padding;
+            const bgWidth = textMetrics.width + padding * 2;
+            const bgHeight = 15 + padding * 2;
+
+            // 半透明背景
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            this.ctx.fillRect(bgX, bgY, bgWidth, bgHeight);
+
+            // 餘額文字
+            this.ctx.textAlign = 'center';
+            this.ctx.fillStyle = isCurrentPlayer ? '#FFD700' : '#FFA500'; // 金色
+            this.ctx.strokeStyle = '#000000';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeText(balanceText, x + balanceOffsetX, y + balanceOffsetY);
+            this.ctx.fillText(balanceText, x + balanceOffsetX, y + balanceOffsetY);
+        });
+    }
+
     // ========== 保留原有的功能方法 ==========
 
     start() {
@@ -609,7 +654,8 @@ class GameRendererOptimized {
             cannonType: 1,
             level: 1,
             angle: positionData.angle,
-            seatId: index
+            seatId: index,
+            balance: 0 // 初始餘額為 0
         });
 
         console.log(`[RendererOptimized] Player added: ${playerId} at seat ${index}`);
@@ -648,6 +694,14 @@ class GameRendererOptimized {
         if (player) {
             player.cannonType = cannonType;
             player.level = level;
+        }
+    }
+
+    updatePlayerBalance(playerId, balance) {
+        const player = this.players.get(playerId);
+        if (player) {
+            player.balance = balance;
+            console.log(`[RendererOptimized] Player ${playerId} balance updated to:`, balance);
         }
     }
 
