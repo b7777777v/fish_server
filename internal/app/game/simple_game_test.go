@@ -9,6 +9,7 @@ import (
 
 	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/biz/player"
+	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	"github.com/b7777777v/fish_server/internal/pkg/token"
@@ -51,13 +52,43 @@ func (m *MockGameRepo) SaveFishTypeCache(ctx context.Context, ft *game.FishType)
 type MockPlayerRepo struct{}
 
 func (m *MockPlayerRepo) GetPlayer(ctx context.Context, playerID int64) (*game.Player, error) {
-	return &game.Player{ID: playerID, UserID: playerID, Nickname: "TestPlayer", Balance: 10000, Status: game.PlayerStatusIdle}, nil
+	return &game.Player{ID: playerID, UserID: playerID, Nickname: "TestPlayer", Balance: 10000, WalletID: 1, Status: game.PlayerStatusIdle}, nil
 }
 func (m *MockPlayerRepo) UpdatePlayerBalance(ctx context.Context, playerID int64, balance int64) error {
 	return nil
 }
 func (m *MockPlayerRepo) UpdatePlayerStatus(ctx context.Context, playerID int64, status game.PlayerStatus) error {
 	return nil
+}
+
+type MockWalletRepo struct{}
+
+func (m *MockWalletRepo) FindByID(ctx context.Context, id uint) (*wallet.Wallet, error) {
+	return &wallet.Wallet{ID: id, UserID: uint(id), Balance: 1000.00, Currency: "CNY", Status: 1}, nil
+}
+func (m *MockWalletRepo) FindByUserID(ctx context.Context, userID uint, currency string) (*wallet.Wallet, error) {
+	return &wallet.Wallet{ID: 1, UserID: userID, Balance: 1000.00, Currency: currency, Status: 1}, nil
+}
+func (m *MockWalletRepo) FindAllByUserID(ctx context.Context, userID uint) ([]*wallet.Wallet, error) {
+	return []*wallet.Wallet{{ID: 1, UserID: userID, Balance: 1000.00, Currency: "CNY", Status: 1}}, nil
+}
+func (m *MockWalletRepo) Create(ctx context.Context, w *wallet.Wallet) error {
+	return nil
+}
+func (m *MockWalletRepo) Update(ctx context.Context, w *wallet.Wallet) error {
+	return nil
+}
+func (m *MockWalletRepo) Deposit(ctx context.Context, walletID uint, amount float64, txType, referenceID, description string, metadata map[string]interface{}) error {
+	return nil
+}
+func (m *MockWalletRepo) Withdraw(ctx context.Context, walletID uint, amount float64, txType, referenceID, description string, metadata map[string]interface{}) error {
+	return nil
+}
+func (m *MockWalletRepo) CreateTransaction(ctx context.Context, tx *wallet.Transaction) error {
+	return nil
+}
+func (m *MockWalletRepo) FindTransactionsByWalletID(ctx context.Context, walletID uint, limit, offset int) ([]*wallet.Transaction, error) {
+	return []*wallet.Transaction{}, nil
 }
 
 type MockInventoryRepo struct {
@@ -159,7 +190,9 @@ func TestSimpleGameComponents(t *testing.T) {
 
 	rtpController := game.NewRTPController(inventoryManager, log)
 	roomManager := game.NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
-	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
+	walletRepo := &MockWalletRepo{}
+	walletUC := wallet.NewWalletUsecase(walletRepo, log)
+	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
 
 	// 2. Run tests for the app/game layer components
 	t.Run("Test Hub", func(t *testing.T) {
@@ -222,7 +255,9 @@ func TestSimpleGameComponents(t *testing.T) {
 	t.Run("Test Room Operations via MessageHandler", func(t *testing.T) {
 		// Create a fresh usecase for this test to avoid state leakage
 		roomManager := game.NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
-		gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
+		gameUsecase := walletRepo := &MockWalletRepo{}
+	walletUC := wallet.NewWalletUsecase(walletRepo, log)
+	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
 		room, err := gameUsecase.CreateRoom(context.Background(), "test_room_001", 4)
 		assert.NoError(t, err)
 

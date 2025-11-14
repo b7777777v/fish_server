@@ -57,7 +57,7 @@ func initApp(config *conf.Config) (*admin.AdminApp, func(), error) {
 	}
 	rtpController := game.NewRTPController(inventoryManager, sugaredLogger)
 	roomManager := game.NewRoomManager(sugaredLogger, fishSpawner, mathModel, inventoryManager, rtpController)
-	gameUsecase := game.NewGameUsecase(gameRepo, gamePlayerRepo, roomManager, fishSpawner, mathModel, inventoryManager, rtpController, sugaredLogger)
+	gameUsecase := game.NewGameUsecase(gameRepo, gamePlayerRepo, walletUsecase, roomManager, fishSpawner, mathModel, inventoryManager, rtpController, sugaredLogger)
 	client := data.ProvidePostgresClient(dataData)
 	accountRepo := data.NewAccountRepo(client)
 	oAuthService := account.NewOAuthService()
