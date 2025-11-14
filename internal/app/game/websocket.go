@@ -191,16 +191,23 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 		userID = claims.UserID
 
-		// 從 AccountUsecase 獲取用戶信息
-		user, err := h.accountUsecase.GetUserByID(r.Context(), userID)
-		if err != nil {
-			h.logger.Errorf("Failed to get user %d: %v", userID, err)
-			conn.Close()
-			return
-		}
+		// 如果是遊客，直接使用 token 中的 nickname，不查詢數據庫
+		if claims.IsGuest {
+			playerUsername = claims.Nickname
+			h.logger.Infof("WebSocket connection (guest mode): nickname=%s", playerUsername)
+		} else {
+			// 一般用戶：從 AccountUsecase 獲取用戶信息
+			user, err := h.accountUsecase.GetUserByID(r.Context(), userID)
+			if err != nil {
+				h.logger.Errorf("Failed to get user %d: %v", userID, err)
+				conn.Close()
+				return
+			}
 
-		// 使用用戶的 nickname 作為玩家名稱
-		playerUsername = user.Nickname
+			// 使用用戶的 nickname 作為玩家名稱
+			playerUsername = user.Nickname
+			h.logger.Infof("WebSocket connection (authenticated user): userID=%d, nickname=%s", userID, playerUsername)
+		}
 
 		// 根據 nickname 獲取或創建玩家
 		_, err = h.hub.playerUsecase.GetOrCreateByUsername(r.Context(), playerUsername)
@@ -209,9 +216,6 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 			conn.Close()
 			return
 		}
-
-		h.logger.Infof("WebSocket connection with token: userID=%d, nickname=%s, isGuest=%v",
-			userID, playerUsername, claims.IsGuest)
 	} else {
 		// 3. 如果沒有 token，回退到舊的 player_id 模式（向後兼容）
 		playerUsername = r.URL.Query().Get("player_id")
