@@ -1,7 +1,6 @@
 package game
 
 import (
-	"context"
 	"os"
 	"sync"
 	"testing"
