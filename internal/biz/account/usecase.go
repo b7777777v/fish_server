@@ -51,6 +51,7 @@ type User struct {
 // TokenService 定義 Token 生成服務介面
 type TokenService interface {
 	GenerateTokenWithClaims(userID int64, isGuest bool) (string, error)
+	GenerateGuestToken(nickname string) (string, error)
 }
 
 // WalletCreator 定義錢包創建服務介面
@@ -144,26 +145,15 @@ func (uc *accountUsecase) Login(ctx context.Context, username, password string) 
 	return token, nil
 }
 
-// GuestLogin 遊客登入
+// GuestLogin 遊客登入（純內存模式，不創建數據庫記錄）
 func (uc *accountUsecase) GuestLogin(ctx context.Context) (string, error) {
-	// 生成唯一的遊客 ID（使用時間戳和隨機數）
-	guestNickname := fmt.Sprintf("Guest_%d", generateGuestID())
+	// 生成唯一的遊客昵稱（使用時間戳和隨機數）
+	guestNickname := fmt.Sprintf("guest_%d", generateGuestID())
 
-	// 建立遊客使用者
-	user := &User{
-		Nickname: guestNickname,
-		IsGuest:  true,
-	}
-
-	createdUser, err := uc.repo.CreateUser(ctx, user, "")
+	// 生成遊客專用 JWT token（不使用數據庫 user_id）
+	token, err := uc.tokenService.GenerateGuestToken(guestNickname)
 	if err != nil {
-		return "", fmt.Errorf("failed to create guest user: %w", err)
-	}
-
-	// 生成 JWT token（包含 is_guest: true）
-	token, err := uc.tokenService.GenerateTokenWithClaims(createdUser.ID, true)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate token: %w", err)
+		return "", fmt.Errorf("failed to generate guest token: %w", err)
 	}
 
 	return token, nil
