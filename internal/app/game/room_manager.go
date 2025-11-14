@@ -290,7 +290,7 @@ func (rm *RoomManager) handleAddClient(client *Client) {
 		ID:       client.ID,
 		PlayerID: client.PlayerID,
 		Nickname: client.ID,                    // 暫時使用 client.ID 作為昵稱
-		Balance:  10000,                        // 初始餘額
+		Balance:  100000,                       // 初始餘額（100000分 = 1000元），遊客模式提供充足的遊戲幣
 		SeatID:   -1,                           // 初始未分配座位，由业务层在JoinRoom时分配
 		Position: GamePosition{X: 100, Y: 700}, // 固定位置
 		Cannon: CannonInfo{
