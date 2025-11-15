@@ -19,9 +19,9 @@ debug:
   enable_sql_debug: false
 
 data:
-  # 寫庫配置（主庫）
+  # 主庫配置（Master Database）
   # 用於所有寫操作：INSERT, UPDATE, DELETE, BEGIN TRANSACTION
-  database:
+  master_database:
     driver: "postgres"
     host: "master.db.example.com"  # 主庫地址
     port: 5432
@@ -33,10 +33,10 @@ data:
     max_idle_conns: 25
     conn_max_lifetime: "1h"
 
-  # 讀庫配置（從庫，可選）
+  # 從庫配置（Slave Database，可選）
   # 用於所有讀操作：SELECT 查詢
   # 如果不配置此項，則讀寫共用主庫
-  read_database:
+  slave_database:
     driver: "postgres"
     host: "slave.db.example.com"  # 從庫地址（可以是多個從庫的負載均衡地址）
     port: 5432
@@ -44,7 +44,7 @@ data:
     password: "your-secure-password"
     dbname: "fish_db"
     sslmode: "require"
-    max_open_conns: 200  # 讀庫可以配置更多連接
+    max_open_conns: 200  # 從庫可以配置更多連接
     max_idle_conns: 50
     conn_max_lifetime: "1h"
 
@@ -73,13 +73,13 @@ security:
 
 # 配置說明：
 #
-# 1. 主從共用（不配置 read_database）：
-#    - 所有讀寫操作都使用 database 配置
+# 1. 主從共用（不配置 slave_database）：
+#    - 所有讀寫操作都使用 master_database 配置
 #    - 適用於單機部署或暫時不需要讀寫分離的場景
 #
-# 2. 讀寫分離（配置 read_database）：
-#    - 寫操作（INSERT/UPDATE/DELETE/事務）使用 database（主庫）
-#    - 讀操作（SELECT）使用 read_database（從庫）
+# 2. 讀寫分離（配置 slave_database）：
+#    - 寫操作（INSERT/UPDATE/DELETE/事務）使用 master_database（主庫）
+#    - 讀操作（SELECT）使用 slave_database（從庫）
 #    - 從庫可以是單個從庫或負載均衡地址
 #
 # 3. 連接池配置建議：

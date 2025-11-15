@@ -29,9 +29,9 @@ type Service struct {
 }
 
 type Data struct {
-	Database     *Database `mapstructure:"database"`      // 寫庫配置（主庫）
-	ReadDatabase *Database `mapstructure:"read_database"` // 讀庫配置（從庫，可選）
-	Redis        *Redis    `mapstructure:"redis"`
+	MasterDatabase *Database `mapstructure:"master_database"` // 主庫配置（寫操作）
+	SlaveDatabase  *Database `mapstructure:"slave_database"`  // 從庫配置（讀操作，可選）
+	Redis          *Redis    `mapstructure:"redis"`
 }
 
 type Database struct {
@@ -53,17 +53,27 @@ func (d *Database) GetDSN() string {
 		d.User, d.Password, d.Host, d.Port, d.DBName, d.SSLMode)
 }
 
-// GetReadDatabase 獲取讀庫配置，如果未配置則返回主庫配置
-func (d *Data) GetReadDatabase() *Database {
-	if d.ReadDatabase != nil {
-		return d.ReadDatabase
+// GetSlaveDatabase 獲取從庫配置，如果未配置則返回主庫配置
+func (d *Data) GetSlaveDatabase() *Database {
+	if d.SlaveDatabase != nil {
+		return d.SlaveDatabase
 	}
-	return d.Database
+	return d.MasterDatabase
 }
 
-// GetWriteDatabase 獲取寫庫配置（主庫）
+// GetMasterDatabase 獲取主庫配置
+func (d *Data) GetMasterDatabase() *Database {
+	return d.MasterDatabase
+}
+
+// Deprecated: GetReadDatabase 已廢棄，請使用 GetSlaveDatabase
+func (d *Data) GetReadDatabase() *Database {
+	return d.GetSlaveDatabase()
+}
+
+// Deprecated: GetWriteDatabase 已廢棄，請使用 GetMasterDatabase
 func (d *Data) GetWriteDatabase() *Database {
-	return d.Database
+	return d.GetMasterDatabase()
 }
 
 
@@ -248,13 +258,13 @@ func validateConfig(c *Config) error {
 	if c.Server == nil || c.Server.Admin == nil {
 		return fmt.Errorf("server.admin configuration is required")
 	}
-	if c.Data == nil || c.Data.Database == nil {
-		return fmt.Errorf("data.database configuration is required")
+	if c.Data == nil || c.Data.MasterDatabase == nil {
+		return fmt.Errorf("data.master_database configuration is required")
 	}
 	if c.JWT == nil || c.JWT.Secret == "" {
 		return fmt.Errorf("jwt.secret is required")
 	}
-	
+
 	// 生產環境額外檢查
 	if c.Environment == "prod" || c.Environment == "production" {
 		if c.JWT.Secret == "your-super-secret-key" {
@@ -264,6 +274,6 @@ func validateConfig(c *Config) error {
 			return fmt.Errorf("pprof must be disabled in production environment")
 		}
 	}
-	
+
 	return nil
 }

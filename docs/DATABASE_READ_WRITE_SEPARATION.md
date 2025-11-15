@@ -48,7 +48,7 @@ Fish Server 支持資料庫讀寫分離架構，可以將讀操作和寫操作�
 **配置範例**：
 ```yaml
 data:
-  database:
+  master_database:
     host: "localhost"
     port: 5432
     user: "user"
@@ -72,7 +72,7 @@ data:
 ```yaml
 data:
   # 主庫配置（用於寫操作）
-  database:
+  master_database:
     host: "master.db.example.com"
     port: 5432
     user: "fish_user"
@@ -83,7 +83,7 @@ data:
     max_idle_conns: 25
 
   # 從庫配置（用於讀操作）
-  read_database:
+  slave_database:
     host: "slave.db.example.com"
     port: 5432
     user: "fish_user"
@@ -95,8 +95,8 @@ data:
 ```
 
 **行為**：
-- 讀操作（SELECT）使用 `read_database` 配置的從庫
-- 寫操作（INSERT/UPDATE/DELETE/事務）使用 `database` 配置的主庫
+- 讀操作（SELECT）使用 `slave_database` 配置的從庫
+- 寫操作（INSERT/UPDATE/DELETE/事務）使用 `master_database` 配置的主庫
 
 ## 程式碼範例
 
@@ -140,7 +140,7 @@ func (r *walletRepo) Transfer(ctx context.Context, from, to int64, amount float6
 ### 主庫（Write DB）
 
 ```yaml
-database:
+master_database:
   max_open_conns: 100      # 最大連接數
   max_idle_conns: 25       # 最大空閒連接數
   conn_max_lifetime: "1h"  # 連接最大生命週期
@@ -154,7 +154,7 @@ database:
 ### 從庫（Read DB）
 
 ```yaml
-read_database:
+slave_database:
   max_open_conns: 200      # 讀庫可以設置更多連接
   max_idle_conns: 50       # 更多空閒連接
   conn_max_lifetime: "1h"
@@ -220,7 +220,7 @@ default_pool_size = 25
 
 配置中使用 PgBouncer 地址：
 ```yaml
-read_database:
+slave_database:
   host: "pgbouncer.example.com"
   port: 6432
 ```
@@ -293,14 +293,14 @@ WHERE datname = 'fish_db';
 
 如果從庫故障，可以臨時切換到主庫讀取：
 
-1. 修改配置文件，註釋掉 `read_database` 配置
+1. 修改配置文件，註釋掉 `slave_database` 配置
 2. 重啟服務
 3. 系統會自動使用主庫處理所有讀寫操作
 
 ### 主庫故障
 
 1. 提升一個從庫為新的主庫
-2. 更新配置文件中的 `database` 配置
+2. 更新配置文件中的 `master_database` 配置
 3. 重啟服務
 
 ## 效能優化建議
