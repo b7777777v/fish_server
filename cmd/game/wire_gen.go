@@ -15,6 +15,7 @@ import (
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/data"
+	"github.com/b7777777v/fish_server/internal/data/redis"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	"github.com/b7777777v/fish_server/internal/pkg/token"
 )
@@ -53,7 +54,9 @@ func initApp(config *conf.Config) (*game.GameApp, func(), error) {
 	dbManager := data.ProvideDBManager(dataData)
 	accountRepo := data.NewAccountRepo(dbManager)
 	jwt := config.JWT
-	tokenHelper := token.NewTokenHelper(jwt)
+	client := data.ProvideRedisClient(dataData)
+	tokenCache := redis.NewTokenCache(client, v)
+	tokenHelper := token.ProvideTokenHelper(jwt, tokenCache)
 	oAuthService := account.NewOAuthService()
 	walletCreator := biz.ProvideWalletCreator(walletUsecase)
 	accountUsecase := account.NewAccountUsecase(accountRepo, tokenHelper, oAuthService, walletCreator)

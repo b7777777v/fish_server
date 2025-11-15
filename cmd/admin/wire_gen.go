@@ -17,6 +17,7 @@ import (
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/conf"
 	"github.com/b7777777v/fish_server/internal/data"
+	"github.com/b7777777v/fish_server/internal/data/redis"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	"github.com/b7777777v/fish_server/internal/pkg/token"
 )
@@ -39,7 +40,9 @@ func initApp(config *conf.Config) (*admin.AdminApp, func(), error) {
 	}
 	playerRepo := data.NewPlayerRepo(dataData, v)
 	jwt := config.JWT
-	tokenHelper := token.NewTokenHelper(jwt)
+	client := data.ProvideRedisClient(dataData)
+	tokenCache := redis.NewTokenCache(client, v)
+	tokenHelper := token.ProvideTokenHelper(jwt, tokenCache)
 	playerUsecase := player.NewPlayerUsecase(playerRepo, tokenHelper, v)
 	walletRepo := data.NewWalletRepo(dataData, v)
 	walletUsecase := wallet.NewWalletUsecase(walletRepo, v)
@@ -67,7 +70,6 @@ func initApp(config *conf.Config) (*admin.AdminApp, func(), error) {
 	webSocketHandler := game2.NewWebSocketHandler(hub, tokenHelper, accountUsecase, v)
 	messageHandler := game2.NewMessageHandler(gameUsecase, hub, v)
 	gameApp := game2.NewGameApp(gameUsecase, accountUsecase, config, v, hub, webSocketHandler, messageHandler)
-	client := data.ProvideRedisClient(dataData)
 	formationConfigRepo := data.NewFormationConfigRepo(dbManager, client, v)
 	formationConfigService := game.NewFormationConfigService(formationConfigRepo, v)
 	accountHandler := admin.NewAccountHandler(accountUsecase, tokenHelper)
