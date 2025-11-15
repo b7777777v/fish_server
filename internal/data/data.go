@@ -24,7 +24,11 @@ func (d *Data) DBManager() *postgres.DBManager {
 // NewData .創建一個新的 Data 結構
 func NewData(c *conf.Data, logger logger.Logger) (*Data, func(), error) {
 	// 初始化 PostgreSQL 資料庫管理器（支持讀寫分離）
-	dbManager, err := postgres.NewDBManager(c.Database, logger)
+	// 使用配置中的寫庫和讀庫配置
+	writeDB := c.GetWriteDatabase()
+	readDB := c.GetReadDatabase()
+
+	dbManager, err := postgres.NewDBManagerWithConfig(writeDB, readDB, logger)
 	if err != nil {
 		logger.Errorf("failed to create postgres db manager: %v", err)
 		return nil, nil, err

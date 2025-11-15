@@ -120,6 +120,7 @@ func (c *Client) Begin(ctx context.Context) (pgx.Tx, error) {
 
 // NewDBManager 創建資料庫管理器，支持讀寫分離
 // 當前實現：連線字串共用，主從使用相同的資料庫配置
+// 已廢棄：建議使用 NewDBManagerWithConfig
 func NewDBManager(dbConfig *conf.Database, logger logger.Logger) (*DBManager, error) {
 	if dbConfig == nil {
 		logger.Error("database config is nil")
@@ -138,6 +139,49 @@ func NewDBManager(dbConfig *conf.Database, logger logger.Logger) (*DBManager, er
 	if err != nil {
 		writeDB.Close()
 		return nil, fmt.Errorf("failed to create read db client: %w", err)
+	}
+
+	return &DBManager{
+		writeDB: writeDB,
+		readDB:  readDB,
+		logger:  logger.With("module", "data/postgres/dbmanager"),
+	}, nil
+}
+
+// NewDBManagerWithConfig 創建資料庫管理器，支持獨立的讀寫庫配置
+// writeDBConfig: 寫庫配置（主庫）
+// readDBConfig: 讀庫配置（從庫），如果與 writeDBConfig 相同則表示主從共用
+func NewDBManagerWithConfig(writeDBConfig, readDBConfig *conf.Database, logger logger.Logger) (*DBManager, error) {
+	if writeDBConfig == nil {
+		logger.Error("write database config is nil")
+		return nil, fmt.Errorf("write database config is nil")
+	}
+
+	// 創建寫庫連接
+	writeDB, err := NewClientFromDatabase(writeDBConfig, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create write db client: %w", err)
+	}
+
+	// 創建讀庫連接
+	var readDB *Client
+	if readDBConfig != nil && readDBConfig != writeDBConfig {
+		// 使用獨立的讀庫配置
+		logger.Infof("Creating separate read database connection: %s:%d/%s",
+			readDBConfig.Host, readDBConfig.Port, readDBConfig.DBName)
+		readDB, err = NewClientFromDatabase(readDBConfig, logger)
+		if err != nil {
+			writeDB.Close()
+			return nil, fmt.Errorf("failed to create read db client: %w", err)
+		}
+	} else {
+		// 使用寫庫配置創建讀庫連接（主從共用）
+		logger.Infof("Using write database for read operations (no separate read database configured)")
+		readDB, err = NewClientFromDatabase(writeDBConfig, logger)
+		if err != nil {
+			writeDB.Close()
+			return nil, fmt.Errorf("failed to create read db client: %w", err)
+		}
 	}
 
 	return &DBManager{

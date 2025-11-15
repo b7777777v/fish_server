@@ -29,8 +29,9 @@ type Service struct {
 }
 
 type Data struct {
-	Database *Database `mapstructure:"database"`
-	Redis    *Redis    `mapstructure:"redis"`
+	Database     *Database `mapstructure:"database"`      // 寫庫配置（主庫）
+	ReadDatabase *Database `mapstructure:"read_database"` // 讀庫配置（從庫，可選）
+	Redis        *Redis    `mapstructure:"redis"`
 }
 
 type Database struct {
@@ -48,13 +49,21 @@ type Database struct {
 
 // GetDSN 根據 Database 結構構建 DSN
 func (d *Database) GetDSN() string {
-	// 如果 source 字段存在，優先使用
-	// 注意：爲了向後兼容，我們暫時保留對 source 的檢查，但目標是完全遷移
-	// if d.Source != "" {
-	// 	return d.Source
-	// }
 	return fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=%s",
 		d.User, d.Password, d.Host, d.Port, d.DBName, d.SSLMode)
+}
+
+// GetReadDatabase 獲取讀庫配置，如果未配置則返回主庫配置
+func (d *Data) GetReadDatabase() *Database {
+	if d.ReadDatabase != nil {
+		return d.ReadDatabase
+	}
+	return d.Database
+}
+
+// GetWriteDatabase 獲取寫庫配置（主庫）
+func (d *Data) GetWriteDatabase() *Database {
+	return d.Database
 }
 
 
