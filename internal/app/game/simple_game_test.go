@@ -255,9 +255,9 @@ func TestSimpleGameComponents(t *testing.T) {
 	t.Run("Test Room Operations via MessageHandler", func(t *testing.T) {
 		// Create a fresh usecase for this test to avoid state leakage
 		roomManager := game.NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
-		gameUsecase := walletRepo := &MockWalletRepo{}
-	walletUC := wallet.NewWalletUsecase(walletRepo, log)
-	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
+		walletRepo := &MockWalletRepo{}
+		walletUC := wallet.NewWalletUsecase(walletRepo, log)
+		gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
 		room, err := gameUsecase.CreateRoom(context.Background(), "test_room_001", 4)
 		assert.NoError(t, err)
 

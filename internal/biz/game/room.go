@@ -359,8 +359,6 @@ func (rm *RoomManager) updateRoom(room *Room) {
 	now := time.Now()
 	deltaTime := 0.1 // 100ms
 
-	rm.logger.Debugf("[GAME_LOOP] Starting room update for %s", room.ID)
-
 	// Update formations outside of lock (they have their own synchronization)
 	rm.spawner.UpdateFormations(deltaTime)
 
@@ -407,25 +405,8 @@ func (rm *RoomManager) updateRoom(room *Room) {
 	independentFishCount := 0
 	for _, fish := range room.Fishes {
 		if !fishInFormations[fish.ID] {
-			// Debug: log fish state before update
-			oldX, oldY := fish.Position.X, fish.Position.Y
-			rm.logger.Debugf("[FISH_UPDATE] Before: Fish %d, Pos=(%.1f,%.1f), Speed=%.2f, Dir=%.4f",
-				fish.ID, oldX, oldY, fish.Speed, fish.Direction)
-
 			rm.updateFishPosition(fish, room.Config)
 			independentFishCount++
-
-			rm.logger.Debugf("[FISH_UPDATE] After: Fish %d, Pos=(%.1f,%.1f), Moved: %.1f pixels",
-				fish.ID, fish.Position.X, fish.Position.Y,
-				math.Sqrt(math.Pow(fish.Position.X-oldX, 2) + math.Pow(fish.Position.Y-oldY, 2)))
-
-			// Debug: log if position didn't change
-			if fish.Position.X == oldX && fish.Position.Y == oldY {
-				rm.logger.Warnf("Fish %d didn't move! Speed=%.2f, Direction=%.4f, Pos=(%.1f,%.1f)",
-					fish.ID, fish.Speed, fish.Direction, fish.Position.X, fish.Position.Y)
-			}
-		} else {
-			rm.logger.Debugf("[FISH_UPDATE] Fish %d is in formation, skipping independent update", fish.ID)
 		}
 	}
 
