@@ -2,23 +2,39 @@ package admin
 
 import (
 	"net/http"
+	"strconv"
+	"time"
 
+	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/gin-gonic/gin"
 )
 
-// TODO: 實現魚潮系統的 HTTP API handlers
-// 此檔案提供魚潮配置和管理的 RESTful API 端點
+// FishTideHandler 處理魚潮相關的 HTTP 請求
+type FishTideHandler struct {
+	repo    game.FishTideRepo
+	manager game.FishTideManager
+}
+
+// NewFishTideHandler 建立新的 FishTideHandler
+func NewFishTideHandler(repo game.FishTideRepo, manager game.FishTideManager) *FishTideHandler {
+	return &FishTideHandler{
+		repo:    repo,
+		manager: manager,
+	}
+}
 
 // RegisterFishTideRoutes 註冊魚潮相關的路由
-func RegisterFishTideRoutes(r *gin.Engine /* TODO: 添加 FishTideManager 參數 */) {
-	// TODO: 實現路由註冊
-	// 建議路由結構（管理員功能）：
-	// GET    /api/v1/admin/fish-tides          - 獲取所有魚潮配置
-	// POST   /api/v1/admin/fish-tides          - 建立新的魚潮配置
-	// PUT    /api/v1/admin/fish-tides/:id      - 更新魚潮配置
-	// DELETE /api/v1/admin/fish-tides/:id      - 刪除魚潮配置
-	// POST   /api/v1/admin/fish-tides/:id/start - 手動觸發魚潮（針對指定房間）
-	// POST   /api/v1/admin/fish-tides/:id/stop  - 手動停止魚潮（針對指定房間）
+func RegisterFishTideRoutes(r *gin.Engine, handler *FishTideHandler, lobbyHandler *LobbyHandler) {
+	admin := r.Group("/api/v1/admin")
+	admin.Use(lobbyHandler.adminAuthMiddleware()) // 應用管理員認證中間件
+	{
+		admin.GET("/fish-tides", handler.handleGetFishTides)
+		admin.POST("/fish-tides", handler.handleCreateFishTide)
+		admin.PUT("/fish-tides/:id", handler.handleUpdateFishTide)
+		admin.DELETE("/fish-tides/:id", handler.handleDeleteFishTide)
+		admin.POST("/fish-tides/:id/start", handler.handleStartFishTide)
+		admin.POST("/fish-tides/:id/stop", handler.handleStopFishTide)
+	}
 }
 
 // CreateFishTideRequest 建立魚潮請求
@@ -37,12 +53,12 @@ type CreateFishTideRequest struct {
 type UpdateFishTideRequest struct {
 	Name            string  `json:"name"`
 	FishTypeID      int32   `json:"fish_type_id"`
-	FishCount       int     `json:"fish_count" binding:"min=1"`
-	DurationSeconds int     `json:"duration_seconds" binding:"min=1"`
-	IntervalMs      int     `json:"interval_ms" binding:"min=1"`
-	SpeedMultiplier float64 `json:"speed_multiplier" binding:"min=0.1"`
+	FishCount       int     `json:"fish_count" binding:"omitempty,min=1"`
+	DurationSeconds int     `json:"duration_seconds" binding:"omitempty,min=1"`
+	IntervalMs      int     `json:"interval_ms" binding:"omitempty,min=1"`
+	SpeedMultiplier float64 `json:"speed_multiplier" binding:"omitempty,min=0.1"`
 	TriggerRule     string  `json:"trigger_rule"`
-	IsActive        bool    `json:"is_active"`
+	IsActive        *bool   `json:"is_active"` // 使用指針以區分未設置和false
 }
 
 // TriggerFishTideRequest 觸發魚潮請求
@@ -51,62 +67,173 @@ type TriggerFishTideRequest struct {
 }
 
 // handleGetFishTides 獲取所有魚潮配置
-func handleGetFishTides(c *gin.Context) {
-	// TODO: 實現獲取所有魚潮配置
-	// 1. 呼叫 FishTideRepo.GetActiveTides
-	// 2. 返回魚潮列表
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+func (h *FishTideHandler) handleGetFishTides(c *gin.Context) {
+	tides, err := h.repo.GetActiveTides(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"tides": tides,
+		"count": len(tides),
+	})
 }
 
 // handleCreateFishTide 建立新的魚潮配置
-func handleCreateFishTide(c *gin.Context) {
-	// TODO: 實現建立魚潮配置
-	// 1. 驗證管理員權限
-	// 2. 綁定並驗證請求
-	// 3. 呼叫 FishTideRepo.CreateTide
-	// 4. 返回成功訊息
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+func (h *FishTideHandler) handleCreateFishTide(c *gin.Context) {
+	var req CreateFishTideRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 建立魚潮實體
+	tide := &game.FishTide{
+		Name:            req.Name,
+		FishTypeID:      req.FishTypeID,
+		FishCount:       req.FishCount,
+		Duration:        time.Duration(req.DurationSeconds) * time.Second,
+		SpawnInterval:   time.Duration(req.IntervalMs) * time.Millisecond,
+		SpeedMultiplier: req.SpeedMultiplier,
+		TriggerRule:     req.TriggerRule,
+		IsActive:        req.IsActive,
+	}
+
+	if err := h.repo.CreateTide(c.Request.Context(), tide); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "fish tide created successfully",
+		"tide":    tide,
+	})
 }
 
 // handleUpdateFishTide 更新魚潮配置
-func handleUpdateFishTide(c *gin.Context) {
-	// TODO: 實現更新魚潮配置
-	// 1. 驗證管理員權限
-	// 2. 解析 tide_id
-	// 3. 綁定並驗證請求
-	// 4. 呼叫 FishTideRepo.UpdateTide
-	// 5. 觸發配置熱更新（通知所有 Game Server）
-	// 6. 返回成功訊息
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+func (h *FishTideHandler) handleUpdateFishTide(c *gin.Context) {
+	// 解析 tide_id
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tide id"})
+		return
+	}
+
+	var req UpdateFishTideRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 獲取現有魚潮配置
+	tide, err := h.repo.GetTideByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 更新字段（僅更新提供的字段）
+	if req.Name != "" {
+		tide.Name = req.Name
+	}
+	if req.FishTypeID != 0 {
+		tide.FishTypeID = req.FishTypeID
+	}
+	if req.FishCount != 0 {
+		tide.FishCount = req.FishCount
+	}
+	if req.DurationSeconds != 0 {
+		tide.Duration = time.Duration(req.DurationSeconds) * time.Second
+	}
+	if req.IntervalMs != 0 {
+		tide.SpawnInterval = time.Duration(req.IntervalMs) * time.Millisecond
+	}
+	if req.SpeedMultiplier != 0 {
+		tide.SpeedMultiplier = req.SpeedMultiplier
+	}
+	if req.TriggerRule != "" {
+		tide.TriggerRule = req.TriggerRule
+	}
+	if req.IsActive != nil {
+		tide.IsActive = *req.IsActive
+	}
+
+	if err := h.repo.UpdateTide(c.Request.Context(), tide); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "fish tide updated successfully",
+		"tide":    tide,
+	})
 }
 
 // handleDeleteFishTide 刪除魚潮配置
-func handleDeleteFishTide(c *gin.Context) {
-	// TODO: 實現刪除魚潮配置
-	// 1. 驗證管理員權限
-	// 2. 解析 tide_id
-	// 3. 呼叫 FishTideRepo.DeleteTide
-	// 4. 返回成功訊息
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+func (h *FishTideHandler) handleDeleteFishTide(c *gin.Context) {
+	// 解析 tide_id
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tide id"})
+		return
+	}
+
+	if err := h.repo.DeleteTide(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "fish tide deleted successfully",
+	})
 }
 
 // handleStartFishTide 手動觸發魚潮
-func handleStartFishTide(c *gin.Context) {
-	// TODO: 實現手動觸發魚潮
-	// 1. 驗證管理員權限
-	// 2. 解析 tide_id
-	// 3. 綁定並驗證請求（獲取 room_id）
-	// 4. 呼叫 FishTideManager.StartTide
-	// 5. 返回成功訊息
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+func (h *FishTideHandler) handleStartFishTide(c *gin.Context) {
+	// 解析 tide_id
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tide id"})
+		return
+	}
+
+	var req TriggerFishTideRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.manager.StartTide(c.Request.Context(), req.RoomID, id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "fish tide started successfully",
+		"room_id": req.RoomID,
+		"tide_id": id,
+	})
 }
 
 // handleStopFishTide 手動停止魚潮
-func handleStopFishTide(c *gin.Context) {
-	// TODO: 實現手動停止魚潮
-	// 1. 驗證管理員權限
-	// 2. 綁定並驗證請求（獲取 room_id）
-	// 3. 呼叫 FishTideManager.StopTide
-	// 4. 返回成功訊息
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+func (h *FishTideHandler) handleStopFishTide(c *gin.Context) {
+	var req TriggerFishTideRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.manager.StopTide(c.Request.Context(), req.RoomID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "fish tide stopped successfully",
+		"room_id": req.RoomID,
+	})
 }

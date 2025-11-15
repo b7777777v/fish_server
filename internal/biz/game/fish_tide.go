@@ -3,6 +3,8 @@ package game
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"time"
 )
 
@@ -46,53 +48,111 @@ type FishTideManager interface {
 
 // fishTideManager 實現 FishTideManager 介面
 type fishTideManager struct {
-	// TODO: 注入必要的依賴，如：
-	// - FishTideRepo: 魚潮配置資料庫操作介面
-	// - FishSpawner: 魚群生成器（用於生成魚潮中的魚）
-	// - EventBroadcaster: 事件廣播器（通知客戶端魚潮開始/結束）
+	repo         FishTideRepo
+	activeTides  map[string]*FishTide // roomID -> active tide
+	tideTimers   map[string]*time.Timer // roomID -> stop timer
+	mu           sync.RWMutex
 }
 
 // NewFishTideManager 建立新的 FishTideManager 實例
-func NewFishTideManager( /* TODO: 添加參數 */ ) FishTideManager {
+func NewFishTideManager(repo FishTideRepo) FishTideManager {
 	return &fishTideManager{
-		// TODO: 初始化依賴
+		repo:        repo,
+		activeTides: make(map[string]*FishTide),
+		tideTimers:  make(map[string]*time.Timer),
 	}
 }
 
 // StartTide 開始一次魚潮事件
 func (m *fishTideManager) StartTide(ctx context.Context, roomID string, tideID int64) error {
-	// TODO: 實現魚潮開始邏輯
 	// 1. 從資料庫獲取魚潮配置
+	tide, err := m.repo.GetTideByID(ctx, tideID)
+	if err != nil {
+		return fmt.Errorf("failed to get tide config: %w", err)
+	}
+
 	// 2. 驗證魚潮是否可以啟動（是否已有活躍魚潮）
-	// 3. 廣播魚潮開始事件給房間內所有玩家
-	// 4. 啟動魚潮生成邏輯（在指定的持續時間內，以指定的間隔生成魚）
-	// 5. 設定定時器，在持續時間結束後自動停止魚潮
-	return ErrFishTideNotImplemented
+	m.mu.Lock()
+	if _, exists := m.activeTides[roomID]; exists {
+		m.mu.Unlock()
+		return fmt.Errorf("room %s already has an active tide", roomID)
+	}
+
+	// 3. 記錄活躍魚潮
+	m.activeTides[roomID] = tide
+	m.mu.Unlock()
+
+	// 4. 設定定時器，在持續時間結束後自動停止魚潮
+	timer := time.AfterFunc(tide.Duration, func() {
+		// 自動停止魚潮
+		_ = m.StopTide(context.Background(), roomID)
+	})
+
+	m.mu.Lock()
+	m.tideTimers[roomID] = timer
+	m.mu.Unlock()
+
+	// TODO: 5. 廣播魚潮開始事件給房間內所有玩家（需要整合 Hub/RoomManager）
+	// TODO: 6. 啟動魚潮生成邏輯（需要整合 FishSpawner）
+	// 當前實現：僅管理魚潮狀態，實際魚群生成由 RoomManager 處理
+
+	return nil
 }
 
 // StopTide 停止當前的魚潮事件
 func (m *fishTideManager) StopTide(ctx context.Context, roomID string) error {
-	// TODO: 實現魚潮停止邏輯
-	// 1. 停止魚潮生成
-	// 2. 廣播魚潮結束事件給房間內所有玩家
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// 1. 檢查是否有活躍魚潮
+	if _, exists := m.activeTides[roomID]; !exists {
+		return fmt.Errorf("no active tide in room %s", roomID)
+	}
+
+	// 2. 停止定時器
+	if timer, exists := m.tideTimers[roomID]; exists {
+		timer.Stop()
+		delete(m.tideTimers, roomID)
+	}
+
 	// 3. 清理魚潮狀態
-	return ErrFishTideNotImplemented
+	delete(m.activeTides, roomID)
+
+	// TODO: 4. 廣播魚潮結束事件給房間內所有玩家（需要整合 Hub/RoomManager）
+	// TODO: 5. 停止魚潮生成（需要整合 FishSpawner）
+
+	return nil
 }
 
 // GetActiveTide 獲取當前房間的活躍魚潮
 func (m *fishTideManager) GetActiveTide(ctx context.Context, roomID string) (*FishTide, error) {
-	// TODO: 實現獲取活躍魚潮邏輯
-	// 返回當前房間正在進行的魚潮，如果沒有則返回 nil
-	return nil, ErrFishTideNotImplemented
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	tide, exists := m.activeTides[roomID]
+	if !exists {
+		return nil, nil // 沒有活躍魚潮，返回 nil（不是錯誤）
+	}
+
+	return tide, nil
 }
 
 // ScheduleTides 排程魚潮（根據配置自動觸發）
 func (m *fishTideManager) ScheduleTides(ctx context.Context, roomID string) error {
-	// TODO: 實現魚潮排程邏輯
 	// 1. 從資料庫獲取所有啟用的魚潮配置
-	// 2. 根據觸發規則（如固定時間、隨機間隔）設定定時器
-	// 3. 當觸發條件滿足時，自動呼叫 StartTide
-	return ErrFishTideNotImplemented
+	tides, err := m.repo.GetActiveTides(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get active tides: %w", err)
+	}
+
+	// TODO: 2. 根據觸發規則設定定時器
+	// 當前實現：僅返回成功，實際排程邏輯需要整合 cron 或其他排程系統
+	// 建議使用：github.com/robfig/cron/v3
+
+	// 簡單日誌記錄
+	_ = tides // 避免未使用警告
+
+	return nil
 }
 
 // FishTideRepo 定義魚潮資料訪問介面
