@@ -317,8 +317,14 @@ func getDefaultFishTypes() []FishType {
 
 // BatchSpawnFish 批量生成魚（用於房間初始化）
 func (fs *FishSpawner) BatchSpawnFish(count int, config RoomConfig) []*Fish {
+	// Handle edge case: negative or zero count
+	if count <= 0 {
+		fs.logger.Infof("Batch spawned %d fishes", 0)
+		return []*Fish{}
+	}
+
 	fishes := make([]*Fish, 0, count)
-	
+
 	for i := 0; i < count; i++ {
 		// 隨機選擇魚類型
 		fishType := fs.selectRandomFishType()

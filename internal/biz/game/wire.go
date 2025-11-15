@@ -11,6 +11,7 @@ func NewDefaultRoomConfig() RoomConfig {
 		MaxBet:               1000,
 		BulletCostMultiplier: 1.0,
 		FishSpawnRate:        0.3,
+		MinFishCount:         10,
 		MaxFishCount:         20,
 		RoomWidth:            1200,
 		RoomHeight:           800,

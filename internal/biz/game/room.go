@@ -367,12 +367,25 @@ func (rm *RoomManager) updateRoom(room *Room) {
 
 	// Try spawn fish outside of lock
 	var newFish *Fish
+	var batchFishes []*Fish
 	rm.mu.RLock()
 	fishCount := len(room.Fishes)
+	minFish := int(room.Config.MinFishCount)
 	maxFish := int(room.Config.MaxFishCount)
 	rm.mu.RUnlock()
 
-	if fishCount < maxFish {
+	// 魚數量監控：低於最小值時強制補充
+	if fishCount < minFish {
+		// 計算需要補充的魚數量，補充到最大值的 75%
+		targetFishCount := int(float64(maxFish) * 0.75)
+		spawnCount := targetFishCount - fishCount
+		if spawnCount > 0 {
+			rm.logger.Warnf("Room %s fish count too low (%d < %d), spawning %d fish to reach %d",
+				room.ID, fishCount, minFish, spawnCount, targetFishCount)
+			batchFishes = rm.spawner.BatchSpawnFish(spawnCount, room.Config)
+		}
+	} else if fishCount < maxFish {
+		// 正常情況下使用概率生成
 		newFish = rm.spawner.TrySpawnFish(room.Config)
 	}
 
@@ -437,6 +450,15 @@ func (rm *RoomManager) updateRoom(room *Room) {
 	// Add new fish if spawned
 	if newFish != nil {
 		room.Fishes[newFish.ID] = newFish
+	}
+
+	// Add batch spawned fish (from low fish count replenishment)
+	if len(batchFishes) > 0 {
+		for _, fish := range batchFishes {
+			room.Fishes[fish.ID] = fish
+		}
+		rm.logger.Infof("Replenished room %s with %d fish (new total: %d)",
+			room.ID, len(batchFishes), len(room.Fishes))
 	}
 
 	// Add formation fishes if spawned
@@ -510,7 +532,8 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 			MaxBet:               100,  // 1元
 			BulletCostMultiplier: 1.0,
 			FishSpawnRate:        0.3,
-			MaxFishCount:         20,
+			MinFishCount:         10,  // 最小魚數量（低於此值強制補充）
+			MaxFishCount:         20,  // 最大魚數量
 			RoomWidth:            1200,
 			RoomHeight:           800,
 			TargetRTP:            0.97, // 新手房RTP略高
@@ -521,7 +544,8 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 			MaxBet:               1000, // 10元
 			BulletCostMultiplier: 2.0,
 			FishSpawnRate:        0.4,
-			MaxFishCount:         25,
+			MinFishCount:         12,  // 最小魚數量（低於此值強制補充）
+			MaxFishCount:         25,  // 最大魚數量
 			RoomWidth:            1200,
 			RoomHeight:           800,
 			TargetRTP:            0.96,
@@ -532,7 +556,8 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 			MaxBet:               10000, // 100元
 			BulletCostMultiplier: 5.0,
 			FishSpawnRate:        0.5,
-			MaxFishCount:         30,
+			MinFishCount:         15,  // 最小魚數量（低於此值強制補充）
+			MaxFishCount:         30,  // 最大魚數量
 			RoomWidth:            1200,
 			RoomHeight:           800,
 			TargetRTP:            0.95,
@@ -543,13 +568,14 @@ func (rm *RoomManager) getRoomConfig(roomType RoomType) RoomConfig {
 			MaxBet:               100000, // 1000元
 			BulletCostMultiplier: 10.0,
 			FishSpawnRate:        0.6,
-			MaxFishCount:         35,
+			MinFishCount:         18,  // 最小魚數量（低於此值強制補充）
+			MaxFishCount:         35,  // 最大魚數量
 			RoomWidth:            1200,
 			RoomHeight:           800,
 			TargetRTP:            0.94, // VIP房RTP略低
 		},
 	}
-	
+
 	return configs[roomType]
 }
 

@@ -3,6 +3,7 @@ package admin
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/b7777777v/fish_server/internal/biz/lobby"
 	"github.com/b7777777v/fish_server/internal/pkg/token"
@@ -23,6 +24,64 @@ func NewLobbyHandler(lobbyUsecase lobby.LobbyUsecase, tokenHelper *token.TokenHe
 	}
 }
 
+// adminAuthMiddleware 管理員認證中間件
+// 驗證 JWT token 並檢查是否為管理員用戶
+func (h *LobbyHandler) adminAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 從 Authorization header 獲取 token
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
+			c.Abort()
+			return
+		}
+
+		// 解析 Bearer token
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
+			c.Abort()
+			return
+		}
+
+		tokenString := parts[1]
+
+		// 驗證 token
+		claims, err := h.tokenHelper.ParseToken(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			c.Abort()
+			return
+		}
+
+		// 檢查是否為遊客（遊客不能是管理員）
+		if claims.IsGuest {
+			c.JSON(http.StatusForbidden, gin.H{"error": "guests are not allowed to access admin APIs"})
+			c.Abort()
+			return
+		}
+
+		// 檢查管理員權限
+		// TODO: 可以根據業務需求實現更複雜的權限檢查：
+		// 1. 從數據庫查詢用戶角色
+		// 2. 使用 RBAC (Role-Based Access Control)
+		// 3. 檢查環境變數中配置的管理員 ID 列表
+		//
+		// 當前簡單實現：UserID <= 10 的用戶被視為管理員
+		// 生產環境應該使用更安全的權限系統
+		if claims.UserID > 10 {
+			c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permissions - admin access required"})
+			c.Abort()
+			return
+		}
+
+		// 將 user_id 存入 context
+		c.Set("user_id", claims.UserID)
+		c.Set("is_admin", true)
+		c.Next()
+	}
+}
+
 // RegisterLobbyRoutes 註冊大廳相關的路由
 func RegisterLobbyRoutes(r *gin.Engine, handler *LobbyHandler, accountHandler *AccountHandler) {
 	api := r.Group("/api/v1")
@@ -38,8 +97,8 @@ func RegisterLobbyRoutes(r *gin.Engine, handler *LobbyHandler, accountHandler *A
 	}
 
 	// 管理員路由（需要管理員權限）
-	// TODO: 添加管理員認證中間件
 	admin := api.Group("/admin")
+	admin.Use(handler.adminAuthMiddleware()) // 應用管理員認證中間件
 	{
 		admin.POST("/announcements", handler.handleCreateAnnouncement)
 		admin.PUT("/announcements/:id", handler.handleUpdateAnnouncement)

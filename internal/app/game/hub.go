@@ -13,6 +13,17 @@ import (
 )
 
 // ========================================
+// 配置常量
+// ========================================
+
+const (
+	// 通道緩衝區大小配置
+	ChannelBufferSmall  = 10  // 用於註冊、取消註冊、加入/離開房間等低頻操作
+	ChannelBufferMedium = 50  // 保留，未來可能使用
+	ChannelBufferLarge  = 100 // 用於遊戲操作、廣播等高頻操作
+)
+
+// ========================================
 // Hub - 管理所有 WebSocket 連接和房間
 // ========================================
 
@@ -101,12 +112,12 @@ func NewHub(gameUsecase *game.GameUsecase, playerUsecase *player.PlayerUsecase, 
 		roomManagers:  make(map[string]*RoomManager),
 		gameUsecase:   gameUsecase,
 		playerUsecase: playerUsecase,
-		register:      make(chan *Client, 10),             // 添加緩衝區避免阻塞
-		unregister:    make(chan *Client, 10),             // 添加緩衝區避免阻塞
-		joinRoom:      make(chan *JoinRoomMessage, 10),    // 添加緩衝區避免阻塞
-		leaveRoom:     make(chan *LeaveRoomMessage, 10),   // 添加緩衝區避免阻塞
-		gameAction:    make(chan *GameActionMessage, 100), // 添加緩衝區避免阻塞
-		broadcast:     make(chan *BroadcastMessage, 100),  // 添加緩衝區避免阻塞
+		register:      make(chan *Client, ChannelBufferSmall),             // 低頻操作使用小緩衝區
+		unregister:    make(chan *Client, ChannelBufferSmall),             // 低頻操作使用小緩衝區
+		joinRoom:      make(chan *JoinRoomMessage, ChannelBufferSmall),    // 低頻操作使用小緩衝區
+		leaveRoom:     make(chan *LeaveRoomMessage, ChannelBufferSmall),   // 低頻操作使用小緩衝區
+		gameAction:    make(chan *GameActionMessage, ChannelBufferLarge),  // 高頻操作使用大緩衝區
+		broadcast:     make(chan *BroadcastMessage, ChannelBufferLarge),   // 高頻操作使用大緩衝區
 		logger:        logger.With("component", "hub"),
 		stats: &HubStats{
 			StartTime: time.Now(),

@@ -1,4 +1,4 @@
-package game
+package game_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	"github.com/stretchr/testify/assert"
@@ -17,39 +18,39 @@ import (
 
 type MockGameRepo struct{}
 
-func (m *MockGameRepo) SaveRoom(ctx context.Context, room *Room) error            { return nil }
-func (m *MockGameRepo) GetRoom(ctx context.Context, roomID string) (*Room, error) { return nil, nil }
-func (m *MockGameRepo) ListRooms(ctx context.Context, roomType RoomType) ([]*Room, error) {
-	return []*Room{}, nil
+func (m *MockGameRepo) SaveRoom(ctx context.Context, room *game.Room) error            { return nil }
+func (m *MockGameRepo) GetRoom(ctx context.Context, roomID string) (*game.Room, error) { return nil, nil }
+func (m *MockGameRepo) ListRooms(ctx context.Context, roomType game.RoomType) ([]*game.Room, error) {
+	return []*game.Room{}, nil
 }
 func (m *MockGameRepo) DeleteRoom(ctx context.Context, roomID string) error { return nil }
-func (m *MockGameRepo) SaveGameStatistics(ctx context.Context, playerID int64, stats *GameStatistics) error {
+func (m *MockGameRepo) SaveGameStatistics(ctx context.Context, playerID int64, stats *game.GameStatistics) error {
 	return nil
 }
-func (m *MockGameRepo) GetGameStatistics(ctx context.Context, playerID int64) (*GameStatistics, error) {
-	return &GameStatistics{}, nil
+func (m *MockGameRepo) GetGameStatistics(ctx context.Context, playerID int64) (*game.GameStatistics, error) {
+	return &game.GameStatistics{}, nil
 }
-func (m *MockGameRepo) SaveGameEvent(ctx context.Context, event *GameEvent) error { return nil }
-func (m *MockGameRepo) GetGameEvents(ctx context.Context, roomID string, limit int) ([]*GameEvent, error) {
-	return []*GameEvent{}, nil
+func (m *MockGameRepo) SaveGameEvent(ctx context.Context, event *game.GameEvent) error { return nil }
+func (m *MockGameRepo) GetGameEvents(ctx context.Context, roomID string, limit int) ([]*game.GameEvent, error) {
+	return []*game.GameEvent{}, nil
 }
-func (m *MockGameRepo) GetAllFishTypes(ctx context.Context) ([]*FishType, error) {
+func (m *MockGameRepo) GetAllFishTypes(ctx context.Context) ([]*game.FishType, error) {
 	// Return a default fish type for tests that might need it
-	return []*FishType{{ID: 1, Name: "Test Fish"}}, nil
+	return []*game.FishType{{ID: 1, Name: "Test game.Fish"}}, nil
 }
-func (m *MockGameRepo) SaveFishTypeCache(ctx context.Context, ft *FishType) error {
+func (m *MockGameRepo) SaveFishTypeCache(ctx context.Context, ft *game.FishType) error {
 	return nil
 }
 
 type MockPlayerRepo struct{}
 
-func (m *MockPlayerRepo) GetPlayer(ctx context.Context, playerID int64) (*Player, error) {
-	return &Player{ID: playerID, UserID: playerID, Nickname: "TestPlayer", Balance: 100000, WalletID: 1, Status: PlayerStatusIdle}, nil
+func (m *MockPlayerRepo) GetPlayer(ctx context.Context, playerID int64) (*game.Player, error) {
+	return &game.Player{ID: playerID, UserID: playerID, Nickname: "TestPlayer", Balance: 100000, WalletID: 1, Status: game.PlayerStatusIdle}, nil
 }
 func (m *MockPlayerRepo) UpdatePlayerBalance(ctx context.Context, playerID int64, balance int64) error {
 	return nil
 }
-func (m *MockPlayerRepo) UpdatePlayerStatus(ctx context.Context, playerID int64, status PlayerStatus) error {
+func (m *MockPlayerRepo) UpdatePlayerStatus(ctx context.Context, playerID int64, status game.PlayerStatus) error {
 	return nil
 }
 
@@ -85,32 +86,32 @@ func (m *MockWalletRepo) FindTransactionsByWalletID(ctx context.Context, walletI
 
 type MockInventoryRepo struct {
 	mu          sync.RWMutex
-	inventories map[string]*Inventory
+	inventories map[string]*game.Inventory
 }
 
 func NewMockInventoryRepo() *MockInventoryRepo {
-	return &MockInventoryRepo{inventories: make(map[string]*Inventory)}
+	return &MockInventoryRepo{inventories: make(map[string]*game.Inventory)}
 }
-func (r *MockInventoryRepo) GetInventory(ctx context.Context, inventoryID string) (*Inventory, error) {
+func (r *MockInventoryRepo) GetInventory(ctx context.Context, inventoryID string) (*game.Inventory, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if inv, ok := r.inventories[inventoryID]; ok {
 		invCopy := *inv
 		return &invCopy, nil
 	}
-	return &Inventory{ID: inventoryID}, nil
+	return &game.Inventory{ID: inventoryID}, nil
 }
-func (r *MockInventoryRepo) SaveInventory(ctx context.Context, inventory *Inventory) error {
+func (r *MockInventoryRepo) SaveInventory(ctx context.Context, inventory *game.Inventory) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	invCopy := *inventory
 	r.inventories[inventory.ID] = &invCopy
 	return nil
 }
-func (r *MockInventoryRepo) GetAllInventories(ctx context.Context) (map[string]*Inventory, error) {
+func (r *MockInventoryRepo) GetAllInventories(ctx context.Context) (map[string]*game.Inventory, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	inventoriesCopy := make(map[string]*Inventory, len(r.inventories))
+	inventoriesCopy := make(map[string]*game.Inventory, len(r.inventories))
 	for id, inv := range r.inventories {
 		invCopy := *inv
 		inventoriesCopy[id] = &invCopy
@@ -128,12 +129,12 @@ type testEnvironment struct {
 	gameRepo         *MockGameRepo
 	playerRepo       *MockPlayerRepo
 	inventoryRepo    *MockInventoryRepo
-	spawner          *FishSpawner
-	mathModel        *MathModel
-	inventoryManager *InventoryManager
-	rtpController    *RTPController
-	roomManager      *RoomManager
-	gameUsecase      *GameUsecase
+	spawner          *game.FishSpawner
+	mathModel        *game.MathModel
+	inventoryManager *game.InventoryManager
+	rtpController    *game.RTPController
+	roomManager      *game.RoomManager
+	gameUsecase      *game.GameUsecase
 }
 
 func setupTestEnvironment(t *testing.T) *testEnvironment {
@@ -147,7 +148,7 @@ func setupTestEnvironment(t *testing.T) *testEnvironment {
 	walletUC := wallet.NewWalletUsecase(walletRepo, log)
 
 	// Create a test room config
-	testRoomConfig := RoomConfig{
+	testRoomConfig := game.RoomConfig{
 		MinBet:               1,
 		MaxBet:               100,
 		BulletCostMultiplier: 1.0,
@@ -158,14 +159,14 @@ func setupTestEnvironment(t *testing.T) *testEnvironment {
 		TargetRTP:            0.96,
 	}
 
-	spawner := NewFishSpawner(log, testRoomConfig)
-	mathModel := NewMathModel(log)
-	inventoryManager, err := NewInventoryManager(inventoryRepo, log)
+	spawner := game.NewFishSpawner(log, testRoomConfig)
+	mathModel := game.NewMathModel(log)
+	inventoryManager, err := game.NewInventoryManager(inventoryRepo, log)
 	assert.NoError(t, err)
 
-	rtpController := NewRTPController(inventoryManager, log)
-	roomManager := NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
-	gameUsecase := NewGameUsecase(gameRepo, playerRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
+	rtpController := game.NewRTPController(inventoryManager, log)
+	roomManager := game.NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
+	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
 
 	return &testEnvironment{
 		ctx:              context.Background(),
@@ -189,14 +190,14 @@ func setupTestEnvironment(t *testing.T) *testEnvironment {
 func TestRTPController(t *testing.T) {
 	te := setupTestEnvironment(t)
 
-	room, err := te.roomManager.CreateRoom(RoomTypeNovice, 1)
+	room, err := te.roomManager.CreateRoom(game.RoomTypeNovice, 1)
 	assert.NoError(t, err)
 	room.Config.TargetRTP = 0.95 // 95%
 
-	fish := &Fish{ID: 1, Type: te.spawner.GetFishTypes()[0], Health: 1, Value: 100}
+	fish := &game.Fish{ID: 1, Type: te.spawner.GetFishTypes()[0], Health: 1, Value: 100}
 
 	t.Run("RTP below target", func(t *testing.T) {
-		inv := te.inventoryManager.GetInventory(RoomTypeNovice)
+		inv := te.inventoryManager.GetInventory(game.RoomTypeNovice)
 		inv.TotalIn = 10000
 		inv.TotalOut = 8000 // RTP is 80%
 		te.inventoryRepo.SaveInventory(te.ctx, inv)
@@ -207,7 +208,7 @@ func TestRTPController(t *testing.T) {
 
 	t.Run("RTP above target", func(t *testing.T) {
 		// Create a fresh inventory for this test
-		inv := te.inventoryManager.GetInventory(RoomTypeAdvanced) // Use different room type
+		inv := te.inventoryManager.GetInventory(game.RoomTypeAdvanced) // Use different room type
 		inv.TotalIn = 200000  // Must be > 100000 to trigger RTP logic
 		inv.TotalOut = 220000 // RTP is 110%
 		inv.CurrentRTP = 1.10 // Explicitly set the calculated RTP
@@ -216,7 +217,7 @@ func TestRTPController(t *testing.T) {
 		// With high RTP, the chance should be significantly reduced
 		wins := 0
 		for i := 0; i < 100; i++ { // Reduce test iterations to make it faster
-			if te.rtpController.ApproveKill(RoomTypeAdvanced, 0.95, fish.Value) {
+			if te.rtpController.ApproveKill(game.RoomTypeAdvanced, 0.95, fish.Value) {
 				wins++
 			}
 		}
@@ -235,7 +236,7 @@ func TestRTPController(t *testing.T) {
 func TestInventoryManager(t *testing.T) {
 	te := setupTestEnvironment(t)
 
-	roomType := RoomTypeNovice
+	roomType := game.RoomTypeNovice
 	te.inventoryManager.AddBet(roomType, 100)
 	te.inventoryManager.AddWin(roomType, 50)
 
@@ -248,8 +249,8 @@ func TestInventoryManager(t *testing.T) {
 func TestGameFlowWithRTP(t *testing.T) {
 	te := setupTestEnvironment(t)
 
-	// 1. Create Room & Player
-	room, err := te.gameUsecase.CreateRoom(te.ctx, RoomTypeNovice, 1)
+	// 1. Create game.Room & Player
+	room, err := te.gameUsecase.CreateRoom(te.ctx, game.RoomTypeNovice, 1)
 	assert.NoError(t, err)
 
 	playerID := int64(1)
@@ -257,31 +258,31 @@ func TestGameFlowWithRTP(t *testing.T) {
 	assert.NoError(t, err)
 
 	// 2. Fire a bullet
-	bullet, err := te.gameUsecase.FireBullet(te.ctx, room.ID, playerID, 1.0, 10, Position{X: 600, Y: 750})
+	bullet, err := te.gameUsecase.FireBullet(te.ctx, room.ID, playerID, 1.0, 10, game.Position{X: 600, Y: 750})
 	assert.NoError(t, err)
 
 	// Check that the bet was recorded
-	inv := te.inventoryManager.GetInventory(RoomTypeNovice)
+	inv := te.inventoryManager.GetInventory(game.RoomTypeNovice)
 	assert.Equal(t, bullet.Cost, inv.TotalIn)
 
 	// 3. Hit a fish
 	roomState, _ := te.gameUsecase.GetRoomState(te.ctx, room.ID)
 	assert.NotEmpty(t, roomState.Fishes)
 
-	var firstFish *Fish
+	var firstFish *game.Fish
 	for _, f := range roomState.Fishes {
 		firstFish = f
 		break
 	}
 
 	// Force a win scenario by setting RTP low
-	inv = te.inventoryManager.GetInventory(RoomTypeNovice)
+	inv = te.inventoryManager.GetInventory(game.RoomTypeNovice)
 	inv.TotalIn = 10000
 	inv.TotalOut = 1000 // RTP = 10%
 	te.inventoryRepo.SaveInventory(te.ctx, inv)
 
 	// Try multiple times since there's still a random component
-	var hitResult *HitResult
+	var hitResult *game.HitResult
 	var hitSuccess bool
 	for i := 0; i < 10; i++ {
 		hitResult, err = te.gameUsecase.HitFish(te.ctx, room.ID, bullet.ID, firstFish.ID)
@@ -292,14 +293,14 @@ func TestGameFlowWithRTP(t *testing.T) {
 		}
 		// If first attempt fails, create a new bullet for next attempt
 		if i < 9 {
-			bullet, err = te.gameUsecase.FireBullet(te.ctx, room.ID, playerID, 1.0, 10, Position{X: 600, Y: 750})
+			bullet, err = te.gameUsecase.FireBullet(te.ctx, room.ID, playerID, 1.0, 10, game.Position{X: 600, Y: 750})
 			assert.NoError(t, err)
 		}
 	}
 	assert.True(t, hitSuccess, "Hit should be successful when RTP is very low (tried 10 times)")
 
 	// Check that the win was recorded
-	inv = te.inventoryManager.GetInventory(RoomTypeNovice)
+	inv = te.inventoryManager.GetInventory(game.RoomTypeNovice)
 	assert.Equal(t, int64(10000), inv.TotalIn)
 	assert.Equal(t, int64(1000)+hitResult.Reward, inv.TotalOut)
 }
