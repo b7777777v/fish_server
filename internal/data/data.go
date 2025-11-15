@@ -12,16 +12,21 @@ import (
 
 // Data .data 包含了所有數據源的客戶端，例如 db 和 redis
 type Data struct {
-	db    *postgres.Client
-	redis *redis.Client
+	dbManager *postgres.DBManager
+	redis     *redis.Client
+}
+
+// DBManager 返回資料庫管理器，供 Repository 層使用
+func (d *Data) DBManager() *postgres.DBManager {
+	return d.dbManager
 }
 
 // NewData .創建一個新的 Data 結構
 func NewData(c *conf.Data, logger logger.Logger) (*Data, func(), error) {
-	// 初始化 PostgreSQL 客戶端
-	pgClient, err := postgres.NewClientFromDatabase(c.Database, logger)
+	// 初始化 PostgreSQL 資料庫管理器（支持讀寫分離）
+	dbManager, err := postgres.NewDBManager(c.Database, logger)
 	if err != nil {
-		logger.Errorf("failed to create postgres client: %v", err)
+		logger.Errorf("failed to create postgres db manager: %v", err)
 		return nil, nil, err
 	}
 
@@ -30,27 +35,27 @@ func NewData(c *conf.Data, logger logger.Logger) (*Data, func(), error) {
 	if err != nil {
 		logger.Errorf("failed to create redis client: %v", err)
 		// 關閉已創建的資源
-		pgClient.Close()
+		dbManager.Close()
 		return nil, nil, err
 	}
 
 	cleanup := func() {
 		logger.Info("closing the data resources")
-		pgClient.Close()
+		dbManager.Close()
 		redisClient.Close()
 	}
 
-	return &Data{db: pgClient, redis: redisClient}, cleanup, nil
+	return &Data{dbManager: dbManager, redis: redisClient}, cleanup, nil
 }
 
 // NewAccountRepo creates a new AccountRepo
-func NewAccountRepo(pgClient *postgres.Client) account.AccountRepo {
-	return postgres.NewAccountRepo(pgClient)
+func NewAccountRepo(dbManager *postgres.DBManager) account.AccountRepo {
+	return postgres.NewAccountRepo(dbManager)
 }
 
 // NewLobbyRepo creates a new LobbyRepo
-func NewLobbyRepo(pgClient *postgres.Client) lobby.LobbyRepo {
-	return postgres.NewLobbyRepo(pgClient)
+func NewLobbyRepo(dbManager *postgres.DBManager) lobby.LobbyRepo {
+	return postgres.NewLobbyRepo(dbManager)
 }
 
 // NewRoomCache creates a new RoomCache

@@ -8,13 +8,13 @@ import (
 
 // RoomConfigRepo 实现房间配置的数据访问
 type RoomConfigRepo struct {
-	db *Client
+	dbManager *DBManager
 }
 
 // NewRoomConfigRepo 创建新的 RoomConfigRepo 实例
-func NewRoomConfigRepo(db *Client) *RoomConfigRepo {
+func NewRoomConfigRepo(dbManager *DBManager) *RoomConfigRepo {
 	return &RoomConfigRepo{
-		db: db,
+		dbManager: dbManager,
 	}
 }
 
@@ -48,7 +48,8 @@ func (r *RoomConfigRepo) GetRoomConfig(ctx context.Context, roomType string) (*g
 	`
 
 	var po RoomConfigPO
-	err := r.db.QueryRow(ctx, query, roomType).Scan(
+	// 讀操作使用 Read DB
+	err := r.dbManager.Read().QueryRow(ctx, query, roomType).Scan(
 		&po.ID,
 		&po.RoomType,
 		&po.RoomName,
@@ -97,7 +98,8 @@ func (r *RoomConfigRepo) GetAllRoomConfigs(ctx context.Context) (map[string]*gam
 		ORDER BY room_type
 	`
 
-	rows, err := r.db.Query(ctx, query)
+	// 讀操作使用 Read DB
+	rows, err := r.dbManager.Read().Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}

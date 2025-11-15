@@ -69,7 +69,8 @@ func (r *gamePlayerRepo) GetPlayer(ctx context.Context, playerID int64) (*game.P
 		Status   int
 		Balance  *float64 // Use pointer to handle NULL from LEFT JOIN
 	}
-	err = r.data.db.QueryRow(ctx, query, playerID).Scan(&po.ID, &po.Nickname, &po.Status, &po.Balance)
+	// 讀操作使用 Read DB
+	err = r.data.DBManager().Read().QueryRow(ctx, query, playerID).Scan(&po.ID, &po.Nickname, &po.Status, &po.Balance)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, fmt.Errorf("player with id %d not found", playerID)
@@ -108,7 +109,8 @@ func (r *gamePlayerRepo) UpdatePlayerBalance(ctx context.Context, playerID int64
 	query := `UPDATE wallets SET balance = $1 WHERE user_id = $2 AND currency = 'CNY'`
 	// Convert balance from cents to decimal for DB
 	balanceDecimal := float64(balance) / 100.0
-	_, err := r.data.db.Exec(ctx, query, balanceDecimal, playerID)
+	// 寫操作使用 Write DB
+	_, err := r.data.DBManager().Write().Exec(ctx, query, balanceDecimal, playerID)
 	if err != nil {
 		r.logger.Errorf("failed to update player balance: %v", err)
 		return err
@@ -137,7 +139,8 @@ func (r *gamePlayerRepo) UpdatePlayerStatus(ctx context.Context, playerID int64,
 	}
 
 	query := `UPDATE users SET status = $1 WHERE id = $2`
-	_, err := r.data.db.Exec(ctx, query, statusInt, playerID)
+	// 寫操作使用 Write DB
+	_, err := r.data.DBManager().Write().Exec(ctx, query, statusInt, playerID)
 	if err != nil {
 		r.logger.Errorf("failed to update player status: %v", err)
 		return err
@@ -180,7 +183,8 @@ func (r *playerRepo) FindByUsername(ctx context.Context, username string) (*play
 		Nickname     string
 		Status       int
 	}
-	err = r.data.db.QueryRow(ctx, query, username).Scan(&po.ID, &po.Username, &po.PasswordHash, &po.Nickname, &po.Status)
+	// 讀操作使用 Read DB
+	err = r.data.DBManager().Read().QueryRow(ctx, query, username).Scan(&po.ID, &po.Username, &po.PasswordHash, &po.Nickname, &po.Status)
 
 	var p *player.Player
 	if err == nil {
@@ -222,7 +226,8 @@ func (r *playerRepo) Create(ctx context.Context, p *player.Player) (*player.Play
 	defaultStatus := 1 // 假設 1 為活躍狀態
 
 	var newID uint
-	err := r.data.db.QueryRow(ctx, query, p.Username, p.Username, emptyPasswordHash, defaultStatus).Scan(&newID)
+	// 寫操作使用 Write DB
+	err := r.data.DBManager().Write().QueryRow(ctx, query, p.Username, p.Username, emptyPasswordHash, defaultStatus).Scan(&newID)
 	if err != nil {
 		r.logger.Errorf("failed to create player: %v", err)
 		return nil, err

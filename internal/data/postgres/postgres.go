@@ -25,6 +25,13 @@ type Client struct {
 	Logger logger.Logger
 }
 
+// DBManager 管理讀寫資料庫連接
+type DBManager struct {
+	writeDB *Client
+	readDB  *Client
+	logger  logger.Logger
+}
+
 // NewClient 創建一個新的 PostgreSQL 客戶端
 func NewClient(cfg *Config, logger logger.Logger) (*Client, error) {
 	// 驗證配置
@@ -109,4 +116,64 @@ func (c *Client) QueryRow(ctx context.Context, sql string, args ...interface{}) 
 // Begin 開始事務
 func (c *Client) Begin(ctx context.Context) (pgx.Tx, error) {
 	return c.Pool.Begin(ctx)
+}
+
+// NewDBManager 創建資料庫管理器，支持讀寫分離
+// 當前實現：連線字串共用，主從使用相同的資料庫配置
+func NewDBManager(dbConfig *conf.Database, logger logger.Logger) (*DBManager, error) {
+	if dbConfig == nil {
+		logger.Error("database config is nil")
+		return nil, fmt.Errorf("database config is nil")
+	}
+
+	// 創建寫庫連接
+	writeDB, err := NewClientFromDatabase(dbConfig, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create write db client: %w", err)
+	}
+
+	// 創建讀庫連接（現階段使用相同的配置）
+	// 未來可以擴展為獨立的讀庫配置
+	readDB, err := NewClientFromDatabase(dbConfig, logger)
+	if err != nil {
+		writeDB.Close()
+		return nil, fmt.Errorf("failed to create read db client: %w", err)
+	}
+
+	return &DBManager{
+		writeDB: writeDB,
+		readDB:  readDB,
+		logger:  logger.With("module", "data/postgres/dbmanager"),
+	}, nil
+}
+
+// Write 返回寫庫客戶端（用於 INSERT、UPDATE、DELETE 操作）
+func (m *DBManager) Write() *Client {
+	return m.writeDB
+}
+
+// Read 返回讀庫客戶端（用於 SELECT 查詢）
+func (m *DBManager) Read() *Client {
+	return m.readDB
+}
+
+// Close 關閉所有資料庫連接
+func (m *DBManager) Close() error {
+	var errs []error
+
+	if err := m.writeDB.Close(); err != nil {
+		m.logger.Errorf("failed to close write db: %v", err)
+		errs = append(errs, err)
+	}
+
+	if err := m.readDB.Close(); err != nil {
+		m.logger.Errorf("failed to close read db: %v", err)
+		errs = append(errs, err)
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to close db connections: %v", errs)
+	}
+
+	return nil
 }

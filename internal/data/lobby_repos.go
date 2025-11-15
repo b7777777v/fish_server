@@ -34,7 +34,8 @@ func (r *lobbyPlayerRepo) GetPlayerInfo(ctx context.Context, userID int64) (*lob
 	var playerStatus lobby.PlayerStatus
 	var avatarURL sql.NullString
 
-	err := r.data.db.QueryRow(ctx, query, userID).Scan(
+	// 讀操作使用 Read DB
+	err := r.data.DBManager().Read().QueryRow(ctx, query, userID).Scan(
 		&playerStatus.UserID,
 		&playerStatus.Nickname,
 		&avatarURL,
@@ -80,7 +81,8 @@ func (r *lobbyWalletRepo) GetBalance(ctx context.Context, userID int64) (int64, 
 	`
 
 	var balance int64
-	err := r.data.db.QueryRow(ctx, query, userID).Scan(&balance)
+	// 讀操作使用 Read DB
+	err := r.data.DBManager().Read().QueryRow(ctx, query, userID).Scan(&balance)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return 0, nil // 玩家不存在，返回 0

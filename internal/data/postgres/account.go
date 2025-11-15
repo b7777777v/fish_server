@@ -13,13 +13,13 @@ import (
 
 // accountRepo 實現 account.AccountRepo 介面
 type accountRepo struct {
-	db *Client
+	dbManager *DBManager
 }
 
 // NewAccountRepo 建立新的 AccountRepo 實例
-func NewAccountRepo(db *Client) account.AccountRepo {
+func NewAccountRepo(dbManager *DBManager) account.AccountRepo {
 	return &accountRepo{
-		db: db,
+		dbManager: dbManager,
 	}
 }
 
@@ -33,7 +33,8 @@ func (r *accountRepo) CreateUser(ctx context.Context, user *account.User, passwo
 
 	var id int64
 
-	err := r.db.QueryRow(
+	// 寫操作使用 Write DB
+	err := r.dbManager.Write().QueryRow(
 		ctx,
 		query,
 		sql.NullString{String: user.Username, Valid: user.Username != ""},
@@ -66,7 +67,8 @@ func (r *accountRepo) GetUserByUsername(ctx context.Context, username string) (*
 	var passwordHash sql.NullString
 	var usernameCol, avatarURL, thirdPartyProvider, thirdPartyID sql.NullString
 
-	err := r.db.QueryRow(ctx, query, username).Scan(
+	// 讀操作使用 Read DB
+	err := r.dbManager.Read().QueryRow(ctx, query, username).Scan(
 		&user.ID,
 		&usernameCol,
 		&passwordHash,
@@ -105,7 +107,8 @@ func (r *accountRepo) GetUserByID(ctx context.Context, userID int64) (*account.U
 	var user account.User
 	var username, avatarURL, thirdPartyProvider, thirdPartyID sql.NullString
 
-	err := r.db.QueryRow(ctx, query, userID).Scan(
+	// 讀操作使用 Read DB
+	err := r.dbManager.Read().QueryRow(ctx, query, userID).Scan(
 		&user.ID,
 		&username,
 		&user.Nickname,
@@ -143,7 +146,8 @@ func (r *accountRepo) GetUserByThirdParty(ctx context.Context, provider, thirdPa
 	var user account.User
 	var username, avatarURL, thirdPartyProviderCol, thirdPartyIDCol sql.NullString
 
-	err := r.db.QueryRow(ctx, query, provider, thirdPartyID).Scan(
+	// 讀操作使用 Read DB
+	err := r.dbManager.Read().QueryRow(ctx, query, provider, thirdPartyID).Scan(
 		&user.ID,
 		&username,
 		&user.Nickname,
@@ -177,7 +181,8 @@ func (r *accountRepo) UpdateUser(ctx context.Context, user *account.User) error 
 		WHERE id = $3
 	`
 
-	_, err := r.db.Exec(
+	// 寫操作使用 Write DB
+	_, err := r.dbManager.Write().Exec(
 		ctx,
 		query,
 		user.Nickname,

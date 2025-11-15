@@ -146,7 +146,8 @@ func (r *walletRepo) FindByID(ctx context.Context, id uint) (*wallet.Wallet, err
 	r.logger.Debugf("Cache miss for wallet: %d. Fetching from DB.", id)
 	query := `SELECT id, user_id, balance, currency, status, created_at, updated_at FROM wallets WHERE id = $1`
 	var po WalletPO
-	err = r.data.db.QueryRow(ctx, query, id).Scan(
+	// 讀操作使用 Read DB
+	err = r.data.DBManager().Read().QueryRow(ctx, query, id).Scan(
 		&po.ID, &po.UserID, &po.Balance, &po.Currency, &po.Status, &po.CreatedAt, &po.UpdatedAt,
 	)
 
@@ -194,7 +195,8 @@ func (r *walletRepo) FindByUserID(ctx context.Context, userID uint, currency str
 	r.logger.Debugf("Cache miss for wallet by user_id: %d. Fetching from DB.", userID)
 	query := `SELECT id, user_id, balance, currency, status, created_at, updated_at FROM wallets WHERE user_id = $1 AND currency = $2`
 	var po WalletPO
-	err = r.data.db.QueryRow(ctx, query, userID, currency).Scan(
+	// 讀操作使用 Read DB
+	err = r.data.DBManager().Read().QueryRow(ctx, query, userID, currency).Scan(
 		&po.ID, &po.UserID, &po.Balance, &po.Currency, &po.Status, &po.CreatedAt, &po.UpdatedAt,
 	)
 
@@ -226,7 +228,8 @@ func (r *walletRepo) FindAllByUserID(ctx context.Context, userID uint) ([]*walle
 	r.logger.Debugf("Fetching all wallets for user_id: %d from DB", userID)
 
 	query := `SELECT id, user_id, balance, currency, status, created_at, updated_at FROM wallets WHERE user_id = $1 ORDER BY created_at DESC`
-	rows, err := r.data.db.Query(ctx, query, userID)
+	// 讀操作使用 Read DB
+	rows, err := r.data.DBManager().Read().Query(ctx, query, userID)
 	if err != nil {
 		r.logger.Errorf("failed to query wallets by user_id: %v", err)
 		return nil, err
@@ -263,7 +266,8 @@ func (r *walletRepo) Create(ctx context.Context, w *wallet.Wallet) error {
 
 	// 執行查詢
 	po := r.do2po(w)
-	err := r.data.db.QueryRow(
+	// 寫操作使用 Write DB
+	err := r.data.DBManager().Write().QueryRow(
 		ctx,
 		query,
 		po.UserID, po.Balance, po.Currency, po.Status, po.CreatedAt, po.UpdatedAt,
@@ -290,7 +294,8 @@ func (r *walletRepo) Update(ctx context.Context, w *wallet.Wallet) error {
 	updatedAt := time.Now()
 
 	// 執行查詢
-	result, err := r.data.db.Exec(
+	// 寫操作使用 Write DB
+	result, err := r.data.DBManager().Write().Exec(
 		ctx,
 		query,
 		w.Balance, w.Currency, w.Status, updatedAt, w.ID,
@@ -349,7 +354,8 @@ func (r *walletRepo) CreateTransaction(ctx context.Context, tx *wallet.Transacti
 	tx.UpdatedAt = now
 
 	// 執行查詢
-	err = r.data.db.QueryRow(
+	// 寫操作使用 Write DB
+	err = r.data.DBManager().Write().QueryRow(
 		ctx,
 		query,
 		tx.WalletID, tx.Amount, tx.BalanceBefore, tx.BalanceAfter,
@@ -386,7 +392,8 @@ func (r *walletRepo) FindTransactionsByWalletID(ctx context.Context, walletID ui
 	`
 
 	// 執行查詢
-	rows, err := r.data.db.Query(ctx, query, walletID, limit, offset)
+	// 讀操作使用 Read DB
+	rows, err := r.data.DBManager().Read().Query(ctx, query, walletID, limit, offset)
 	if err != nil {
 		r.logger.Errorf("failed to find transactions: %v", err)
 		return nil, err
@@ -419,8 +426,8 @@ func (r *walletRepo) FindTransactionsByWalletID(ctx context.Context, walletID ui
 
 // Deposit 存款操作
 func (r *walletRepo) Deposit(ctx context.Context, walletID uint, amount float64, txType, referenceID, description string, metadata map[string]interface{}) error {
-	// 開始事務
-	tx, err := r.data.db.Begin(ctx)
+	// 開始事務（寫操作使用 Write DB）
+	tx, err := r.data.DBManager().Write().Begin(ctx)
 	if err != nil {
 		r.logger.Errorf("failed to begin transaction: %v", err)
 		return err
@@ -508,8 +515,8 @@ func (r *walletRepo) Deposit(ctx context.Context, walletID uint, amount float64,
 
 // Withdraw 提款操作
 func (r *walletRepo) Withdraw(ctx context.Context, walletID uint, amount float64, txType, referenceID, description string, metadata map[string]interface{}) error {
-	// 開始事務
-	tx, err := r.data.db.Begin(ctx)
+	// 開始事務（寫操作使用 Write DB）
+	tx, err := r.data.DBManager().Write().Begin(ctx)
 	if err != nil {
 		r.logger.Errorf("failed to begin transaction: %v", err)
 		return err
