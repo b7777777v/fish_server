@@ -164,18 +164,9 @@ func setupDefaultMocks(gameRepo *mocks.GameRepo, playerRepo *mocks.PlayerRepo, w
 	gameRepo.On("GetGameEvents", mock.Anything, mock.Anything, mock.Anything).Return([]*game.GameEvent{}, nil).Maybe()
 
 	// PlayerRepo defaults
-	playerRepo.On("GetPlayer", mock.Anything, mock.Anything).Return(func(ctx context.Context, playerID int64) *game.Player {
-		return &game.Player{
-			ID:       playerID,
-			UserID:   playerID,
-			Nickname: "TestPlayer",
-			Balance:  100000,
-			WalletID: 1,
-			Status:   game.PlayerStatusIdle,
-		}
-	}, nil).Maybe()
-	playerRepo.On("UpdatePlayerBalance", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-	playerRepo.On("UpdatePlayerStatus", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Note: PlayerRepo methods are NOT mocked by default
+	// Tests should explicitly set expectations for GetPlayer, UpdatePlayerBalance, UpdatePlayerStatus
+	// This avoids conflicts with explicit mock expectations and function return issues
 
 	// WalletRepo defaults
 	walletRepo.On("FindByID", mock.Anything, mock.Anything).Return(func(ctx context.Context, id uint) *wallet.Wallet {

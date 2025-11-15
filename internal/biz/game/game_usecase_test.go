@@ -57,6 +57,7 @@ func TestGameUsecase_JoinRoom(t *testing.T) {
 		testPlayer := testhelper.NewTestPlayer(playerID)
 
 		env.PlayerRepo.On("GetPlayer", env.Ctx, playerID).Return(testPlayer, nil).Once()
+		env.PlayerRepo.On("UpdatePlayerStatus", env.Ctx, playerID, game.PlayerStatusPlaying).Return(nil).Once()
 
 		err := env.GameUsecase.JoinRoom(env.Ctx, room.ID, playerID)
 		assert.NoError(t, err)
@@ -70,6 +71,7 @@ func TestGameUsecase_JoinRoom(t *testing.T) {
 		for i := int64(2); i <= 4; i++ {
 			testPlayer := testhelper.NewTestPlayer(i)
 			env.PlayerRepo.On("GetPlayer", env.Ctx, i).Return(testPlayer, nil).Once()
+			env.PlayerRepo.On("UpdatePlayerStatus", env.Ctx, i, game.PlayerStatusPlaying).Return(nil).Once()
 
 			err := env.GameUsecase.JoinRoom(env.Ctx, room.ID, i)
 			assert.NoError(t, err)
@@ -83,6 +85,7 @@ func TestGameUsecase_JoinRoom(t *testing.T) {
 		playerID := int64(100)
 		testPlayer := testhelper.NewTestPlayer(playerID)
 		env.PlayerRepo.On("GetPlayer", env.Ctx, playerID).Return(testPlayer, nil).Once()
+		// No UpdatePlayerStatus mock needed as it should fail before reaching that point
 
 		err := env.GameUsecase.JoinRoom(env.Ctx, "non-existing-room", playerID)
 		assert.Error(t, err)
@@ -100,7 +103,11 @@ func TestGameUsecase_FireBullet(t *testing.T) {
 	testPlayer := testhelper.NewTestPlayerWithBalance(playerID, 100000)
 
 	env.PlayerRepo.On("GetPlayer", env.Ctx, playerID).Return(testPlayer, nil)
+	env.PlayerRepo.On("UpdatePlayerStatus", env.Ctx, playerID, game.PlayerStatusPlaying).Return(nil)
 	env.GameUsecase.JoinRoom(env.Ctx, room.ID, playerID)
+
+	// Setup mock for bullet firing
+	env.PlayerRepo.On("UpdatePlayerBalance", env.Ctx, playerID, mock.AnythingOfType("int64")).Return(nil).Maybe()
 
 	// Setup inventory mocks
 	inventory := testhelper.NewTestInventory("novice", 0, 0)
@@ -148,7 +155,11 @@ func TestGameUsecase_HitFish(t *testing.T) {
 	testPlayer := testhelper.NewTestPlayerWithBalance(playerID, 100000)
 
 	env.PlayerRepo.On("GetPlayer", env.Ctx, playerID).Return(testPlayer, nil)
+	env.PlayerRepo.On("UpdatePlayerStatus", env.Ctx, playerID, game.PlayerStatusPlaying).Return(nil)
 	env.GameUsecase.JoinRoom(env.Ctx, room.ID, playerID)
+
+	// Setup mock for balance updates
+	env.PlayerRepo.On("UpdatePlayerBalance", env.Ctx, playerID, mock.AnythingOfType("int64")).Return(nil).Maybe()
 
 	// Setup inventory - low RTP to force wins
 	lowRTPInv := testhelper.NewTestInventory("novice", 10000, 1000)
@@ -250,6 +261,7 @@ func TestGameUsecase_CompleteGameFlow(t *testing.T) {
 			player := testhelper.NewTestPlayerWithBalance(i, 100000)
 			players = append(players, player)
 			env.PlayerRepo.On("GetPlayer", env.Ctx, i).Return(player, nil)
+			env.PlayerRepo.On("UpdatePlayerStatus", env.Ctx, i, game.PlayerStatusPlaying).Return(nil)
 
 			err := env.GameUsecase.JoinRoom(env.Ctx, room.ID, i)
 			assert.NoError(t, err)
@@ -285,6 +297,7 @@ func TestGameUsecase_LeaveRoom(t *testing.T) {
 	testPlayer := testhelper.NewTestPlayer(playerID)
 
 	env.PlayerRepo.On("GetPlayer", env.Ctx, playerID).Return(testPlayer, nil)
+	env.PlayerRepo.On("UpdatePlayerStatus", env.Ctx, playerID, game.PlayerStatusPlaying).Return(nil)
 	env.GameUsecase.JoinRoom(env.Ctx, room.ID, playerID)
 
 	t.Run("player leaves room", func(t *testing.T) {

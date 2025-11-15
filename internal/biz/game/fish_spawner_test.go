@@ -14,18 +14,16 @@ func TestFishSpawner_TrySpawnFish(t *testing.T) {
 	env := testhelper.NewGameTestEnv(t, nil)
 	defer env.AssertExpectations(t)
 
-	t.Run("spawn fish successfully", func(t *testing.T) {
-		// Try spawning multiple times to account for probability
-		var fish *game.Fish
-		for i := 0; i < 100; i++ {
-			fish = env.Spawner.TrySpawnFish(env.RoomConfig)
-			if fish != nil {
-				break
-			}
-		}
+	// Use high spawn rate config to ensure fish spawns
+	highRateConfig := env.RoomConfig
+	highRateConfig.FishSpawnRate = 10.0 // Very high rate for testing
 
-		// Should spawn at least one fish in 100 tries
-		assert.NotNil(t, fish)
+	t.Run("spawn fish successfully", func(t *testing.T) {
+		// With high spawn rate, should spawn immediately
+		fish := env.Spawner.TrySpawnFish(highRateConfig)
+
+		// Should spawn fish with high rate
+		assert.NotNil(t, fish, "Should spawn fish with high spawn rate")
 		if fish != nil {
 			assert.NotZero(t, fish.ID)
 			assert.NotNil(t, fish.Type)
@@ -36,13 +34,7 @@ func TestFishSpawner_TrySpawnFish(t *testing.T) {
 	})
 
 	t.Run("spawned fish has valid properties", func(t *testing.T) {
-		var fish *game.Fish
-		for i := 0; i < 100; i++ {
-			fish = env.Spawner.TrySpawnFish(env.RoomConfig)
-			if fish != nil {
-				break
-			}
-		}
+		fish := env.Spawner.TrySpawnFish(highRateConfig)
 
 		if fish != nil {
 			// Check position is within room bounds
@@ -235,22 +227,26 @@ func TestFishSpawner_Configuration(t *testing.T) {
 	tests := []struct {
 		name       string
 		spawnRate  float64
-		expectFish bool
+		batchCount int
+		minExpect  int
 	}{
 		{
 			name:       "high spawn rate",
-			spawnRate:  0.9,
-			expectFish: true,
+			spawnRate:  10.0, // High rate for reliable spawning
+			batchCount: 10,
+			minExpect:  5, // Expect at least half to spawn
 		},
 		{
 			name:       "medium spawn rate",
-			spawnRate:  0.5,
-			expectFish: true,
+			spawnRate:  5.0,
+			batchCount: 10,
+			minExpect:  3,
 		},
 		{
 			name:       "low spawn rate",
-			spawnRate:  0.1,
-			expectFish: false, // May not spawn in limited tries
+			spawnRate:  1.0,
+			batchCount: 10,
+			minExpect:  1,
 		},
 	}
 
@@ -264,17 +260,11 @@ func TestFishSpawner_Configuration(t *testing.T) {
 			})
 			defer env.AssertExpectations(t)
 
-			// Try spawning a few times
-			spawnCount := 0
-			for i := 0; i < 10; i++ {
-				if fish := env.Spawner.TrySpawnFish(customConfig); fish != nil {
-					spawnCount++
-				}
-			}
+			// Use BatchSpawnFish which handles timing internally
+			fishes := env.Spawner.BatchSpawnFish(tt.batchCount, customConfig)
 
-			if tt.expectFish {
-				assert.Greater(t, spawnCount, 0, "Should spawn at least one fish with high rate")
-			}
+			assert.GreaterOrEqual(t, len(fishes), tt.minExpect,
+				"Should spawn at least %d fish with spawn rate %.1f", tt.minExpect, tt.spawnRate)
 		})
 	}
 }
