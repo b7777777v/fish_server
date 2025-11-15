@@ -25,33 +25,33 @@ func NewFishTideRepo(db *Client) game.FishTideRepo {
 func (r *fishTideRepo) GetTideByID(ctx context.Context, id int64) (*game.FishTide, error) {
 	// TODO: 實現根據 ID 查詢魚潮配置
 	// 從 fish_tide_config 表查詢
-	panic("not implemented")
+	return nil, game.ErrFishTideNotImplemented
 }
 
 // GetActiveTides 獲取所有啟用的魚潮配置
 func (r *fishTideRepo) GetActiveTides(ctx context.Context) ([]*game.FishTide, error) {
 	// TODO: 實現獲取所有啟用的魚潮配置
 	// 查詢條件：is_active = true
-	panic("not implemented")
+	return nil, game.ErrFishTideNotImplemented
 }
 
 // CreateTide 建立新的魚潮配置
 func (r *fishTideRepo) CreateTide(ctx context.Context, tide *game.FishTide) error {
 	// TODO: 實現建立魚潮配置
 	// 插入新記錄到 fish_tide_config 表
-	panic("not implemented")
+	return game.ErrFishTideNotImplemented
 }
 
 // UpdateTide 更新魚潮配置
 func (r *fishTideRepo) UpdateTide(ctx context.Context, tide *game.FishTide) error {
 	// TODO: 實現更新魚潮配置
 	// 更新 fish_tide_config 表中的記錄
-	panic("not implemented")
+	return game.ErrFishTideNotImplemented
 }
 
 // DeleteTide 刪除魚潮配置
 func (r *fishTideRepo) DeleteTide(ctx context.Context, id int64) error {
 	// TODO: 實現刪除魚潮配置
 	// 從 fish_tide_config 表中刪除記錄
-	panic("not implemented")
+	return game.ErrFishTideNotImplemented
 }

@@ -2,8 +2,12 @@ package game
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+// ErrFishTideNotImplemented 魚潮系統尚未實現
+var ErrFishTideNotImplemented = errors.New("fish tide system is not yet implemented")
 
 // TODO: 實現魚潮系統 (Fish Tide System)
 // 魚潮系統是一種特殊的魚群陣型，特點：
@@ -63,7 +67,7 @@ func (m *fishTideManager) StartTide(ctx context.Context, roomID string, tideID i
 	// 3. 廣播魚潮開始事件給房間內所有玩家
 	// 4. 啟動魚潮生成邏輯（在指定的持續時間內，以指定的間隔生成魚）
 	// 5. 設定定時器，在持續時間結束後自動停止魚潮
-	panic("not implemented")
+	return ErrFishTideNotImplemented
 }
 
 // StopTide 停止當前的魚潮事件
@@ -72,14 +76,14 @@ func (m *fishTideManager) StopTide(ctx context.Context, roomID string) error {
 	// 1. 停止魚潮生成
 	// 2. 廣播魚潮結束事件給房間內所有玩家
 	// 3. 清理魚潮狀態
-	panic("not implemented")
+	return ErrFishTideNotImplemented
 }
 
 // GetActiveTide 獲取當前房間的活躍魚潮
 func (m *fishTideManager) GetActiveTide(ctx context.Context, roomID string) (*FishTide, error) {
 	// TODO: 實現獲取活躍魚潮邏輯
 	// 返回當前房間正在進行的魚潮，如果沒有則返回 nil
-	panic("not implemented")
+	return nil, ErrFishTideNotImplemented
 }
 
 // ScheduleTides 排程魚潮（根據配置自動觸發）
@@ -88,7 +92,7 @@ func (m *fishTideManager) ScheduleTides(ctx context.Context, roomID string) erro
 	// 1. 從資料庫獲取所有啟用的魚潮配置
 	// 2. 根據觸發規則（如固定時間、隨機間隔）設定定時器
 	// 3. 當觸發條件滿足時，自動呼叫 StartTide
-	panic("not implemented")
+	return ErrFishTideNotImplemented
 }
 
 // FishTideRepo 定義魚潮資料訪問介面

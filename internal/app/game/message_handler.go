@@ -11,6 +11,16 @@ import (
 )
 
 // ========================================
+// 配置常量
+// ========================================
+
+const (
+	// 默認砲台位置配置（畫布底部中央）
+	DefaultCannonPositionX = 600.0
+	DefaultCannonPositionY = 750.0
+)
+
+// ========================================
 // MessageHandler - 完整的 Protobuf 消息處理器
 // ========================================
 
@@ -82,8 +92,8 @@ func (mh *MessageHandler) handleFireBullet(client *Client, message *pb.GameMessa
 	// 調用業務邏輯
 	ctx := context.Background()
 
-	// 獲取子彈發射位置
-	position := game.Position{X: 600, Y: 750} // 默認位置
+	// 獲取子彈發射位置（優先使用客戶端提供的位置，否則使用默認砲台位置）
+	position := game.Position{X: DefaultCannonPositionX, Y: DefaultCannonPositionY}
 	if fireData.Position != nil {
 		position = game.Position{
 			X: fireData.Position.X,
