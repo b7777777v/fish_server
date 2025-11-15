@@ -18,12 +18,12 @@ type roomConfigRepo struct {
 
 // NewRoomConfigRepo 创建新的 RoomConfigRepo
 func NewRoomConfigRepo(
-	pgClient *postgres.Client,
+	dbManager *postgres.DBManager,
 	redisClient *redis.Client,
 	logger logger.Logger,
 ) game.RoomConfigRepo {
 	return &roomConfigRepo{
-		pgRepo: postgres.NewRoomConfigRepo(pgClient),
+		pgRepo: postgres.NewRoomConfigRepo(dbManager),
 		cache:  redis.NewRoomConfigCache(redisClient.Redis),
 		logger: logger.With("module", "data/room_config_repo"),
 	}

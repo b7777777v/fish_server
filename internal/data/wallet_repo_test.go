@@ -31,7 +31,8 @@ func setupWalletRepoTest(t *testing.T) (*Data, wallet.WalletRepo, func()) {
 		SSLMode:  "disable",
 	}
 
-	pgClient, err := postgres.NewClientFromDatabase(dbConfig, log)
+	// 創建 DB Manager
+	dbManager, err := postgres.NewDBManager(dbConfig, log)
 	if err != nil {
 		t.Skipf("Skipping test: no accessible PostgreSQL database found. Error: %v", err)
 	}
@@ -48,7 +49,7 @@ func setupWalletRepoTest(t *testing.T) (*Data, wallet.WalletRepo, func()) {
 	}
 
 	// 創建數據層
-	data := &Data{db: pgClient, redis: redisClient}
+	data := &Data{dbManager: dbManager, redis: redisClient}
 
 	// 創建錢包存儲庫
 	repo := NewWalletRepo(data, log)
@@ -58,11 +59,11 @@ func setupWalletRepoTest(t *testing.T) (*Data, wallet.WalletRepo, func()) {
 	cleanup := func() {
 		// 清理測試數據
 		ctx := context.Background()
-		_, err := data.db.Exec(ctx, "TRUNCATE TABLE wallet_transactions, wallets, users RESTART IDENTITY CASCADE")
+		_, err := data.DBManager().Write().Exec(ctx, "TRUNCATE TABLE wallet_transactions, wallets, users RESTART IDENTITY CASCADE")
 		require.NoError(t, err)
 
 		// 關閉數據庫連接
-		err = pgClient.Close()
+		err = dbManager.Close()
 		require.NoError(t, err)
 
 		// 關閉 redis 連接
@@ -72,11 +73,11 @@ func setupWalletRepoTest(t *testing.T) (*Data, wallet.WalletRepo, func()) {
 	// 預先清理數據
 	// cleanup() // 在setup中執行cleanup，確保每次測試都是乾淨的環境
 	ctx := context.Background()
-	_, err = data.db.Exec(ctx, "TRUNCATE TABLE wallet_transactions, wallets, users RESTART IDENTITY CASCADE")
+	_, err = data.DBManager().Write().Exec(ctx, "TRUNCATE TABLE wallet_transactions, wallets, users RESTART IDENTITY CASCADE")
 	require.NoError(t, err)
 
 	// 創建測試用戶
-	_, err = data.db.Exec(ctx, "INSERT INTO users (id, username, password_hash, email, status, created_at, updated_at) VALUES (1, 'testuser', 'hash', 'test@example.com', 1, NOW(), NOW())")
+	_, err = data.DBManager().Write().Exec(ctx, "INSERT INTO users (id, username, password_hash, email, status, created_at, updated_at) VALUES (1, 'testuser', 'hash', 'test@example.com', 1, NOW(), NOW())")
 	require.NoError(t, err)
 
 	return data, repo, cleanup
@@ -113,7 +114,7 @@ func TestFindByID(t *testing.T) {
 	ctx := context.Background()
 
 	// 創建測試錢包
-	_, err := data.db.Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (100, 1, 200.0, 'CNY', 1, NOW(), NOW())")
+	_, err := data.DBManager().Write().Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (100, 1, 200.0, 'CNY', 1, NOW(), NOW())")
 	require.NoError(t, err)
 
 	// 查找錢包
@@ -135,7 +136,7 @@ func TestFindByUserID(t *testing.T) {
 	ctx := context.Background()
 
 	// 創建測試錢包
-	_, err := data.db.Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (101, 1, 300.0, 'CNY', 1, NOW(), NOW())")
+	_, err := data.DBManager().Write().Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (101, 1, 300.0, 'CNY', 1, NOW(), NOW())")
 	require.NoError(t, err)
 
 	// 查找錢包
@@ -153,7 +154,7 @@ func TestUpdate(t *testing.T) {
 	ctx := context.Background()
 
 	// 創建測試錢包
-	_, err := data.db.Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (102, 1, 400.0, 'CNY', 1, NOW(), NOW())")
+	_, err := data.DBManager().Write().Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (102, 1, 400.0, 'CNY', 1, NOW(), NOW())")
 	require.NoError(t, err)
 
 	// 查找錢包
@@ -183,7 +184,7 @@ func TestDeposit(t *testing.T) {
 	ctx := context.Background()
 
 	// 創建測試錢包
-	_, err := data.db.Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (103, 1, 100.0, 'CNY', 1, NOW(), NOW())")
+	_, err := data.DBManager().Write().Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (103, 1, 100.0, 'CNY', 1, NOW(), NOW())")
 	require.NoError(t, err)
 
 	// 存款
@@ -206,7 +207,7 @@ func TestWithdraw(t *testing.T) {
 	ctx := context.Background()
 
 	// 創建測試錢包
-	_, err := data.db.Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (104, 1, 200.0, 'CNY', 1, NOW(), NOW())")
+	_, err := data.DBManager().Write().Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (104, 1, 200.0, 'CNY', 1, NOW(), NOW())")
 	require.NoError(t, err)
 
 	// 取款
@@ -229,7 +230,7 @@ func TestWithdrawInsufficientFunds(t *testing.T) {
 	ctx := context.Background()
 
 	// 創建測試錢包
-	_, err := data.db.Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (105, 1, 50.0, 'CNY', 1, NOW(), NOW())")
+	_, err := data.DBManager().Write().Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (105, 1, 50.0, 'CNY', 1, NOW(), NOW())")
 	require.NoError(t, err)
 
 	// 嘗試取款超過餘額
@@ -252,7 +253,7 @@ func TestCreateTransaction(t *testing.T) {
 	ctx := context.Background()
 
 	// 創建測試錢包
-	_, err := data.db.Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (106, 1, 300.0, 'CNY', 1, NOW(), NOW())")
+	_, err := data.DBManager().Write().Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (106, 1, 300.0, 'CNY', 1, NOW(), NOW())")
 	require.NoError(t, err)
 
 	// 創建交易記錄
@@ -285,11 +286,11 @@ func TestFindTransactionsByWalletID(t *testing.T) {
 	ctx := context.Background()
 
 	// 創建測試錢包
-	_, err := data.db.Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (107, 1, 500.0, 'CNY', 1, NOW(), NOW())")
+	_, err := data.DBManager().Write().Exec(ctx, "INSERT INTO wallets (id, user_id, balance, currency, status, created_at, updated_at) VALUES (107, 1, 500.0, 'CNY', 1, NOW(), NOW())")
 	require.NoError(t, err)
 
 	// 創建測試交易記錄
-	_, err = data.db.Exec(ctx, `
+	_, err = data.DBManager().Write().Exec(ctx, `
 		INSERT INTO wallet_transactions 
 		(wallet_id, amount, balance_before, balance_after, type, status, reference_id, description, metadata, created_at, updated_at) 
 		VALUES 

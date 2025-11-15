@@ -29,8 +29,9 @@ type Service struct {
 }
 
 type Data struct {
-	Database *Database `mapstructure:"database"`
-	Redis    *Redis    `mapstructure:"redis"`
+	MasterDatabase *Database `mapstructure:"master_database"` // 主庫配置（寫操作）
+	SlaveDatabase  *Database `mapstructure:"slave_database"`  // 從庫配置（讀操作，可選）
+	Redis          *Redis    `mapstructure:"redis"`
 }
 
 type Database struct {
@@ -48,13 +49,31 @@ type Database struct {
 
 // GetDSN 根據 Database 結構構建 DSN
 func (d *Database) GetDSN() string {
-	// 如果 source 字段存在，優先使用
-	// 注意：爲了向後兼容，我們暫時保留對 source 的檢查，但目標是完全遷移
-	// if d.Source != "" {
-	// 	return d.Source
-	// }
 	return fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=%s",
 		d.User, d.Password, d.Host, d.Port, d.DBName, d.SSLMode)
+}
+
+// GetSlaveDatabase 獲取從庫配置，如果未配置則返回主庫配置
+func (d *Data) GetSlaveDatabase() *Database {
+	if d.SlaveDatabase != nil {
+		return d.SlaveDatabase
+	}
+	return d.MasterDatabase
+}
+
+// GetMasterDatabase 獲取主庫配置
+func (d *Data) GetMasterDatabase() *Database {
+	return d.MasterDatabase
+}
+
+// Deprecated: GetReadDatabase 已廢棄，請使用 GetSlaveDatabase
+func (d *Data) GetReadDatabase() *Database {
+	return d.GetSlaveDatabase()
+}
+
+// Deprecated: GetWriteDatabase 已廢棄，請使用 GetMasterDatabase
+func (d *Data) GetWriteDatabase() *Database {
+	return d.GetMasterDatabase()
 }
 
 
@@ -239,13 +258,13 @@ func validateConfig(c *Config) error {
 	if c.Server == nil || c.Server.Admin == nil {
 		return fmt.Errorf("server.admin configuration is required")
 	}
-	if c.Data == nil || c.Data.Database == nil {
-		return fmt.Errorf("data.database configuration is required")
+	if c.Data == nil || c.Data.MasterDatabase == nil {
+		return fmt.Errorf("data.master_database configuration is required")
 	}
 	if c.JWT == nil || c.JWT.Secret == "" {
 		return fmt.Errorf("jwt.secret is required")
 	}
-	
+
 	// 生產環境額外檢查
 	if c.Environment == "prod" || c.Environment == "production" {
 		if c.JWT.Secret == "your-super-secret-key" {
@@ -255,6 +274,6 @@ func validateConfig(c *Config) error {
 			return fmt.Errorf("pprof must be disabled in production environment")
 		}
 	}
-	
+
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/data/postgres" // Import postgres client
 	"github.com/b7777777v/fish_server/internal/data/redis"    // Import redis client
+	"github.com/b7777777v/fish_server/internal/pkg/token"
 	"github.com/google/wire"
 )
 
@@ -34,14 +35,18 @@ var ProviderSet = wire.NewSet(
 	NewLobbyPlayerRepo,
 	NewLobbyWalletRepo,
 
-	// Extractor functions for Postgres and Redis clients from Data struct
-	ProvidePostgresClient,
+	// Extractor functions for Postgres DBManager and Redis clients from Data struct
+	ProvideDBManager,
 	ProvideRedisClient,
+
+	// Token cache provider
+	redis.NewTokenCache,
+	wire.Bind(new(token.TokenCache), new(*redis.TokenCache)),
 )
 
-// ProvidePostgresClient extracts *postgres.Client from *Data
-func ProvidePostgresClient(data *Data) *postgres.Client {
-	return data.db
+// ProvideDBManager extracts *postgres.DBManager from *Data
+func ProvideDBManager(data *Data) *postgres.DBManager {
+	return data.dbManager
 }
 
 // ProvideRedisClient extracts *redis.Client from *Data

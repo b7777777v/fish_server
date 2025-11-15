@@ -38,21 +38,21 @@ type FormationConfigRepo interface {
 
 // formationConfigRepo 陣型配置倉儲實現
 type formationConfigRepo struct {
-	pg     *pgClient.Client
-	redis  *redisClient.Client
-	logger logger.Logger
+	dbManager *pgClient.DBManager
+	redis     *redisClient.Client
+	logger    logger.Logger
 }
 
 // NewFormationConfigRepo 創建陣型配置倉儲
 func NewFormationConfigRepo(
-	pg *pgClient.Client,
+	dbManager *pgClient.DBManager,
 	redis *redisClient.Client,
 	logger logger.Logger,
 ) *formationConfigRepo {
 	return &formationConfigRepo{
-		pg:     pg,
-		redis:  redis,
-		logger: logger.With("component", "formation_config_repo"),
+		dbManager: dbManager,
+		redis:     redis,
+		logger:    logger.With("component", "formation_config_repo"),
 	}
 }
 
@@ -165,7 +165,8 @@ func (r *formationConfigRepo) getConfigFromDB(ctx context.Context, configKey str
 	`
 
 	var configJSON []byte
-	err := r.pg.Pool.QueryRow(ctx, query, configKey).Scan(&configJSON)
+	// 讀操作使用 Read DB
+	err := r.dbManager.Read().QueryRow(ctx, query, configKey).Scan(&configJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query config from database: %w", err)
 	}
@@ -195,7 +196,8 @@ func (r *formationConfigRepo) saveConfigToDB(ctx context.Context, configKey stri
 			updated_at = NOW()
 	`
 
-	_, err = r.pg.Pool.Exec(ctx, query, configKey, configJSON, description)
+	// 寫操作使用 Write DB
+	_, err = r.dbManager.Write().Exec(ctx, query, configKey, configJSON, description)
 	if err != nil {
 		return fmt.Errorf("failed to save config to database: %w", err)
 	}

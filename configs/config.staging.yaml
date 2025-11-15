@@ -20,7 +20,7 @@ debug:
   enable_sql_debug: false   # 關閉 SQL 調試日誌
 
 data:
-  database:
+  master_database:
     driver: "postgres"
     host: "postgres-staging"
     port: 5432

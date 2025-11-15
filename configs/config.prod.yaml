@@ -20,7 +20,7 @@ debug:
   enable_sql_debug: false
 
 data:
-  database:
+  master_database:
     driver: "postgres"
     host: "${DB_HOST}"
     port: ${DB_PORT}

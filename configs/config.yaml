@@ -10,7 +10,7 @@ server:
     port: "6060"
 
 data:
-  database:
+  master_database:
     driver: "postgres"
     host: "localhost"
     port: 5432

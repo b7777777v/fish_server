@@ -1,0 +1,92 @@
+# 資料庫讀寫分離配置範例
+# 此配置文件展示如何配置獨立的主從資料庫
+environment: "prod"
+
+log:
+  level: "info"
+  format: "json"
+
+server:
+  game:
+    port: 9090
+  admin:
+    port: 6060
+
+debug:
+  enable_pprof: false
+  pprof_auth: true
+  enable_gin_debug: false
+  enable_sql_debug: false
+
+data:
+  # 主庫配置（Master Database）
+  # 用於所有寫操作：INSERT, UPDATE, DELETE, BEGIN TRANSACTION
+  master_database:
+    driver: "postgres"
+    host: "master.db.example.com"  # 主庫地址
+    port: 5432
+    user: "fish_user"
+    password: "your-secure-password"
+    dbname: "fish_db"
+    sslmode: "require"
+    max_open_conns: 100
+    max_idle_conns: 25
+    conn_max_lifetime: "1h"
+
+  # 從庫配置（Slave Database，可選）
+  # 用於所有讀操作：SELECT 查詢
+  # 如果不配置此項，則讀寫共用主庫
+  slave_database:
+    driver: "postgres"
+    host: "slave.db.example.com"  # 從庫地址（可以是多個從庫的負載均衡地址）
+    port: 5432
+    user: "fish_user"
+    password: "your-secure-password"
+    dbname: "fish_db"
+    sslmode: "require"
+    max_open_conns: 200  # 從庫可以配置更多連接
+    max_idle_conns: 50
+    conn_max_lifetime: "1h"
+
+  redis:
+    addr: "redis.example.com:6379"
+    password: "your-redis-password"
+    db: 0
+
+jwt:
+  secret: "your-super-secret-jwt-key-change-this"
+  issuer: "fish_server"
+  expire: 7200  # 2小時
+
+cors:
+  allow_origins: ["https://your-frontend.com"]
+  allow_credentials: true
+
+rate_limit:
+  enable: true
+  requests_per_minute: 60
+
+security:
+  enable_csrf: true
+  enable_secure_headers: true
+  max_request_size: "10MB"
+
+# 配置說明：
+#
+# 1. 主從共用（不配置 slave_database）：
+#    - 所有讀寫操作都使用 master_database 配置
+#    - 適用於單機部署或暫時不需要讀寫分離的場景
+#
+# 2. 讀寫分離（配置 slave_database）：
+#    - 寫操作（INSERT/UPDATE/DELETE/事務）使用 master_database（主庫）
+#    - 讀操作（SELECT）使用 slave_database（從庫）
+#    - 從庫可以是單個從庫或負載均衡地址
+#
+# 3. 連接池配置建議：
+#    - 主庫：max_open_conns: 100, max_idle_conns: 25
+#    - 從庫：max_open_conns: 200, max_idle_conns: 50（讀操作通常更多）
+#
+# 4. 注意事項：
+#    - 確保主從資料庫已正確配置複製
+#    - 從庫可能存在複製延遲，對於需要即時一致性的場景，考慮使用主庫讀取
+#    - 建議使用連接池監控工具追蹤連接使用情況

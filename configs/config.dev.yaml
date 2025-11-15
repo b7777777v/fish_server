@@ -19,7 +19,7 @@ debug:
   enable_sql_debug: true # 啟用 SQL 調試日誌
 
 data:
-  database:
+  master_database:
     driver: "postgres"
     host: "localhost"
     port: 5432
@@ -30,6 +30,10 @@ data:
     max_open_conns: 25
     max_idle_conns: 10
     conn_max_lifetime: "5m"
+  # slave_database:  # 從庫配置（可選），開發環境通常不需要
+  #   driver: "postgres"
+  #   host: "localhost"
+  #   port: 5432
   redis:
     addr: "localhost:6379"
     password: ""

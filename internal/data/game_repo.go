@@ -46,7 +46,8 @@ func (r *gameRepo) SaveRoom(ctx context.Context, room *game.Room) error {
 			updated_at = NOW()
 	`
 
-	_, err = r.data.db.Exec(ctx, query, room.ID, room.Name, room.Type, room.Status, room.MaxPlayers, configBytes)
+	// 寫操作使用 Write DB
+	_, err = r.data.DBManager().Write().Exec(ctx, query, room.ID, room.Name, room.Type, room.Status, room.MaxPlayers, configBytes)
 	if err != nil {
 		r.logger.Errorf("failed to save room: %v", err)
 		return err
@@ -83,7 +84,8 @@ func (r *gameRepo) GetRoom(ctx context.Context, roomID string) (*game.Room, erro
 		Bullets: make(map[int64]*game.Bullet),
 	}
 
-	err = r.data.db.QueryRow(ctx, query, roomID).Scan(
+	// 讀操作使用 Read DB
+	err = r.data.DBManager().Read().QueryRow(ctx, query, roomID).Scan(
 		&room.ID, &room.Name, &room.Type, &room.Status, &room.MaxPlayers, &configBytes, &room.CreatedAt, &room.UpdatedAt,
 	)
 	if err != nil {
@@ -112,7 +114,8 @@ func (r *gameRepo) GetRoom(ctx context.Context, roomID string) (*game.Room, erro
 func (r *gameRepo) ListRooms(ctx context.Context, roomType game.RoomType) ([]*game.Room, error) {
 	r.logger.Debugf("Listing rooms of type: %s", roomType)
 	query := `SELECT id, name, type, status, max_players FROM rooms WHERE type = $1 AND status != 'closed'`
-	rows, err := r.data.db.Query(ctx, query, roomType)
+	// 讀操作使用 Read DB
+	rows, err := r.data.DBManager().Read().Query(ctx, query, roomType)
 	if err != nil {
 		r.logger.Errorf("failed to list rooms: %v", err)
 		return nil, err
@@ -136,7 +139,8 @@ func (r *gameRepo) ListRooms(ctx context.Context, roomType game.RoomType) ([]*ga
 func (r *gameRepo) DeleteRoom(ctx context.Context, roomID string) error {
 	r.logger.Debugf("Deleting room: %s", roomID)
 	query := `DELETE FROM rooms WHERE id = $1`
-	_, err := r.data.db.Exec(ctx, query, roomID)
+	// 寫操作使用 Write DB
+	_, err := r.data.DBManager().Write().Exec(ctx, query, roomID)
 	if err != nil {
 		r.logger.Errorf("failed to delete room: %v", err)
 		return err
@@ -168,7 +172,8 @@ func (r *gameRepo) SaveGameStatistics(ctx context.Context, playerID int64, stats
 			updated_at = NOW()
 	`
 
-	_, err := r.data.db.Exec(ctx, query, playerID, stats.TotalShots, stats.TotalHits, stats.TotalRewards, stats.TotalCosts, stats.FishKilled, stats.PlayTime)
+	// 寫操作使用 Write DB
+	_, err := r.data.DBManager().Write().Exec(ctx, query, playerID, stats.TotalShots, stats.TotalHits, stats.TotalRewards, stats.TotalCosts, stats.FishKilled, stats.PlayTime)
 	if err != nil {
 		r.logger.Errorf("failed to save game statistics: %v", err)
 		return err
@@ -201,7 +206,8 @@ func (r *gameRepo) GetGameStatistics(ctx context.Context, playerID int64) (*game
 	stats := &game.GameStatistics{}
 
 	var totalRewards, totalCosts float64
-	err = r.data.db.QueryRow(ctx, query, playerID).Scan(
+	// 讀操作使用 Read DB
+	err = r.data.DBManager().Read().QueryRow(ctx, query, playerID).Scan(
 		&stats.TotalShots, &stats.TotalHits, &totalRewards, &totalCosts, &stats.FishKilled, &stats.PlayTime,
 	)
 
@@ -250,7 +256,8 @@ func (r *gameRepo) SaveGameEvent(ctx context.Context, event *game.GameEvent) err
 		userID = nil
 	}
 
-	_, err = r.data.db.Exec(ctx, query, event.RoomID, userID, event.Type, dataBytes, event.Timestamp)
+	// 寫操作使用 Write DB
+	_, err = r.data.DBManager().Write().Exec(ctx, query, event.RoomID, userID, event.Type, dataBytes, event.Timestamp)
 	if err != nil {
 		r.logger.Errorf("failed to save game event: %v", err)
 		return err
@@ -269,7 +276,8 @@ func (r *gameRepo) GetGameEvents(ctx context.Context, roomID string, limit int) 
 		ORDER BY timestamp DESC
 		LIMIT $2
 	`
-	rows, err := r.data.db.Query(ctx, query, roomID, limit)
+	// 讀操作使用 Read DB
+	rows, err := r.data.DBManager().Read().Query(ctx, query, roomID, limit)
 	if err != nil {
 		r.logger.Errorf("failed to get game events: %v", err)
 		return nil, err
@@ -306,7 +314,8 @@ func (r *gameRepo) GetGameEvents(ctx context.Context, roomID string, limit int) 
 // GetAllFishTypes 獲取所有魚類類型
 func (r *gameRepo) GetAllFishTypes(ctx context.Context) ([]*game.FishType, error) {
 	query := `SELECT id, name, size, base_health, base_value, base_speed, rarity, hit_rate, description FROM fish_types`
-	rows, err := r.data.db.Query(ctx, query)
+	// 讀操作使用 Read DB
+	rows, err := r.data.DBManager().Read().Query(ctx, query)
 	if err != nil {
 		r.logger.Errorf("failed to get all fish types: %v", err)
 		return nil, err
