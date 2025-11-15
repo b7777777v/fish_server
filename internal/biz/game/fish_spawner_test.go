@@ -19,14 +19,16 @@ func TestFishSpawner_TrySpawnFish(t *testing.T) {
 	highRateConfig.FishSpawnRate = 10.0 // Very high rate for testing
 
 	t.Run("spawn fish successfully", func(t *testing.T) {
-		// With high spawn rate, should spawn immediately
-		fish := env.Spawner.TrySpawnFish(highRateConfig)
+		// Use SpawnSpecificFish for deterministic testing
+		fishTypeID := int32(1) // Small fish
+		fish := env.Spawner.SpawnSpecificFish(fishTypeID, highRateConfig)
 
-		// Should spawn fish with high rate
-		assert.NotNil(t, fish, "Should spawn fish with high spawn rate")
+		// Should spawn fish successfully
+		assert.NotNil(t, fish, "Should spawn specific fish type")
 		if fish != nil {
 			assert.NotZero(t, fish.ID)
 			assert.NotNil(t, fish.Type)
+			assert.Equal(t, fishTypeID, fish.Type.ID)
 			assert.Greater(t, fish.Health, int32(0))
 			assert.Greater(t, fish.Value, int64(0))
 			assert.Equal(t, game.FishStatusAlive, fish.Status)

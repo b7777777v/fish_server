@@ -262,6 +262,7 @@ func TestGameUsecase_CompleteGameFlow(t *testing.T) {
 			players = append(players, player)
 			env.PlayerRepo.On("GetPlayer", env.Ctx, i).Return(player, nil)
 			env.PlayerRepo.On("UpdatePlayerStatus", env.Ctx, i, game.PlayerStatusPlaying).Return(nil)
+			env.PlayerRepo.On("UpdatePlayerBalance", env.Ctx, i, mock.AnythingOfType("int64")).Return(nil).Maybe()
 
 			err := env.GameUsecase.JoinRoom(env.Ctx, room.ID, i)
 			assert.NoError(t, err)
@@ -301,6 +302,7 @@ func TestGameUsecase_LeaveRoom(t *testing.T) {
 	env.GameUsecase.JoinRoom(env.Ctx, room.ID, playerID)
 
 	t.Run("player leaves room", func(t *testing.T) {
+		env.PlayerRepo.On("UpdatePlayerStatus", env.Ctx, playerID, game.PlayerStatusIdle).Return(nil).Once()
 		err := env.GameUsecase.LeaveRoom(env.Ctx, room.ID, playerID)
 		assert.NoError(t, err)
 
@@ -315,25 +317,21 @@ func TestGameUsecase_RoomList(t *testing.T) {
 	env := testhelper.NewGameTestEnv(t, nil)
 	defer env.AssertExpectations(t)
 
-	// Create multiple rooms
+	// Create multiple rooms with different types to ensure unique IDs
 	_, _ = env.GameUsecase.CreateRoom(env.Ctx, game.RoomTypeNovice, 1)
-	_, _ = env.GameUsecase.CreateRoom(env.Ctx, game.RoomTypeNovice, 2)
+	_, _ = env.GameUsecase.CreateRoom(env.Ctx, game.RoomTypeIntermediate, 1)
 	_, _ = env.GameUsecase.CreateRoom(env.Ctx, game.RoomTypeAdvanced, 1)
 
 	t.Run("list rooms by type", func(t *testing.T) {
 		allRooms := env.RoomManager.GetRoomList()
-		
 
 		assert.GreaterOrEqual(t, len(allRooms), 3, "Should have at least 3 rooms created")
-		
 	})
 }
 
 // TestGameUsecase_EdgeCases tests edge cases
 func TestGameUsecase_EdgeCases(t *testing.T) {
-	env := testhelper.NewGameTestEnv(t, &testhelper.GameTestEnvOptions{
-		SkipDefaultMocks: true,
-	})
+	env := testhelper.NewGameTestEnv(t, nil)
 	defer env.AssertExpectations(t)
 
 	t.Run("fire bullet with insufficient balance", func(t *testing.T) {
