@@ -29,6 +29,7 @@ type RoomConfigPO struct {
 	EntryFee             int64
 	BulletCostMultiplier float64
 	FishSpawnRate        float64
+	MinFishCount         int
 	MaxFishCount         int
 	RoomWidth            float64
 	RoomHeight           float64
@@ -41,7 +42,7 @@ type RoomConfigPO struct {
 func (r *RoomConfigRepo) GetRoomConfig(ctx context.Context, roomType string) (*game.RoomConfig, error) {
 	query := `
 		SELECT id, room_type, room_name, max_players, min_bet, max_bet, entry_fee,
-		       bullet_cost_multiplier, fish_spawn_rate, max_fish_count,
+		       bullet_cost_multiplier, fish_spawn_rate, min_fish_count, max_fish_count,
 		       room_width, room_height, target_rtp, is_active, description
 		FROM room_configs
 		WHERE room_type = $1 AND is_active = true
@@ -59,6 +60,7 @@ func (r *RoomConfigRepo) GetRoomConfig(ctx context.Context, roomType string) (*g
 		&po.EntryFee,
 		&po.BulletCostMultiplier,
 		&po.FishSpawnRate,
+		&po.MinFishCount,
 		&po.MaxFishCount,
 		&po.RoomWidth,
 		&po.RoomHeight,
@@ -78,6 +80,7 @@ func (r *RoomConfigRepo) GetRoomConfig(ctx context.Context, roomType string) (*g
 		MaxBet:               po.MaxBet,
 		BulletCostMultiplier: po.BulletCostMultiplier,
 		FishSpawnRate:        po.FishSpawnRate,
+		MinFishCount:         int32(po.MinFishCount),
 		MaxFishCount:         int32(po.MaxFishCount),
 		RoomWidth:            po.RoomWidth,
 		RoomHeight:           po.RoomHeight,
@@ -91,7 +94,7 @@ func (r *RoomConfigRepo) GetRoomConfig(ctx context.Context, roomType string) (*g
 func (r *RoomConfigRepo) GetAllRoomConfigs(ctx context.Context) (map[string]*game.RoomConfig, error) {
 	query := `
 		SELECT id, room_type, room_name, max_players, min_bet, max_bet, entry_fee,
-		       bullet_cost_multiplier, fish_spawn_rate, max_fish_count,
+		       bullet_cost_multiplier, fish_spawn_rate, min_fish_count, max_fish_count,
 		       room_width, room_height, target_rtp, is_active, description
 		FROM room_configs
 		WHERE is_active = true
@@ -118,6 +121,7 @@ func (r *RoomConfigRepo) GetAllRoomConfigs(ctx context.Context) (map[string]*gam
 			&po.EntryFee,
 			&po.BulletCostMultiplier,
 			&po.FishSpawnRate,
+			&po.MinFishCount,
 			&po.MaxFishCount,
 			&po.RoomWidth,
 			&po.RoomHeight,
@@ -135,6 +139,7 @@ func (r *RoomConfigRepo) GetAllRoomConfigs(ctx context.Context) (map[string]*gam
 			MaxBet:               po.MaxBet,
 			BulletCostMultiplier: po.BulletCostMultiplier,
 			FishSpawnRate:        po.FishSpawnRate,
+			MinFishCount:         int32(po.MinFishCount),
 			MaxFishCount:         int32(po.MaxFishCount),
 			RoomWidth:            po.RoomWidth,
 			RoomHeight:           po.RoomHeight,

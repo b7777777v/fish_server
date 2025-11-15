@@ -136,6 +136,7 @@ type RoomConfig struct {
 	MaxBet               int64   `json:"max_bet"`           // 最大下注
 	BulletCostMultiplier float64 `json:"bullet_cost_multiplier"` // 子彈成本倍數
 	FishSpawnRate        float64 `json:"fish_spawn_rate"`       // 魚類生成率
+	MinFishCount         int32   `json:"min_fish_count"`    // 最小魚數量（低於此值將強制補充）
 	MaxFishCount         int32   `json:"max_fish_count"`    // 最大魚數量
 	RoomWidth            float64 `json:"room_width"`        // 房間寬度
 	RoomHeight           float64 `json:"room_height"`       // 房間高度
