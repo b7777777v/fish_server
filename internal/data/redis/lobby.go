@@ -9,7 +9,7 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// TODO: 實現大廳 Redis 快取層
+// LobbyRedisCache implements lobby Redis caching layer
 // 此檔案實現 RoomCache 介面，用於房間列表的快取管理
 
 // roomCache 實現 lobby.RoomCache 介面

@@ -368,30 +368,51 @@ func (r *walletRepo) CreateTransaction(ctx context.Context, tx *wallet.Transacti
 		return err
 	}
 
+	// 清除交易歷史快取（確保新交易立即可見）
+	r.invalidateTransactionCache(ctx, tx.WalletID)
+
 	return nil
 }
 
 // FindTransactionsByWalletID 查詢錢包的交易記錄
-// TODO: [Cache] Caching transaction history can improve performance for frequently accessed pages.
-// However, this is more complex than caching a single entity.
-// The cache key should include pagination details (e.g., `transactions:wallet_id:{wallet_id}:page:{page_num}`).
-// CRITICAL: This cache MUST be invalidated every time a new transaction is created for this wallet (e.g., after Deposit or Withdraw).
-// A short TTL (e.g., 1-2 minutes) might be a safer strategy here.
+// 實現了 Redis 快取層以提升高頻訪問場景的性能
+// 快取策略：
+// - 快取鍵包含分頁參數：transactions:wallet:{walletID}:limit:{limit}:offset:{offset}
+// - TTL: 2分鐘（短TTL保證數據新鮮度）
+// - 快取失效：創建新交易時清除該錢包的所有交易快取
 func (r *walletRepo) FindTransactionsByWalletID(ctx context.Context, walletID uint, limit, offset int) ([]*wallet.Transaction, error) {
+	// 1. 嘗試從 Redis 快取讀取
+	cacheKey := fmt.Sprintf("transactions:wallet:%d:limit:%d:offset:%d", walletID, limit, offset)
+	cachedJSON, err := r.data.redis.Get(ctx, cacheKey)
 
-	// 準備SQL查詢
+	if err == nil && cachedJSON != "" {
+		// 快取命中，解析JSON
+		var transactions []*wallet.Transaction
+		if err := json.Unmarshal([]byte(cachedJSON), &transactions); err == nil {
+			r.logger.Debugf("Cache hit for transactions: wallet_id=%d, limit=%d, offset=%d", walletID, limit, offset)
+			return transactions, nil
+		}
+		r.logger.Warnf("Failed to unmarshal cached transactions: %v", err)
+	}
+
+	if err != nil && err != redis.Nil {
+		r.logger.Warnf("Redis error on FindTransactionsByWalletID: %v", err)
+	}
+
+	// 2. 快取未命中，從資料庫讀取
+	r.logger.Debugf("Cache miss for transactions: wallet_id=%d. Fetching from DB.", walletID)
+
 	query := `
-		SELECT 
-			id, wallet_id, amount, balance_before, balance_after, 
-			type, status, reference_id, description, metadata, 
-			created_at, updated_at 
-		FROM wallet_transactions 
-		WHERE wallet_id = $1 
-		ORDER BY created_at DESC 
+		SELECT
+			id, wallet_id, amount, balance_before, balance_after,
+			type, status, reference_id, description, metadata,
+			created_at, updated_at
+		FROM wallet_transactions
+		WHERE wallet_id = $1
+		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`
 
-	// 執行查詢
 	// 讀操作使用 Read DB
 	rows, err := r.data.DBManager().Read().Query(ctx, query, walletID, limit, offset)
 	if err != nil {
@@ -421,7 +442,49 @@ func (r *walletRepo) FindTransactionsByWalletID(ctx context.Context, walletID ui
 		return nil, err
 	}
 
+	// 3. 將結果寫入快取（TTL: 2分鐘）
+	transactionsJSON, err := json.Marshal(transactions)
+	if err != nil {
+		r.logger.Warnf("Failed to marshal transactions for cache: %v", err)
+	} else {
+		if err := r.data.redis.Set(ctx, cacheKey, transactionsJSON, 2*time.Minute); err != nil {
+			r.logger.Warnf("Failed to cache transactions: %v", err)
+		} else {
+			r.logger.Debugf("Cached transactions: wallet_id=%d, count=%d", walletID, len(transactions))
+		}
+	}
+
 	return transactions, nil
+}
+
+// invalidateTransactionCache 清除指定錢包的所有交易歷史快取
+// 使用 Redis SCAN 命令查找所有匹配的快取鍵並刪除
+// 這確保在創建新交易後，所有分頁快取都會失效
+func (r *walletRepo) invalidateTransactionCache(ctx context.Context, walletID uint) {
+	// 構建快取鍵模式：transactions:wallet:{walletID}:*
+	pattern := fmt.Sprintf("transactions:wallet:%d:*", walletID)
+
+	// 使用 SCAN 命令查找所有匹配的鍵
+	iter := r.data.redis.Redis.Scan(ctx, 0, pattern, 100).Iterator()
+	keysToDelete := []string{}
+
+	for iter.Next(ctx) {
+		keysToDelete = append(keysToDelete, iter.Val())
+	}
+
+	if err := iter.Err(); err != nil {
+		r.logger.Warnf("Error scanning transaction cache keys for wallet %d: %v", walletID, err)
+		return
+	}
+
+	// 批量刪除快取鍵
+	if len(keysToDelete) > 0 {
+		if err := r.data.redis.Del(ctx, keysToDelete...); err != nil {
+			r.logger.Warnf("Failed to delete transaction cache keys for wallet %d: %v", walletID, err)
+		} else {
+			r.logger.Debugf("Invalidated %d transaction cache entries for wallet %d", len(keysToDelete), walletID)
+		}
+	}
 }
 
 // Deposit 存款操作
@@ -509,6 +572,9 @@ func (r *walletRepo) Deposit(ctx context.Context, walletID uint, amount float64,
 	if err := r.data.redis.Del(ctx, cacheKeyByUserID); err != nil {
 		r.logger.Warnf("Failed to delete wallet cache by user id: %v", err)
 	}
+
+	// 清除交易歷史快取（確保新交易立即可見）
+	r.invalidateTransactionCache(ctx, walletID)
 
 	return nil
 }
@@ -625,6 +691,9 @@ func (r *walletRepo) Withdraw(ctx context.Context, walletID uint, amount float64
 	if err := r.data.redis.Del(ctx, cacheKeyByUserID); err != nil {
 		r.logger.Warnf("Failed to delete wallet cache by user id: %v", err)
 	}
+
+	// 清除交易歷史快取（確保新交易立即可見）
+	r.invalidateTransactionCache(ctx, walletID)
 
 	return nil
 }

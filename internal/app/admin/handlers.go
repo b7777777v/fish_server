@@ -65,24 +65,30 @@ func (s *AdminService) RegisterRoutes(r *gin.Engine) {
 	RegisterAccountRoutes(r, s.accountHandler)
 	RegisterLobbyRoutes(r, s.lobbyHandler, s.accountHandler)
 
-	// 管理後台 API 組
-	admin := r.Group("/admin")
+	// 管理後台 API 組（公開端點）
+	adminPublic := r.Group("/admin")
 	{
-		admin.POST("/login", s.Login)
+		// 登錄端點（公開，用於獲取 token）
+		adminPublic.POST("/login", s.Login)
 
-		// 健康檢查
-		admin.GET("/health", s.HealthCheck)
-		admin.GET("/health/live", s.LivenessCheck)
-		admin.GET("/health/ready", s.ReadinessCheck)
+		// 健康檢查（公開，用於監控）
+		adminPublic.GET("/health", s.HealthCheck)
+		adminPublic.GET("/health/live", s.LivenessCheck)
+		adminPublic.GET("/health/ready", s.ReadinessCheck)
+	}
 
-		// 伺服器狀態
+	// 管理後台 API 組（需要認證）
+	admin := r.Group("/admin")
+	admin.Use(s.lobbyHandler.adminAuthMiddleware()) // 🔒 應用管理員認證中間件
+	{
+		// 伺服器狀態（需要認證）
 		admin.GET("/status", s.ServerStatus)
 		admin.GET("/metrics", s.Metrics)
 
-		// 環境信息
+		// 環境信息（需要認證）
 		admin.GET("/env", s.GetEnvironmentInfo)
 
-		// 玩家管理
+		// 玩家管理（需要管理員權限）
 		players := admin.Group("/players")
 		{
 			players.GET("/:id", s.GetPlayer)
@@ -94,7 +100,7 @@ func (s *AdminService) RegisterRoutes(r *gin.Engine) {
 			players.GET("/:id/wallets", s.GetPlayerWallets)
 		}
 
-		// 錢包管理
+		// 錢包管理（需要管理員權限）
 		wallets := admin.Group("/wallets")
 		{
 			wallets.GET("/:id", s.GetWallet)
@@ -105,7 +111,7 @@ func (s *AdminService) RegisterRoutes(r *gin.Engine) {
 			wallets.POST("/:id/withdraw", s.WithdrawFromWallet)
 		}
 
-		// 陣型配置管理
+		// 陣型配置管理（需要管理員權限）
 		formations := admin.Group("/formations")
 		{
 			formations.GET("/config", s.GetFormationConfig)

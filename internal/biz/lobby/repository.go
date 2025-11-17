@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-// TODO: 實現大廳資料訪問層介面
+// LobbyRepository interface is implemented in data/postgres/lobby.go and data/redis/lobby.go
 // 此檔案定義大廳資料訪問的介面，用於與資料庫和快取互動
 
 // LobbyRepo 定義大廳資料訪問的介面（PostgreSQL）

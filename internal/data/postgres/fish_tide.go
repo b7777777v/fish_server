@@ -34,7 +34,7 @@ func (r *fishTideRepo) GetTideByID(ctx context.Context, id int64) (*game.FishTid
 	var durationSeconds int
 	var spawnIntervalMs int
 
-	err := r.db.masterPool.QueryRow(ctx, query, id).Scan(
+	err := r.db.Pool.QueryRow(ctx, query, id).Scan(
 		&tide.ID,
 		&tide.Name,
 		&tide.FishTypeID,
@@ -70,7 +70,7 @@ func (r *fishTideRepo) GetActiveTides(ctx context.Context) ([]*game.FishTide, er
 		ORDER BY id ASC
 	`
 
-	rows, err := r.db.slavePool.Query(ctx, query)
+	rows, err := r.db.Pool.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query active tides: %w", err)
 	}
@@ -126,7 +126,7 @@ func (r *fishTideRepo) CreateTide(ctx context.Context, tide *game.FishTide) erro
 	durationSeconds := int(tide.Duration.Seconds())
 	spawnIntervalMs := int(tide.SpawnInterval.Milliseconds())
 
-	err := r.db.masterPool.QueryRow(ctx, query,
+	err := r.db.Pool.QueryRow(ctx, query,
 		tide.Name,
 		tide.FishTypeID,
 		tide.FishCount,
@@ -164,7 +164,7 @@ func (r *fishTideRepo) UpdateTide(ctx context.Context, tide *game.FishTide) erro
 	durationSeconds := int(tide.Duration.Seconds())
 	spawnIntervalMs := int(tide.SpawnInterval.Milliseconds())
 
-	result, err := r.db.masterPool.Exec(ctx, query,
+	result, err := r.db.Pool.Exec(ctx, query,
 		tide.ID,
 		tide.Name,
 		tide.FishTypeID,
@@ -191,7 +191,7 @@ func (r *fishTideRepo) UpdateTide(ctx context.Context, tide *game.FishTide) erro
 func (r *fishTideRepo) DeleteTide(ctx context.Context, id int64) error {
 	query := `DELETE FROM fish_tide_config WHERE id = $1`
 
-	result, err := r.db.masterPool.Exec(ctx, query, id)
+	result, err := r.db.Pool.Exec(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete fish tide: %w", err)
 	}

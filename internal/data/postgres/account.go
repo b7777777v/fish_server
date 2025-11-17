@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// TODO: 實現帳號資料庫訪問層
+// AccountRepo implements account repository for PostgreSQL
 // 此檔案實現 AccountRepo 介面，提供與 PostgreSQL 資料庫的互動功能
 
 // accountRepo 實現 account.AccountRepo 介面

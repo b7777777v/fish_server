@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// TODO: 實現大廳模組的業務邏輯
+// LobbyUsecase implements lobby business logic
 // 此檔案包含大廳相關的核心業務邏輯，包括：
 // - 遊戲房間列表查詢
 // - 玩家狀態顯示
