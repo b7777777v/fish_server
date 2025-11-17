@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -15,47 +14,46 @@ import (
 // Config holds the database configuration.
 type Config struct {
 	Data struct {
-		Database struct {
-			Driver   string `yaml:"driver"`
-			Host     string `yaml:"host"`
-			Port     string `yaml:"port"` // Changed to string to allow env var expansion
-			User     string `yaml:"user"`
-			Password string `yaml:"password"`
-			DBName   string `yaml:"dbname"`
-			SSLMode  string `yaml:"sslmode"`
-		}
-	}
+		MasterDatabase struct {
+			Driver   string `yaml:"driver" mapstructure:"driver"`
+			Host     string `yaml:"host" mapstructure:"host"`
+			Port     int    `yaml:"port" mapstructure:"port"`
+			User     string `yaml:"user" mapstructure:"user"`
+			Password string `yaml:"password" mapstructure:"password"`
+			DBName   string `yaml:"dbname" mapstructure:"dbname"`
+			SSLMode  string `yaml:"sslmode" mapstructure:"sslmode"`
+		} `yaml:"master_database" mapstructure:"master_database"`
+	} `yaml:"data" mapstructure:"data"`
 }
 
 func main() {
 	// 1. Load configuration from config.yaml
 	viper.SetConfigName("config.dev") // Default to dev config for local migration
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath("./configs")
+	viper.AddConfigPath("./configs")        // For running from project root
+	viper.AddConfigPath("../../configs")    // For running from cmd/migrator
+	viper.AddConfigPath("../../../configs") // For go run from nested paths
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatalf("Error reading config file: %s", err)
 	}
+
+	log.Printf("Using config file: %s", viper.ConfigFileUsed())
 
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
 		log.Fatalf("Unable to decode into struct: %v", err)
 	}
 
-	dbConf := config.Data.Database
+	dbConf := config.Data.MasterDatabase
 
-	// 2. Expand environment variables
+	// 2. Expand environment variables (if any are used in config)
 	host := os.ExpandEnv(dbConf.Host)
-	portStr := os.ExpandEnv(dbConf.Port)
 	user := os.ExpandEnv(dbConf.User)
 	password := os.ExpandEnv(dbConf.Password)
 	dbname := os.ExpandEnv(dbConf.DBName)
 	sslmode := os.ExpandEnv(dbConf.SSLMode)
-
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		log.Fatalf("Invalid port number: %v", err)
-	}
+	port := dbConf.Port
 
 	// 3. Construct database URL
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
