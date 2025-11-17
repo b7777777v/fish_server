@@ -214,10 +214,10 @@ func TestWalletCRUD(t *testing.T) {
 	// 創建用戶
 	var userID int
 	err := testClient.QueryRow(ctx, `
-		INSERT INTO users (username, password_hash, email, status)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO users (username, password_hash, email, nickname, status)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
-	`, "walletuser", "hashedpassword", "wallet@example.com", 1).Scan(&userID)
+	`, "walletuser", "hashedpassword", "wallet@example.com", "Wallet User", 1).Scan(&userID)
 	assert.NoError(t, err)
 
 	// 創建錢包
@@ -281,10 +281,10 @@ func TestTransactionAndConcurrency(t *testing.T) {
 	// 創建用戶
 	var userID int
 	err := testClient.QueryRow(ctx, `
-		INSERT INTO users (username, password_hash, email, status)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO users (username, password_hash, email, nickname, status)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
-	`, "txuser", "hashedpassword", "tx@example.com", 1).Scan(&userID)
+	`, "txuser", "hashedpassword", "tx@example.com", "TX User", 1).Scan(&userID)
 	assert.NoError(t, err)
 
 	// 創建錢包
@@ -383,10 +383,10 @@ func TestConcurrentWalletOperations(t *testing.T) {
 	// 創建用戶
 	var userID int
 	err := testClient.QueryRow(ctx, `
-		INSERT INTO users (username, password_hash, email, status)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO users (username, password_hash, email, nickname, status)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
-	`, "concurrentuser", "hashedpassword", "concurrent@example.com", 1).Scan(&userID)
+	`, "concurrentuser", "hashedpassword", "concurrent@example.com", "Concurrent User", 1).Scan(&userID)
 	assert.NoError(t, err)
 
 	// 創建錢包
