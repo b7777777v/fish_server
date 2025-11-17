@@ -464,13 +464,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fishSpawnedOld = gameMessage.getFishSpawned();
                 log(`魚 ${fishSpawnedOld.getFishId()} (類型: ${fishSpawnedOld.getFishType()}) 出現了！`);
                 break;
+            case MessageType.HIT_FISH_RESPONSE:
+                const hitFishResp = gameMessage.getHitFishResponse();
+                if (hitFishResp.getSuccess()) {
+                    if (hitFishResp.getIsKilled()) {
+                        log(`🎯 擊殺！魚ID: ${hitFishResp.getFishId()}, 獲得獎勵: ${hitFishResp.getReward()} ${hitFishResp.getIsCritical() ? '(暴擊!)' : ''}`, 'received');
+                    } else {
+                        log(`💥 命中！魚ID: ${hitFishResp.getFishId()}, 造成傷害: ${hitFishResp.getDamage()}`, 'received');
+                    }
+                }
+                break;
             case MessageType.FISH_DIED:
                 const fishDied = gameMessage.getFishDied();
-                log(`魚 ${fishDied.getFishId()} 被捕獲！玩家 ${fishDied.getPlayerId()} 獲得獎勵 ${fishDied.getReward()} 金幣。`);
+                log(`🐟 魚 ${fishDied.getFishId()} 被捕獲！玩家 ${fishDied.getPlayerId()} 獲得獎勵 ${fishDied.getReward()} 金幣。`, 'received');
                 break;
             case MessageType.PLAYER_REWARD:
                 const playerReward = gameMessage.getPlayerReward();
-                log(`玩家 ${playerReward.getPlayerId()} 獲得獎勵: ${playerReward.getReward()} 金幣。`);
+                log(`💰 玩家 ${playerReward.getPlayerId()} 獲得獎勵: ${playerReward.getReward()} 金幣。`, 'received');
                 break;
             case MessageType.PLAYER_LEFT:
                 const playerLeft = gameMessage.getPlayerLeft();
@@ -676,6 +686,45 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 log('❌ 渲染器未初始化', 'error');
             }
+        });
+    }
+
+    // 測試擊殺魚按鈕
+    const testHitFishBtn = document.getElementById('testHitFishBtn');
+    if (testHitFishBtn) {
+        testHitFishBtn.addEventListener('click', () => {
+            // 檢查是否有活躍的子彈和魚
+            if (!window.gameRenderer || !gameRenderer.gameState) {
+                log('❌ 渲染器未運行或沒有遊戲狀態', 'error');
+                return;
+            }
+
+            const bullets = gameRenderer.gameState.bullets || [];
+            const fishes = gameRenderer.gameState.fishes || [];
+
+            if (bullets.length === 0) {
+                log('⚠️ 沒有子彈，請先開火！', 'error');
+                return;
+            }
+
+            if (fishes.length === 0) {
+                log('⚠️ 沒有魚，請等待魚出現！', 'error');
+                return;
+            }
+
+            // 發送HIT_FISH請求（使用第一顆子彈和第一條魚）
+            const bullet = bullets[0];
+            const fish = fishes[0];
+
+            const gameMessage = new proto.v1.GameMessage();
+            gameMessage.setType(MessageType.HIT_FISH);
+            const hitFishReq = new proto.v1.HitFishRequest();
+            hitFishReq.setBulletId(bullet.bulletId);
+            hitFishReq.setFishId(fish.fishId);
+            gameMessage.setHitFish(hitFishReq);
+            sendMessage(gameMessage);
+
+            log(`🎯 發送擊殺請求: 子彈ID=${bullet.bulletId}, 魚ID=${fish.fishId}`, 'sent');
         });
     }
 

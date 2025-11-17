@@ -146,8 +146,11 @@ func (mh *MessageHandler) handleFireBullet(client *Client, message *pb.GameMessa
 	}
 	
 	mh.broadcastToRoom(client.RoomID, broadcastMsg, client)
-	
-	mh.logger.Debugf("Player %d fired bullet %d in room %s", 
+
+	// 開火後推送更新的餘額給客戶端
+	mh.sendPlayerInfoUpdate(client)
+
+	mh.logger.Debugf("Player %d fired bullet %d in room %s",
 		client.PlayerID, bullet.ID, client.RoomID)
 }
 
@@ -409,6 +412,9 @@ func (mh *MessageHandler) handleHitFish(client *Client, message *pb.GameMessage)
 		}
 		mh.broadcastToRoom(client.RoomID, rewardMsg, nil)
 
+		// 擊殺後推送更新的餘額給客戶端
+		mh.sendPlayerInfoUpdate(client)
+
 		mh.logger.Infof("Player %d killed fish %d in room %s, reward: %d",
 			client.PlayerID, hitData.GetFishId(), client.RoomID, hitResult.Reward)
 	} else {
@@ -472,22 +478,44 @@ func (mh *MessageHandler) handleGetRoomList(client *Client, message *pb.GameMess
 
 // handleGetPlayerInfo 處理獲取玩家信息消息
 func (mh *MessageHandler) handleGetPlayerInfo(client *Client, message *pb.GameMessage) {
+	ctx := context.Background()
+
+	// 從資料庫獲取最新的玩家信息
+	player, err := mh.gameUsecase.GetPlayerInfo(ctx, client.PlayerID)
+	if err != nil {
+		mh.logger.Errorf("Failed to get player info: %v", err)
+		mh.sendErrorResponse(client, "Failed to get player info")
+		return
+	}
+
+	// 獲取座位ID（如果在房間中）
+	seatID := int32(-1)
+	if client.RoomID != "" {
+		room, err := mh.gameUsecase.GetRoom(ctx, client.RoomID)
+		if err == nil && room != nil {
+			seatID = int32(room.GetPlayerSeat(client.PlayerID))
+		}
+	}
+
 	response := &pb.GameMessage{
 		Type: pb.MessageType_PLAYER_INFO_RESPONSE,
 		Data: &pb.GameMessage_PlayerInfoResponse{
 			PlayerInfoResponse: &pb.PlayerInfoResponse{
-				PlayerId: client.PlayerID,
-				Nickname: client.ID,
-				Balance:  10000, // 模擬餘額
-				Level:    1,
-				Exp:      0,
-				RoomId:   client.RoomID,
+				PlayerId:  client.PlayerID,
+				Nickname:  player.Nickname,
+				Balance:   player.Balance, // 真實餘額
+				Level:     1,               // TODO: 從資料庫獲取
+				Exp:       0,               // TODO: 從資料庫獲取
+				RoomId:    client.RoomID,
+				SeatId:    seatID,
 				Timestamp: time.Now().Unix(),
 			},
 		},
 	}
-	
+
 	client.sendProtobuf(response)
+
+	mh.logger.Debugf("Sent player info: player=%d, balance=%d", client.PlayerID, player.Balance)
 }
 
 // sendErrorResponse 發送錯誤響應
@@ -747,9 +775,51 @@ func (mh *MessageHandler) StartRoomStateUpdates(roomID string) {
 					mh.logger.Infof("Room %s no longer exists, stopping state updates", roomID)
 					return
 				}
-				
+
 				mh.broadcastRoomState(roomID)
 			}
 		}
 	}()
+}
+
+// sendPlayerInfoUpdate 發送玩家資訊更新（用於餘額變動後）
+func (mh *MessageHandler) sendPlayerInfoUpdate(client *Client) {
+	ctx := context.Background()
+
+	// 從資料庫獲取最新的玩家信息
+	player, err := mh.gameUsecase.GetPlayerInfo(ctx, client.PlayerID)
+	if err != nil {
+		mh.logger.Errorf("Failed to get player info for update: %v", err)
+		return
+	}
+
+	// 獲取座位ID（如果在房間中）
+	seatID := int32(-1)
+	if client.RoomID != "" {
+		room, err := mh.gameUsecase.GetRoom(ctx, client.RoomID)
+		if err == nil && room != nil {
+			seatID = int32(room.GetPlayerSeat(client.PlayerID))
+		}
+	}
+
+	// 發送更新的玩家資訊
+	response := &pb.GameMessage{
+		Type: pb.MessageType_PLAYER_INFO_RESPONSE,
+		Data: &pb.GameMessage_PlayerInfoResponse{
+			PlayerInfoResponse: &pb.PlayerInfoResponse{
+				PlayerId:  client.PlayerID,
+				Nickname:  player.Nickname,
+				Balance:   player.Balance, // 最新餘額
+				Level:     1,
+				Exp:       0,
+				RoomId:    client.RoomID,
+				SeatId:    seatID,
+				Timestamp: time.Now().Unix(),
+			},
+		},
+	}
+
+	client.sendProtobuf(response)
+
+	mh.logger.Debugf("Sent player info update: player=%d, balance=%d", client.PlayerID, player.Balance)
 }
