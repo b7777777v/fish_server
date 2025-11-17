@@ -77,7 +77,7 @@ func setupWalletRepoTest(t *testing.T) (*Data, wallet.WalletRepo, func()) {
 	require.NoError(t, err)
 
 	// 創建測試用戶
-	_, err = data.DBManager().Write().Exec(ctx, "INSERT INTO users (id, username, password_hash, email, status, created_at, updated_at) VALUES (1, 'testuser', 'hash', 'test@example.com', 1, NOW(), NOW())")
+	_, err = data.DBManager().Write().Exec(ctx, "INSERT INTO users (id, username, password_hash, email, nickname, status, created_at, updated_at) VALUES (1, 'testuser', 'hash', 'test@example.com', 'Test User', 1, NOW(), NOW())")
 	require.NoError(t, err)
 
 	return data, repo, cleanup
