@@ -6,7 +6,7 @@ import (
 	"github.com/b7777777v/fish_server/internal/biz/lobby"
 )
 
-// TODO: 實現大廳資料庫訪問層（PostgreSQL）
+// LobbyPostgresRepo implements LobbyRepository for PostgreSQL
 // 此檔案實現 LobbyRepo 介面，提供與 PostgreSQL 資料庫的互動功能
 
 // lobbyRepo 實現 lobby.LobbyRepo 介面
