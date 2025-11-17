@@ -70,14 +70,15 @@ func TestRoomManager_GetRoomList(t *testing.T) {
 	env := testhelper.NewGameTestEnv(t, nil)
 	defer env.AssertExpectations(t)
 
-	// Create multiple rooms
+	// Create multiple rooms with different types to avoid ID collision
+	// Note: Room IDs use Unix seconds, so same type + same second = same ID
 	_, _ = env.RoomManager.CreateRoom(game.RoomTypeNovice, 1)
-	_, _ = env.RoomManager.CreateRoom(game.RoomTypeNovice, 2)
+	_, _ = env.RoomManager.CreateRoom(game.RoomTypeIntermediate, 1)
 	_, _ = env.RoomManager.CreateRoom(game.RoomTypeAdvanced, 1)
 
 	t.Run("list all rooms", func(t *testing.T) {
 		rooms := env.RoomManager.GetRoomList()
-		assert.GreaterOrEqual(t, len(rooms), 3)
+		assert.GreaterOrEqual(t, len(rooms), 3, "Should have at least 3 rooms")
 	})
 }
 

@@ -339,7 +339,7 @@ func TestGameUsecase_EdgeCases(t *testing.T) {
 		playerID := int64(1)
 		poorPlayer := testhelper.NewTestPlayerWithBalance(playerID, 1) // Very low balance
 
-		env.PlayerRepo.On("GetPlayer", env.Ctx, playerID).Return(poorPlayer, nil)
+		// No need to mock GetPlayer - we're calling RoomManager.JoinRoom directly with player object
 		env.RoomManager.JoinRoom(room.ID, poorPlayer)
 
 		// Try to fire expensive bullet
@@ -356,7 +356,7 @@ func TestGameUsecase_EdgeCases(t *testing.T) {
 		playerID := int64(1)
 		testPlayer := testhelper.NewTestPlayer(playerID)
 
-		env.PlayerRepo.On("GetPlayer", env.Ctx, playerID).Return(testPlayer, nil)
+		// No need to mock GetPlayer - we're calling RoomManager.JoinRoom directly with player object
 		env.RoomManager.JoinRoom(room.ID, testPlayer)
 
 		bullet := testhelper.NewTestBullet(1, playerID, 10, 100)

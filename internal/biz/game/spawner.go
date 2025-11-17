@@ -139,9 +139,15 @@ func (fs *FishSpawner) createFish(fishType *FishType, config RoomConfig) *Fish {
 	healthVariation := 0.8 + fs.rng.Float64()*0.4 // 80%-120%
 	valueVariation := 0.9 + fs.rng.Float64()*0.2  // 90%-110%
 	speedVariation := 0.8 + fs.rng.Float64()*0.4  // 80%-120%
-	
+
 	health := int32(float64(fishType.BaseHealth) * healthVariation)
+	if health < 1 {
+		health = 1 // Ensure health is at least 1
+	}
 	value := int64(float64(fishType.BaseValue) * valueVariation)
+	if value < 1 {
+		value = 1 // Ensure value is at least 1
+	}
 	speed := fishType.BaseSpeed * speedVariation
 	
 	fish := &Fish{

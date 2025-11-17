@@ -1,13 +1,12 @@
 package game_test
 
 
-import "github.com/b7777777v/fish_server/internal/biz/game"
 import (
 	"testing"
 
+	"github.com/b7777777v/fish_server/internal/biz/game"
 	"github.com/b7777777v/fish_server/internal/testing/testhelper"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 // TestInventoryManager_AddBet tests adding bets to inventory
@@ -15,12 +14,8 @@ func TestInventoryManager_AddBet(t *testing.T) {
 	env := testhelper.NewGameTestEnv(t, nil)
 	defer env.AssertExpectations(t)
 
-	// Setup mocks
-	initialInv := testhelper.NewTestInventory("novice", 0, 0)
-	env.InventoryRepo.On("GetInventory", env.Ctx, "novice").
-		Return(initialInv, nil).Maybe()
-	env.InventoryRepo.On("SaveInventory", env.Ctx, mock.AnythingOfType("*game.Inventory")).
-		Return(nil).Maybe()
+	// No need to mock GetInventory - InventoryManager creates in-memory inventories
+	// SaveInventory is already mocked in setupDefaultMocks
 
 	t.Run("add single bet", func(t *testing.T) {
 		env.InventoryManager.AddBet(game.RoomTypeNovice, 100)
@@ -46,11 +41,8 @@ func TestInventoryManager_AddWin(t *testing.T) {
 	env := testhelper.NewGameTestEnv(t, nil)
 	defer env.AssertExpectations(t)
 
-	initialInv := testhelper.NewTestInventory("intermediate", 1000, 0)
-	env.InventoryRepo.On("GetInventory", env.Ctx, "intermediate").
-		Return(initialInv, nil).Maybe()
-	env.InventoryRepo.On("SaveInventory", env.Ctx, mock.AnythingOfType("*game.Inventory")).
-		Return(nil).Maybe()
+	// No need to mock GetInventory - InventoryManager creates in-memory inventories
+	// SaveInventory is already mocked in setupDefaultMocks
 
 	// Add some initial bets
 	env.InventoryManager.AddBet(game.RoomTypeIntermediate, 1000)
@@ -59,9 +51,9 @@ func TestInventoryManager_AddWin(t *testing.T) {
 		env.InventoryManager.AddWin(game.RoomTypeIntermediate, 500)
 
 		inv := env.InventoryManager.GetInventory(game.RoomTypeIntermediate)
-		assert.Equal(t, int64(2000), inv.TotalIn) // 1000 initial + 1000 bet
+		assert.Equal(t, int64(1000), inv.TotalIn) // 0 initial + 1000 bet
 		assert.Equal(t, int64(500), inv.TotalOut)
-		assert.Equal(t, 0.25, inv.CurrentRTP) // 500/2000 = 0.25
+		assert.Equal(t, 0.5, inv.CurrentRTP) // 500/1000 = 0.5
 	})
 
 	t.Run("add multiple wins", func(t *testing.T) {
@@ -70,7 +62,7 @@ func TestInventoryManager_AddWin(t *testing.T) {
 
 		inv := env.InventoryManager.GetInventory(game.RoomTypeIntermediate)
 		assert.Equal(t, int64(1000), inv.TotalOut) // 500 + 300 + 200
-		assert.Equal(t, 0.5, inv.CurrentRTP) // 1000/2000 = 0.5
+		assert.Equal(t, 1.0, inv.CurrentRTP) // 1000/1000 = 1.0
 	})
 }
 
@@ -114,9 +106,13 @@ func TestInventoryManager_RTPCalculation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			roomType := game.RoomType("test_" + tt.name)
-			initialInv := testhelper.NewTestInventory(string(roomType), tt.totalIn, tt.totalOut)
-			env.InventoryRepo.On("GetInventory", env.Ctx, string(roomType)).
-				Return(initialInv, nil).Once()
+
+			// Actually add bets and wins to populate the inventory
+			// (InventoryManager creates in-memory inventories, doesn't load from repo)
+			env.InventoryManager.AddBet(roomType, tt.totalIn)
+			if tt.totalOut > 0 {
+				env.InventoryManager.AddWin(roomType, tt.totalOut)
+			}
 
 			inv := env.InventoryManager.GetInventory(roomType)
 			assert.Equal(t, tt.totalIn, inv.TotalIn)
@@ -132,9 +128,9 @@ func TestInventoryManager_GetInventory(t *testing.T) {
 	defer env.AssertExpectations(t)
 
 	t.Run("get existing inventory", func(t *testing.T) {
-		existingInv := testhelper.NewTestInventory("novice", 5000, 4800)
-		env.InventoryRepo.On("GetInventory", env.Ctx, "novice").
-			Return(existingInv, nil).Once()
+		// Populate inventory with bets and wins
+		env.InventoryManager.AddBet(game.RoomTypeNovice, 5000)
+		env.InventoryManager.AddWin(game.RoomTypeNovice, 4800)
 
 		inv := env.InventoryManager.GetInventory(game.RoomTypeNovice)
 		assert.NotNil(t, inv)
@@ -144,10 +140,7 @@ func TestInventoryManager_GetInventory(t *testing.T) {
 	})
 
 	t.Run("get new inventory", func(t *testing.T) {
-		newInv := testhelper.NewTestInventory("new_room", 0, 0)
-		env.InventoryRepo.On("GetInventory", env.Ctx, "new_room").
-			Return(newInv, nil).Once()
-
+		// Get inventory for a room type that hasn't been used yet
 		inv := env.InventoryManager.GetInventory(game.RoomType("new_room"))
 		assert.NotNil(t, inv)
 		assert.Equal(t, int64(0), inv.TotalIn)
@@ -160,11 +153,8 @@ func TestInventoryManager_ConcurrentOperations(t *testing.T) {
 	env := testhelper.NewGameTestEnv(t, nil)
 	defer env.AssertExpectations(t)
 
-	initialInv := testhelper.NewTestInventory("concurrent", 0, 0)
-	env.InventoryRepo.On("GetInventory", env.Ctx, "concurrent").
-		Return(initialInv, nil).Maybe()
-	env.InventoryRepo.On("SaveInventory", env.Ctx, mock.AnythingOfType("*game.Inventory")).
-		Return(nil).Maybe()
+	// No need to mock GetInventory - InventoryManager creates in-memory inventories
+	// SaveInventory is already mocked in setupDefaultMocks
 
 	t.Run("concurrent bets", func(t *testing.T) {
 		roomType := game.RoomType("concurrent")
@@ -196,12 +186,10 @@ func TestInventoryManager_EdgeCases(t *testing.T) {
 	defer env.AssertExpectations(t)
 
 	t.Run("add zero bet", func(t *testing.T) {
-		initialInv := testhelper.NewTestInventory("zero_bet", 100, 50)
-		env.InventoryRepo.On("GetInventory", env.Ctx, "zero_bet").
-			Return(initialInv, nil).Maybe()
-		env.InventoryRepo.On("SaveInventory", env.Ctx, mock.AnythingOfType("*game.Inventory")).
-			Return(nil).Maybe()
+		// Populate inventory first
+		env.InventoryManager.AddBet(game.RoomType("zero_bet"), 100)
 
+		// Try to add zero bet
 		env.InventoryManager.AddBet(game.RoomType("zero_bet"), 0)
 
 		inv := env.InventoryManager.GetInventory(game.RoomType("zero_bet"))
@@ -209,12 +197,6 @@ func TestInventoryManager_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("add negative bet", func(t *testing.T) {
-		initialInv := testhelper.NewTestInventory("negative_bet", 100, 50)
-		env.InventoryRepo.On("GetInventory", env.Ctx, "negative_bet").
-			Return(initialInv, nil).Maybe()
-		env.InventoryRepo.On("SaveInventory", env.Ctx, mock.AnythingOfType("*game.Inventory")).
-			Return(nil).Maybe()
-
 		// Should handle gracefully (or reject, depending on implementation)
 		assert.NotPanics(t, func() {
 			env.InventoryManager.AddBet(game.RoomType("negative_bet"), -100)
@@ -222,15 +204,14 @@ func TestInventoryManager_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("RTP calculation with zero total in", func(t *testing.T) {
-		zeroInv := testhelper.NewTestInventory("zero_in", 0, 100)
-		env.InventoryRepo.On("GetInventory", env.Ctx, "zero_in").
-			Return(zeroInv, nil).Once()
-
+		// Get a fresh inventory (TotalIn = 0)
 		inv := env.InventoryManager.GetInventory(game.RoomType("zero_in"))
-		// RTP should be 0 or infinity, implementation should handle gracefully
+
+		// RTP should be 0 when TotalIn is 0 (implementation handles gracefully)
 		assert.NotPanics(t, func() {
 			_ = inv.CurrentRTP
 		})
+		assert.Equal(t, 0.0, inv.CurrentRTP)
 	})
 }
 
@@ -239,11 +220,8 @@ func TestInventoryManager_Integration(t *testing.T) {
 	env := testhelper.NewGameTestEnv(t, nil)
 	defer env.AssertExpectations(t)
 
-	initialInv := testhelper.NewTestInventory("integration", 0, 0)
-	env.InventoryRepo.On("GetInventory", env.Ctx, "integration").
-		Return(initialInv, nil).Maybe()
-	env.InventoryRepo.On("SaveInventory", env.Ctx, mock.AnythingOfType("*game.Inventory")).
-		Return(nil).Maybe()
+	// No need to mock GetInventory - InventoryManager creates in-memory inventories
+	// SaveInventory is already mocked in setupDefaultMocks
 
 	roomType := game.RoomType("integration")
 
