@@ -29,6 +29,7 @@ enum MessageType {
   GET_ROOM_LIST = 6;
   GET_PLAYER_INFO = 7;
   SELECT_SEAT = 8;
+  HIT_FISH = 9;
 
   // 服務器響應 (10-19)
   FIRE_BULLET_RESPONSE = 10;
@@ -39,6 +40,7 @@ enum MessageType {
   ROOM_LIST_RESPONSE = 15;
   PLAYER_INFO_RESPONSE = 16;
   SELECT_SEAT_RESPONSE = 17;
+  HIT_FISH_RESPONSE = 18;
 
   // 服務器端事件廣播 (20-39)
   BULLET_FIRED = 20;
@@ -74,6 +76,7 @@ message GameMessage {
     GetRoomListRequest get_room_list = 7;
     GetPlayerInfoRequest get_player_info = 8;
     SelectSeatRequest select_seat = 9;
+    HitFishRequest hit_fish = 10;
 
     // 響應消息
     FireBulletResponse fire_bullet_response = 12;
@@ -84,6 +87,7 @@ message GameMessage {
     RoomListResponse room_list_response = 17;
     PlayerInfoResponse player_info_response = 18;
     SelectSeatResponse select_seat_response = 19;
+    HitFishResponse hit_fish_response = 20;
 
     // 事件消息
     BulletFiredEvent bullet_fired = 22;
@@ -148,6 +152,12 @@ message GetPlayerInfoRequest {
 // 選擇座位請求
 message SelectSeatRequest {
   int32 seat_id = 1;  // 座位ID (0-3)
+}
+
+// 擊中魚類請求
+message HitFishRequest {
+  int64 bullet_id = 1;  // 子彈ID
+  int64 fish_id = 2;    // 魚ID
 }
 
 // ========================================
@@ -217,6 +227,19 @@ message SelectSeatResponse {
   int32 seat_id = 2;
   string message = 3;
   int64 timestamp = 4;
+}
+
+// 擊中魚類響應
+message HitFishResponse {
+  bool success = 1;
+  int64 bullet_id = 2;
+  int64 fish_id = 3;
+  int32 damage = 4;        // 造成的傷害
+  int64 reward = 5;        // 獲得的獎勵（如果擊殺）
+  bool is_killed = 6;      // 是否擊殺
+  bool is_critical = 7;    // 是否暴擊
+  double multiplier = 8;   // 獎勵倍數
+  int64 timestamp = 9;
 }
 
 // ========================================

@@ -57,6 +57,8 @@ func (mh *MessageHandler) HandleMessage(client *Client, message *pb.GameMessage)
 		mh.handleJoinRoom(client, message)
 	case pb.MessageType_LEAVE_ROOM:
 		mh.handleLeaveRoom(client, message)
+	case pb.MessageType_HIT_FISH:
+		mh.handleHitFish(client, message)
 	case pb.MessageType_HEARTBEAT:
 		mh.handleHeartbeat(client, message)
 	case pb.MessageType_GET_ROOM_LIST:
@@ -326,6 +328,93 @@ func (mh *MessageHandler) handleLeaveRoom(client *Client, message *pb.GameMessag
 	client.sendProtobuf(response)
 	
 	mh.logger.Infof("Player %d left room %s", client.PlayerID, roomID)
+}
+
+// handleHitFish 處理擊中魚類消息
+func (mh *MessageHandler) handleHitFish(client *Client, message *pb.GameMessage) {
+	if client.RoomID == "" {
+		mh.sendErrorResponse(client, "Not in any room")
+		return
+	}
+
+	// 解析擊中數據
+	hitData := message.GetHitFish()
+	if hitData == nil {
+		mh.sendErrorResponse(client, "Invalid hit fish data")
+		return
+	}
+
+	// 驗證參數
+	if hitData.GetBulletId() <= 0 || hitData.GetFishId() <= 0 {
+		mh.sendErrorResponse(client, "Invalid bullet or fish ID")
+		return
+	}
+
+	// 調用業務邏輯
+	ctx := context.Background()
+	hitResult, err := mh.gameUsecase.HitFish(ctx, client.RoomID, hitData.GetBulletId(), hitData.GetFishId())
+	if err != nil {
+		mh.logger.Errorf("Failed to process hit fish: %v", err)
+		mh.sendErrorResponse(client, "Failed to process hit")
+		return
+	}
+
+	// 構建響應消息
+	response := &pb.GameMessage{
+		Type: pb.MessageType_HIT_FISH_RESPONSE,
+		Data: &pb.GameMessage_HitFishResponse{
+			HitFishResponse: &pb.HitFishResponse{
+				Success:    hitResult.Success,
+				BulletId:   hitData.GetBulletId(),
+				FishId:     hitData.GetFishId(),
+				Damage:     hitResult.Damage,
+				Reward:     hitResult.Reward,
+				IsKilled:   hitResult.Reward > 0, // 有獎勵表示擊殺
+				IsCritical: hitResult.IsCritical,
+				Multiplier: hitResult.Multiplier,
+				Timestamp:  time.Now().Unix(),
+			},
+		},
+	}
+
+	// 發送響應給客戶端
+	client.sendProtobuf(response)
+
+	// 如果擊殺了魚，廣播給房間所有玩家
+	if hitResult.Reward > 0 {
+		// 廣播魚死亡事件
+		fishDiedMsg := &pb.GameMessage{
+			Type: pb.MessageType_FISH_DIED,
+			Data: &pb.GameMessage_FishDied{
+				FishDied: &pb.FishDiedEvent{
+					FishId:    hitData.GetFishId(),
+					PlayerId:  client.PlayerID,
+					Reward:    hitResult.Reward,
+					Timestamp: time.Now().Unix(),
+				},
+			},
+		}
+		mh.broadcastToRoom(client.RoomID, fishDiedMsg, nil)
+
+		// 廣播玩家獎勵事件
+		rewardMsg := &pb.GameMessage{
+			Type: pb.MessageType_PLAYER_REWARD,
+			Data: &pb.GameMessage_PlayerReward{
+				PlayerReward: &pb.PlayerRewardEvent{
+					PlayerId:  client.PlayerID,
+					Reward:    hitResult.Reward,
+					Timestamp: time.Now().Unix(),
+				},
+			},
+		}
+		mh.broadcastToRoom(client.RoomID, rewardMsg, nil)
+
+		mh.logger.Infof("Player %d killed fish %d in room %s, reward: %d",
+			client.PlayerID, hitData.GetFishId(), client.RoomID, hitResult.Reward)
+	} else {
+		mh.logger.Debugf("Player %d hit fish %d in room %s, damage: %d",
+			client.PlayerID, hitData.GetFishId(), client.RoomID, hitResult.Damage)
+	}
 }
 
 // handleHeartbeat 處理心跳消息
