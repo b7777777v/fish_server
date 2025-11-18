@@ -2,6 +2,7 @@
 log:
   level: "debug" # 可選值: debug, info, warn, error
   format: "json" # 可選值: json, console
+  file_path: "logs/game.log" # 日誌檔案路徑，為空則只輸出到控制台
 
 server:
   game:

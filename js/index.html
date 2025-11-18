@@ -131,7 +131,7 @@
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
             <div><strong>暱稱:</strong> <span id="playerNickname">-</span></div>
             <div><strong>等級:</strong> <span id="playerLevel">-</span></div>
-            <div><strong>金幣:</strong> <span id="playerBalance" style="color: #ffc107; font-weight: bold;">0</span></div>
+            <div><strong>錢包餘額:</strong> <span id="playerBalance" style="color: #ffc107; font-weight: bold;">0</span> <small style="color: #666;">(分)</small></div>
             <div><strong>經驗:</strong> <span id="playerExp">0</span></div>
         </div>
         <button id="refreshPlayerInfoBtn" style="margin-top: 10px;">🔄 刷新資訊</button>
@@ -210,6 +210,7 @@
             <button id="leaveRoomBtn">🚪 離開房間</button>
             <button id="clearLogBtn">🧹 清除日誌</button>
             <button id="testRenderBtn" style="background-color: #ff9800; color: white;">🧪 測試渲染器</button>
+            <button id="testHitFishBtn" style="background-color: #9c27b0; color: white;">🎯 測試擊殺魚（自動）</button>
         </div>
         <p id="fireWarning" style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 4px; font-size: 14px; color: #856404;">
             ⚠️ <strong>請先選擇座位才能開火</strong>

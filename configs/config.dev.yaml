@@ -4,6 +4,7 @@ environment: "dev"
 log:
   level: "debug"
   format: "console" # 開發環境使用 console 格式便於閱讀
+  file_path: "logs/game-dev.log" # 日誌檔案路徑
 
 server:
   game:

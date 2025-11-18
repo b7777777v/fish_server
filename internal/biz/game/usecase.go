@@ -402,6 +402,16 @@ func (gu *GameUsecase) GetPlayerStatistics(ctx context.Context, playerID int64) 
 	return stats, nil
 }
 
+// GetPlayerInfo 獲取玩家信息（包含最新餘額）
+func (gu *GameUsecase) GetPlayerInfo(ctx context.Context, playerID int64) (*Player, error) {
+	player, err := gu.playerRepo.GetPlayer(ctx, playerID)
+	if err != nil {
+		gu.logger.Errorf("Failed to get player %d: %v", playerID, err)
+		return nil, err
+	}
+	return player, nil
+}
+
 // GetGameEvents 獲取遊戲事件
 func (gu *GameUsecase) GetGameEvents(ctx context.Context, roomID string, limit int) ([]*GameEvent, error) {
 	if limit <= 0 {
