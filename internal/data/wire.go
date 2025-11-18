@@ -16,6 +16,7 @@ var ProviderSet = wire.NewSet(
 	NewGamePlayerRepo,
 	NewPlayerRepo,
 	NewWalletRepo,
+	NewGameRecordRepo,
 
 	// Add the new inventory repo provider
 	NewInMemoryInventoryRepo,

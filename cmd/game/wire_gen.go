@@ -25,47 +25,48 @@ import (
 func initApp(config *conf.Config) (*game.GameApp, func(), error) {
 	confData := config.Data
 	log := config.Log
-	v, cleanup, err := logger.NewLogger(log)
+	sugaredLogger, cleanup, err := logger.NewLogger(log)
 	if err != nil {
 		return nil, nil, err
 	}
-	dataData, cleanup2, err := data.NewData(confData, v)
+	dataData, cleanup2, err := data.NewData(confData, sugaredLogger)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	gameRepo := data.NewGameRepo(dataData, v)
-	playerRepo := data.NewGamePlayerRepo(dataData, v)
-	walletRepo := data.NewWalletRepo(dataData, v)
-	walletUsecase := wallet.NewWalletUsecase(walletRepo, v)
+	gameRepo := data.NewGameRepo(dataData, sugaredLogger)
+	playerRepo := data.NewGamePlayerRepo(dataData, sugaredLogger)
+	gameRecordRepo := data.NewGameRecordRepo(dataData, sugaredLogger)
+	walletRepo := data.NewWalletRepo(dataData, sugaredLogger)
+	walletUsecase := wallet.NewWalletUsecase(walletRepo, sugaredLogger)
 	roomConfig := game2.NewDefaultRoomConfig()
-	fishSpawner := game2.NewFishSpawner(v, roomConfig)
-	mathModel := game2.NewMathModel(v)
-	inMemoryInventoryRepo := data.NewInMemoryInventoryRepo(v)
-	inventoryManager, err := game2.NewInventoryManager(inMemoryInventoryRepo, v)
+	fishSpawner := game2.NewFishSpawner(sugaredLogger, roomConfig)
+	mathModel := game2.NewMathModel(sugaredLogger)
+	inMemoryInventoryRepo := data.NewInMemoryInventoryRepo(sugaredLogger)
+	inventoryManager, err := game2.NewInventoryManager(inMemoryInventoryRepo, sugaredLogger)
 	if err != nil {
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
-	rtpController := game2.NewRTPController(inventoryManager, v)
-	roomManager := game2.NewRoomManager(v, fishSpawner, mathModel, inventoryManager, rtpController)
-	gameUsecase := game2.NewGameUsecase(gameRepo, playerRepo, walletUsecase, roomManager, fishSpawner, mathModel, inventoryManager, rtpController, v)
+	rtpController := game2.NewRTPController(inventoryManager, sugaredLogger)
+	roomManager := game2.NewRoomManager(sugaredLogger, fishSpawner, mathModel, inventoryManager, rtpController)
+	gameUsecase := game2.NewGameUsecase(gameRepo, playerRepo, gameRecordRepo, walletUsecase, roomManager, fishSpawner, mathModel, inventoryManager, rtpController, sugaredLogger)
 	dbManager := data.ProvideDBManager(dataData)
 	accountRepo := data.NewAccountRepo(dbManager)
 	jwt := config.JWT
 	client := data.ProvideRedisClient(dataData)
-	tokenCache := redis.NewTokenCache(client, v)
+	tokenCache := redis.NewTokenCache(client, sugaredLogger)
 	tokenHelper := token.ProvideTokenHelper(jwt, tokenCache)
 	oAuthService := account.NewOAuthService()
 	walletCreator := biz.ProvideWalletCreator(walletUsecase)
 	accountUsecase := account.NewAccountUsecase(accountRepo, tokenHelper, oAuthService, walletCreator)
-	playerPlayerRepo := data.NewPlayerRepo(dataData, v)
-	playerUsecase := player.NewPlayerUsecase(playerPlayerRepo, tokenHelper, v)
-	hub := game.NewHub(gameUsecase, playerUsecase, v)
-	webSocketHandler := game.NewWebSocketHandler(hub, tokenHelper, accountUsecase, v)
-	messageHandler := game.NewMessageHandler(gameUsecase, hub, v)
-	gameApp := game.NewGameApp(gameUsecase, accountUsecase, config, v, hub, webSocketHandler, messageHandler)
+	playerPlayerRepo := data.NewPlayerRepo(dataData, sugaredLogger)
+	playerUsecase := player.NewPlayerUsecase(playerPlayerRepo, tokenHelper, sugaredLogger)
+	hub := game.NewHub(gameUsecase, playerUsecase, sugaredLogger)
+	webSocketHandler := game.NewWebSocketHandler(hub, tokenHelper, accountUsecase, sugaredLogger)
+	messageHandler := game.NewMessageHandler(gameUsecase, hub, sugaredLogger)
+	gameApp := game.NewGameApp(gameUsecase, accountUsecase, config, sugaredLogger, hub, webSocketHandler, messageHandler)
 	return gameApp, func() {
 		cleanup2()
 		cleanup()

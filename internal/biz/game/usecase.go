@@ -52,6 +52,7 @@ type PlayerRepo interface {
 type GameUsecase struct {
 	gameRepo         GameRepo
 	playerRepo       PlayerRepo
+	gameRecordRepo   GameRecordRepo
 	walletUC         *wallet.WalletUsecase
 	roomManager      *RoomManager
 	spawner          *FishSpawner
@@ -65,6 +66,7 @@ type GameUsecase struct {
 func NewGameUsecase(
 	gameRepo GameRepo,
 	playerRepo PlayerRepo,
+	gameRecordRepo GameRecordRepo,
 	walletUC *wallet.WalletUsecase,
 	roomManager *RoomManager,
 	spawner *FishSpawner,
@@ -76,6 +78,7 @@ func NewGameUsecase(
 	return &GameUsecase{
 		gameRepo:         gameRepo,
 		playerRepo:       playerRepo,
+		gameRecordRepo:   gameRecordRepo,
 		walletUC:         walletUC,
 		roomManager:      roomManager,
 		spawner:          spawner,
@@ -133,24 +136,42 @@ func (gu *GameUsecase) JoinRoom(ctx context.Context, roomID string, playerID int
 		gu.logger.Errorf("Failed to get player %d: %v", playerID, err)
 		return err
 	}
-	
+
 	// 檢查玩家餘額
 	if player.Balance < 100 { // 最小餘額要求
 		return fmt.Errorf("insufficient balance to join room")
 	}
-	
+
 	// 加入房間
 	if err := gu.roomManager.JoinRoom(roomID, player); err != nil {
 		gu.logger.Errorf("Failed to join room %s: %v", roomID, err)
 		return err
 	}
-	
+
 	// 更新玩家狀態
 	if err := gu.playerRepo.UpdatePlayerStatus(ctx, playerID, PlayerStatusPlaying); err != nil {
 		gu.logger.Errorf("Failed to update player status: %v", err)
 		return err
 	}
-	
+
+	// 創建新的遊戲記錄（如果玩家沒有進行中的遊戲）
+	activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
+	if err != nil {
+		gu.logger.Warnf("Failed to check active game record: %v", err)
+	}
+
+	if activeRecord == nil {
+		// 生成會話ID（可以使用玩家ID + 時間戳）
+		sessionID := fmt.Sprintf("session_%d_%d", playerID, time.Now().Unix())
+		newRecord := NewGameRecord(playerID, roomID, sessionID)
+		if err := gu.gameRecordRepo.Create(ctx, newRecord); err != nil {
+			gu.logger.Errorf("Failed to create game record: %v", err)
+			// 不阻塞加入房間流程，只記錄錯誤
+		} else {
+			gu.logger.Infof("Created game record for player %d: record_id=%d", playerID, newRecord.ID)
+		}
+	}
+
 	// 記錄事件
 	event := &GameEvent{
 		ID:        time.Now().UnixNano(),
@@ -161,7 +182,7 @@ func (gu *GameUsecase) JoinRoom(ctx context.Context, roomID string, playerID int
 		Timestamp: time.Now(),
 	}
 	gu.gameRepo.SaveGameEvent(ctx, event)
-	
+
 	gu.logger.Infof("Player %d joined room %s", playerID, roomID)
 	return nil
 }
@@ -172,12 +193,28 @@ func (gu *GameUsecase) LeaveRoom(ctx context.Context, roomID string, playerID in
 		gu.logger.Errorf("Failed to leave room %s: %v", roomID, err)
 		return err
 	}
-	
+
 	// 更新玩家狀態
 	if err := gu.playerRepo.UpdatePlayerStatus(ctx, playerID, PlayerStatusIdle); err != nil {
 		gu.logger.Errorf("Failed to update player status: %v", err)
 	}
-	
+
+	// 完成遊戲記錄
+	activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
+	if err != nil {
+		gu.logger.Warnf("Failed to find active game record: %v", err)
+	}
+
+	if activeRecord != nil {
+		activeRecord.Finish()
+		if err := gu.gameRecordRepo.Update(ctx, activeRecord); err != nil {
+			gu.logger.Errorf("Failed to finish game record: %v", err)
+		} else {
+			gu.logger.Infof("Finished game record for player %d: record_id=%d, profit=%.2f",
+				playerID, activeRecord.ID, activeRecord.NetProfit)
+		}
+	}
+
 	// 記錄事件
 	event := &GameEvent{
 		ID:        time.Now().UnixNano(),
@@ -187,7 +224,7 @@ func (gu *GameUsecase) LeaveRoom(ctx context.Context, roomID string, playerID in
 		Timestamp: time.Now(),
 	}
 	gu.gameRepo.SaveGameEvent(ctx, event)
-	
+
 	gu.logger.Infof("Player %d left room %s", playerID, roomID)
 	return nil
 }
@@ -222,13 +259,13 @@ func (gu *GameUsecase) FireBullet(ctx context.Context, roomID string, playerID i
 		return nil, fmt.Errorf("invalid bullet power: %d", power)
 	}
 
-	// 發射子彈
+	// 發射子彈（內部會檢查餘額）
 	bullet, err := gu.roomManager.FireBullet(roomID, playerID, direction, power, position)
 	if err != nil {
 		gu.logger.Errorf("Failed to fire bullet: %v", err)
 		return nil, err
 	}
-	
+
 	// 更新玩家餘額到數據庫並創建錢包交易記錄
 	room, _ := gu.roomManager.GetRoom(roomID)
 	if room != nil {
@@ -257,6 +294,20 @@ func (gu *GameUsecase) FireBullet(ctx context.Context, roomID string, playerID i
 					gu.logger.Warnf("Failed to create wallet transaction for bullet cost: %v", err)
 				}
 			}
+
+			// 更新遊戲記錄
+			activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
+			if err != nil {
+				gu.logger.Warnf("Failed to find active game record: %v", err)
+			}
+
+			if activeRecord != nil {
+				bulletCost := float64(bullet.Cost) / 100.0 // 轉換為元
+				activeRecord.RecordBulletFired(bulletCost)
+				if err := gu.gameRecordRepo.Update(ctx, activeRecord); err != nil {
+					gu.logger.Warnf("Failed to update game record: %v", err)
+				}
+			}
 		}
 	}
 
@@ -275,10 +326,10 @@ func (gu *GameUsecase) FireBullet(ctx context.Context, roomID string, playerID i
 		Timestamp: time.Now(),
 	}
 	gu.gameRepo.SaveGameEvent(ctx, event)
-	
-	gu.logger.Debugf("Player %d fired bullet in room %s, power: %d, cost: %d", 
+
+	gu.logger.Debugf("Player %d fired bullet in room %s, power: %d, cost: %d",
 		playerID, roomID, power, bullet.Cost)
-	
+
 	return bullet, nil
 }
 
@@ -290,12 +341,12 @@ func (gu *GameUsecase) HitFish(ctx context.Context, roomID string, bulletID int6
 		gu.logger.Errorf("Failed to process bullet hit: %v", err)
 		return nil, err
 	}
-	
+
 	room, _ := gu.roomManager.GetRoom(roomID)
 	if room == nil {
 		return hitResult, nil
 	}
-	
+
 	// 如果命中成功，更新相關數據
 	if hitResult.Success {
 		// 查找子彈所屬玩家
@@ -306,7 +357,7 @@ func (gu *GameUsecase) HitFish(ctx context.Context, roomID string, bulletID int6
 				break
 			}
 		}
-		
+
 		if playerID > 0 {
 			// 更新玩家餘額到數據庫並創建錢包交易記錄
 			if player, exists := room.Players[playerID]; exists && hitResult.Reward > 0 {
@@ -337,6 +388,20 @@ func (gu *GameUsecase) HitFish(ctx context.Context, roomID string, bulletID int6
 						gu.logger.Warnf("Failed to create wallet transaction for fish reward: %v", err)
 					}
 				}
+
+				// 更新遊戲記錄
+				activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
+				if err != nil {
+					gu.logger.Warnf("Failed to find active game record: %v", err)
+				}
+
+				if activeRecord != nil {
+					reward := float64(hitResult.Reward) / 100.0 // 轉換為元
+					activeRecord.RecordFishCaught(reward, hitResult.IsCritical)
+					if err := gu.gameRecordRepo.Update(ctx, activeRecord); err != nil {
+						gu.logger.Warnf("Failed to update game record: %v", err)
+					}
+				}
 			}
 
 			// 記錄命中事件
@@ -356,7 +421,7 @@ func (gu *GameUsecase) HitFish(ctx context.Context, roomID string, bulletID int6
 				Timestamp: time.Now(),
 			}
 			gu.gameRepo.SaveGameEvent(ctx, event)
-			
+
 			// 如果魚死亡，記錄魚死亡事件
 			if hitResult.Reward > 0 {
 				fishEvent := &GameEvent{
@@ -374,7 +439,7 @@ func (gu *GameUsecase) HitFish(ctx context.Context, roomID string, bulletID int6
 			}
 		}
 	}
-	
+
 	return hitResult, nil
 }
 
