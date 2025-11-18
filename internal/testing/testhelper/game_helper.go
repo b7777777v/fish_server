@@ -19,10 +19,11 @@ type GameTestEnv struct {
 	Log logger.Logger
 
 	// Mocked Repositories
-	GameRepo      *mocks.GameRepo
-	PlayerRepo    *mocks.PlayerRepo
-	WalletRepo    *mocks.WalletRepo
-	InventoryRepo *mocks.InventoryRepo
+	GameRepo       *mocks.GameRepo
+	PlayerRepo     *mocks.PlayerRepo
+	WalletRepo     *mocks.WalletRepo
+	InventoryRepo  *mocks.InventoryRepo
+	GameRecordRepo *mocks.GameRecordRepo
 
 	// Business Logic Components
 	WalletUsecase    *wallet.WalletUsecase
@@ -89,11 +90,21 @@ func NewGameTestEnv(t *testing.T, opts *GameTestEnvOptions) *GameTestEnv {
 		t.Fatalf("Failed to create inventory manager: %v", err)
 	}
 
+	// Create GameRecordRepo mock
+	gameRecordRepo := &mocks.GameRecordRepo{}
+	if !opts.SkipDefaultMocks {
+		// Setup default mock behavior for GameRecordRepo
+		gameRecordRepo.On("FindActiveByUserID", mock.Anything, mock.Anything).Return(nil, nil)
+		gameRecordRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+		gameRecordRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+	}
+
 	rtpController := game.NewRTPController(inventoryManager, log)
 	roomManager := game.NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
 	gameUsecase := game.NewGameUsecase(
 		gameRepo,
 		playerRepo,
+		gameRecordRepo,
 		walletUsecase,
 		roomManager,
 		spawner,
@@ -110,6 +121,7 @@ func NewGameTestEnv(t *testing.T, opts *GameTestEnvOptions) *GameTestEnv {
 		PlayerRepo:       playerRepo,
 		WalletRepo:       walletRepo,
 		InventoryRepo:    inventoryRepo,
+		GameRecordRepo:   gameRecordRepo,
 		WalletUsecase:    walletUsecase,
 		Spawner:          spawner,
 		MathModel:        mathModel,
