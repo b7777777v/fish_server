@@ -1,6 +1,7 @@
 package game
 
 import (
+	"errors"
 	"os"
 	"sync"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/b7777777v/fish_server/internal/pkg/token"
 	pb "github.com/b7777777v/fish_server/pkg/pb/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,7 +51,14 @@ func TestChannelBuffers(t *testing.T) {
 	roomManager := game.NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
 	walletRepo := &MockWalletRepo{}
 	walletUC := wallet.NewWalletUsecase(walletRepo, log)
-	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
+
+	// Create MockGameRecordRepo
+	gameRecordRepo := &MockGameRecordRepo{}
+	gameRecordRepo.On("FindActiveByUserID", mock.Anything, mock.Anything).Return(nil, errors.New("not found"))
+	gameRecordRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+	gameRecordRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+
+	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, gameRecordRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
 
 	t.Run("Hub channels have buffers", func(t *testing.T) {
 		hub := NewHub(gameUsecase, playerUsecase, log)
@@ -119,7 +128,14 @@ func TestNoChannelBlocking(t *testing.T) {
 	roomManager := game.NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
 	walletRepo := &MockWalletRepo{}
 	walletUC := wallet.NewWalletUsecase(walletRepo, log)
-	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
+
+	// Create MockGameRecordRepo
+	gameRecordRepo2 := &MockGameRecordRepo{}
+	gameRecordRepo2.On("FindActiveByUserID", mock.Anything, mock.Anything).Return(nil, errors.New("not found"))
+	gameRecordRepo2.On("Create", mock.Anything, mock.Anything).Return(nil)
+	gameRecordRepo2.On("Update", mock.Anything, mock.Anything).Return(nil)
+
+	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, gameRecordRepo2, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
 
 	t.Run("Hub can handle burst of messages without blocking", func(t *testing.T) {
 		hub := NewHub(gameUsecase, playerUsecase, log)
