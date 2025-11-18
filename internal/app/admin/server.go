@@ -82,13 +82,21 @@ func (s *Server) setupMiddleware() {
 	s.engine.Use(gin.Recovery())
 	
 	// CORS 中間件
-	s.engine.Use(s.corsMiddleware())
+    s.engine.Use(s.corsMiddleware())
 	
 	// 安全標頭中間件
-	s.engine.Use(s.securityHeadersMiddleware())
+    s.engine.Use(s.securityHeadersMiddleware())
 	
 	// 請求大小限制中間件
-	s.engine.Use(s.requestSizeLimitMiddleware(1 << 20)) // 1MB
+    maxSize := int64(1 << 20)
+    if s.service != nil && s.service.config != nil && s.service.config.Security != nil {
+        if s.service.config.Security.MaxRequestSize != "" {
+            if v, ok := parseSize(s.service.config.Security.MaxRequestSize); ok {
+                maxSize = v
+            }
+        }
+    }
+    s.engine.Use(s.requestSizeLimitMiddleware(maxSize))
 }
 
 // setupRoutes 設置路由
@@ -148,12 +156,34 @@ func (s *Server) ginLogger() gin.HandlerFunc {
 
 // corsMiddleware CORS 中間件
 func (s *Server) corsMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
-		c.Header("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers")
-		c.Header("Access-Control-Allow-Credentials", "true")
+    return func(c *gin.Context) {
+        origin := c.Request.Header.Get("Origin")
+        allowOrigins := []string{"*"}
+        allowCredentials := true
+        if s.service != nil && s.service.config != nil && s.service.config.CORS != nil {
+            if len(s.service.config.CORS.AllowOrigins) > 0 {
+                allowOrigins = s.service.config.CORS.AllowOrigins
+            }
+            allowCredentials = s.service.config.CORS.AllowCredentials
+        }
+        allowed := "*"
+        if len(allowOrigins) == 1 && allowOrigins[0] == "*" {
+            allowed = "*"
+        } else if origin != "" {
+            for _, o := range allowOrigins {
+                if o == origin {
+                    allowed = origin
+                    break
+                }
+            }
+        }
+        c.Header("Access-Control-Allow-Origin", allowed)
+        c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
+        c.Header("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers")
+        if allowCredentials {
+            c.Header("Access-Control-Allow-Credentials", "true")
+        }
 		
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)
@@ -166,18 +196,24 @@ func (s *Server) corsMiddleware() gin.HandlerFunc {
 
 // securityHeadersMiddleware 安全標頭中間件
 func (s *Server) securityHeadersMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-Frame-Options", "DENY")
-		c.Header("X-XSS-Protection", "1; mode=block")
-		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+    return func(c *gin.Context) {
+        enable := true
+        if s.service != nil && s.service.config != nil && s.service.config.Security != nil {
+            enable = s.service.config.Security.EnableSecureHeaders
+        }
+        if enable {
+            c.Header("X-Content-Type-Options", "nosniff")
+            c.Header("X-Frame-Options", "DENY")
+            c.Header("X-XSS-Protection", "1; mode=block")
+            c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+        }
 
 		// 對於測試客戶端，放寬 CSP 策略以允許 WebSocket 連接和腳本執行
-		if len(c.Request.URL.Path) >= 12 && c.Request.URL.Path[:12] == "/test-client" {
-			c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; img-src 'self' data:")
-		} else {
-			c.Header("Content-Security-Policy", "default-src 'self'")
-		}
+        if len(c.Request.URL.Path) >= 12 && c.Request.URL.Path[:12] == "/test-client" {
+            c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; img-src 'self' data:")
+        } else if enable {
+            c.Header("Content-Security-Policy", "default-src 'self'")
+        }
 
 		c.Next()
 	}
@@ -282,4 +318,39 @@ func (s *Server) GetAddr() string {
 		return s.server.Addr
 	}
 	return fmt.Sprintf(":%d", s.conf.Admin.Port)
+}
+
+func parseSize(sv string) (int64, bool) {
+    var mul int64 = 1
+    n := len(sv)
+    if n == 0 {
+        return 0, false
+    }
+    unit := ""
+    i := n - 1
+    for i >= 0 && ((sv[i] >= 'A' && sv[i] <= 'Z') || (sv[i] >= 'a' && sv[i] <= 'z')) {
+        i--
+    }
+    unit = sv[i+1:]
+    num := sv[:i+1]
+    switch unit {
+    case "B", "b", "":
+        mul = 1
+    case "KB", "kb", "Kb", "kB":
+        mul = 1 << 10
+    case "MB", "mb", "Mb", "mB":
+        mul = 1 << 20
+    case "GB", "gb", "Gb", "gB":
+        mul = 1 << 30
+    default:
+        mul = 1
+    }
+    var v int64 = 0
+    for j := 0; j < len(num); j++ {
+        if num[j] < '0' || num[j] > '9' {
+            return 0, false
+        }
+        v = v*10 + int64(num[j]-'0')
+    }
+    return v * mul, true
 }

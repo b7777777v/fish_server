@@ -28,3 +28,9 @@ jwt:
   secret: "your-super-secret-key" # 務必修改成一個複雜的密鑰
   issuer: "fish_server" # token 發行者
   expire: 7200 # token 過期時間，單位為秒 (例如 7200 表示 2 小時)
+
+game:
+  prebuilt_rooms:
+    - type: "novice"
+      max_players: 4
+      count: 1

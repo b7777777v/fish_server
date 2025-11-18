@@ -1,18 +1,21 @@
 package game
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"strings"
-	"time"
-
-	"github.com/b7777777v/fish_server/internal/biz/account"
-	"github.com/b7777777v/fish_server/internal/pkg/logger"
-	"github.com/b7777777v/fish_server/internal/pkg/token"
-	pb "github.com/b7777777v/fish_server/pkg/pb/v1"
-	"github.com/gorilla/websocket"
-	"google.golang.org/protobuf/proto"
+    "encoding/json"
+    "fmt"
+    "net"
+    "net/http"
+    "net/url"
+    "strings"
+    "time"
+    
+    "github.com/b7777777v/fish_server/internal/biz/account"
+    "github.com/b7777777v/fish_server/internal/conf"
+    "github.com/b7777777v/fish_server/internal/pkg/logger"
+    "github.com/b7777777v/fish_server/internal/pkg/token"
+    pb "github.com/b7777777v/fish_server/pkg/pb/v1"
+    "github.com/gorilla/websocket"
+    "google.golang.org/protobuf/proto"
 )
 
 // ========================================
@@ -28,12 +31,30 @@ const (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		// 在生產環境中應該檢查來源
-		return true
-	},
+    ReadBufferSize:  1024,
+    WriteBufferSize: 1024,
+    CheckOrigin: func(r *http.Request) bool {
+        origin := r.Header.Get("Origin")
+        if origin == "" {
+            return true
+        }
+        // dev 環境放行
+        env := conf.GetEnvironment()
+        if env == "dev" || env == "development" {
+            return true
+        }
+        // 比對 hostname，忽略 port 差異
+        u, err := url.Parse(origin)
+        if err != nil {
+            return false
+        }
+        reqHost := r.Host
+        hostOnly := reqHost
+        if h, _, e := net.SplitHostPort(reqHost); e == nil {
+            hostOnly = h
+        }
+        return u.Hostname() == hostOnly
+    },
 }
 
 // Client 表示一個 WebSocket 客戶端連接
@@ -424,28 +445,25 @@ func (c *Client) handleBinaryMessage(message []byte) {
 		return
 	}
 
-	// 添加消息處理超時機制
-	done := make(chan bool, 1)
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				c.logger.Errorf("Recovered from panic in message handler: %v", r)
-				c.sendErrorPB("Error processing message")
-			}
-			done <- true
-		}()
-
-		c.handleMessageByType(&gameMsg)
-	}()
-
-	// 5秒超時
-	select {
-	case <-done:
-		// 處理完成
-	case <-time.After(5 * time.Second):
-		c.logger.Errorf("Message processing timeout for type: %v", gameMsg.Type)
-		c.sendErrorPB("Message processing timeout")
-	}
+    // 使用集中式 MessageHandler 處理，確保業務流程（錢包、紀錄）一致
+    handler := NewMessageHandler(c.hub.gameUsecase, c.hub, c.logger)
+    done := make(chan struct{}, 1)
+    go func() {
+        defer func() {
+            if r := recover(); r != nil {
+                c.logger.Errorf("Recovered from panic in centralized MessageHandler: %v", r)
+                c.sendErrorPB("Error processing message")
+            }
+            close(done)
+        }()
+        handler.HandleMessage(c, &gameMsg)
+    }()
+    select {
+    case <-done:
+    case <-time.After(5 * time.Second):
+        c.logger.Errorf("Message processing timeout for type: %v", gameMsg.Type)
+        c.sendErrorPB("Message processing timeout")
+    }
 }
 
 // handleMessageByType 根據消息類型處理消息
@@ -600,33 +618,20 @@ func (c *Client) sendErrorPB(message string) {
 
 // handleGetRoomList 處理獲取房間列表請求
 func (c *Client) handleGetRoomList(msg *pb.GameMessage) {
-	// 創建模擬房間列表
-	roomList := []*pb.RoomInfo{
-		{
-			RoomId:      "101",
-			Name:        "初級房間",
-			Type:        "normal",
-			PlayerCount: 2,
-			MaxPlayers:  4,
-			Status:      "active",
-		},
-		{
-			RoomId:      "102",
-			Name:        "中級房間",
-			Type:        "medium",
-			PlayerCount: 1,
-			MaxPlayers:  4,
-			Status:      "active",
-		},
-		{
-			RoomId:      "103",
-			Name:        "高級房間",
-			Type:        "hard",
-			PlayerCount: 0,
-			MaxPlayers:  4,
-			Status:      "active",
-		},
-	}
+    var roomList []*pb.RoomInfo
+    c.hub.mu.RLock()
+    for roomID, rm := range c.hub.roomManagers {
+        info := &pb.RoomInfo{
+            RoomId:      roomID,
+            Name:        roomID,
+            Type:        "normal",
+            PlayerCount: int32(len(c.hub.rooms[roomID])),
+            MaxPlayers:  int32(rm.gameState.MaxPlayers),
+            Status:      rm.gameState.Status,
+        }
+        roomList = append(roomList, info)
+    }
+    c.hub.mu.RUnlock()
 
 	responseMsg := &pb.GameMessage{
 		Type: pb.MessageType_ROOM_LIST_RESPONSE,

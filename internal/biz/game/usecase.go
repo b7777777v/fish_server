@@ -628,3 +628,8 @@ func (gu *GameUsecase) TriggerSpecialFormationEvent(multiplier float64, duration
 	gu.spawner.TriggerSpecialEvent(multiplier, duration)
 	gu.logger.Infof("Triggered special formation event: multiplier=%.2f, duration=%v", multiplier, duration)
 }
+
+// GetRoomsFromDB 直接從資料庫獲取房間列表（按類型）
+func (gu *GameUsecase) GetRoomsFromDB(ctx context.Context, roomType RoomType) ([]*Room, error) {
+    return gu.gameRepo.ListRooms(ctx, roomType)
+}

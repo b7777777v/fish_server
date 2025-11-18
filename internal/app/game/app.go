@@ -1,17 +1,18 @@
 package game
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/pprof"
-	"time"
+    "context"
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "net/http/pprof"
+    "time"
 
-	"github.com/b7777777v/fish_server/internal/biz/account"
-	"github.com/b7777777v/fish_server/internal/biz/game"
-	"github.com/b7777777v/fish_server/internal/conf"
-	"github.com/b7777777v/fish_server/internal/pkg/logger"
+    "github.com/b7777777v/fish_server/internal/biz/account"
+    "github.com/b7777777v/fish_server/internal/biz/game"
+    "github.com/b7777777v/fish_server/internal/conf"
+    "github.com/b7777777v/fish_server/internal/pkg/logger"
+    "strings"
 )
 
 // =======================================
@@ -83,6 +84,41 @@ func NewGameApp(
 		}
 	}()
 
+	go func() {
+		ctx := context.Background()
+		if app.config != nil && app.config.Game != nil {
+			for _, pr := range app.config.Game.PrebuiltRooms {
+				var rt game.RoomType
+				switch strings.ToLower(pr.Type) {
+				case "novice":
+					rt = game.RoomTypeNovice
+				case "intermediate":
+					rt = game.RoomTypeIntermediate
+				case "advanced":
+					rt = game.RoomTypeAdvanced
+				case "vip":
+					rt = game.RoomTypeVIP
+				default:
+					app.logger.Warnf("Unknown prebuilt room type: %s", pr.Type)
+					continue
+				}
+				count := pr.Count
+				if count <= 0 { count = 1 }
+				existing, err := app.gameUsecase.GetRoomsFromDB(ctx, rt)
+				if err != nil {
+					app.logger.Errorf("Failed to list rooms from DB for type=%s: %v", pr.Type, err)
+					continue
+				}
+				missing := count - len(existing)
+				for i := 0; i < missing; i++ {
+					if _, err := app.gameUsecase.CreateRoom(ctx, rt, pr.MaxPlayers); err != nil {
+						app.logger.Errorf("Failed to create prebuilt room: type=%s, err=%v", pr.Type, err)
+					}
+				}
+			}
+		}
+	}()
+
 	return app
 }
 
@@ -133,12 +169,34 @@ func (app *GameApp) setupHTTPServer() {
 
 // corsMiddleware CORS 中間件
 func (app *GameApp) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
-		w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        origin := r.Header.Get("Origin")
+        allowOrigins := []string{"*"}
+        allowCredentials := true
+        if app.config != nil && app.config.CORS != nil {
+            if len(app.config.CORS.AllowOrigins) > 0 {
+                allowOrigins = app.config.CORS.AllowOrigins
+            }
+            allowCredentials = app.config.CORS.AllowCredentials
+        }
+        allowed := "*"
+        if len(allowOrigins) == 1 && allowOrigins[0] == "*" {
+            allowed = "*"
+        } else if origin != "" {
+            for _, o := range allowOrigins {
+                if o == origin {
+                    allowed = origin
+                    break
+                }
+            }
+        }
+        w.Header().Set("Access-Control-Allow-Origin", allowed)
+        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
+        w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers")
+        if allowCredentials {
+            w.Header().Set("Access-Control-Allow-Credentials", "true")
+        }
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusNoContent)
@@ -146,7 +204,7 @@ func (app *GameApp) corsMiddleware(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, r)
-	})
+    })
 }
 
 // respondJSON is a helper to write JSON responses

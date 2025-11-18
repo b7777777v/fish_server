@@ -226,24 +226,31 @@ func (h *Hub) handleRegister(client *Client) {
 
 // handleUnregister 處理客戶端註銷
 func (h *Hub) handleUnregister(client *Client) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+    h.mu.Lock()
+    defer h.mu.Unlock()
 
-	if _, ok := h.clients[client]; ok {
-		// 從全局客戶端列表移除
-		delete(h.clients, client)
-		close(client.send)
+    if _, ok := h.clients[client]; ok {
+        // 從全局客戶端列表移除
+        delete(h.clients, client)
+        close(client.send)
 
-		// 從房間移除
-		if client.RoomID != "" {
-			h.removeClientFromRoom(client, client.RoomID)
-		}
+        // 從房間移除
+        if client.RoomID != "" {
+            // 調用業務邏輯以確保結算與紀錄完成
+            go func(roomID string, playerID int64) {
+                if roomID == "" || playerID == 0 {
+                    return
+                }
+                _ = h.gameUsecase.LeaveRoom(context.Background(), roomID, playerID)
+            }(client.RoomID, client.PlayerID)
+            h.removeClientFromRoom(client, client.RoomID)
+        }
 
 		h.stats.ActiveConnections = len(h.clients)
 		h.stats.LastActivity = time.Now()
 
 		h.logger.Infof("Client unregistered: %s (total: %d)", client.ID, len(h.clients))
-	}
+    }
 }
 
 // handleJoinRoom 處理加入房間

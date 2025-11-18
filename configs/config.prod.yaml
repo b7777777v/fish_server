@@ -41,6 +41,18 @@ jwt:
   issuer: "fish_server_production"
   expire: 3600               # 1小時，生產環境較短
 
+game:
+  prebuilt_rooms:
+    - type: "novice"
+      max_players: 4
+      count: 2
+    - type: "intermediate"
+      max_players: 4
+      count: 2
+    - type: "advanced"
+      max_players: 4
+      count: 1
+
 # 生產環境安全設置
 cors:
   allow_origins: ["https://fishserver.com", "https://admin.fishserver.com"]

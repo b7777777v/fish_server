@@ -45,6 +45,18 @@ jwt:
   issuer: "fish_server_dev"
   expire: 86400 # 24小時，開發環境較長
 
+game:
+  prebuilt_rooms:
+    - type: "novice"
+      max_players: 4
+      count: 2
+    - type: "intermediate"
+      max_players: 4
+      count: 1
+    - type: "advanced"
+      max_players: 4
+      count: 1
+
 # 開發環境特定設置
 cors:
   allow_origins: ["*"] # 開發環境允許所有來源

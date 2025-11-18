@@ -41,6 +41,15 @@ jwt:
   issuer: "fish_server_staging"
   expire: 7200               # 2小時
 
+game:
+  prebuilt_rooms:
+    - type: "novice"
+      max_players: 4
+      count: 2
+    - type: "intermediate"
+      max_players: 4
+      count: 1
+
 # Staging 環境安全設置
 cors:
   allow_origins: ["https://staging.fishserver.com", "https://admin-staging.fishserver.com"]

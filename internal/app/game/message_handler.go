@@ -221,72 +221,65 @@ func (mh *MessageHandler) handleSwitchCannon(client *Client, message *pb.GameMes
 
 // handleJoinRoom 處理加入房間消息
 func (mh *MessageHandler) handleJoinRoom(client *Client, message *pb.GameMessage) {
-	joinData := message.GetJoinRoom()
-	if joinData == nil {
-		mh.sendErrorResponse(client, "Invalid join room data")
-		return
-	}
-	
-	roomID := joinData.RoomId
-	if roomID == "" {
-		mh.sendErrorResponse(client, "Room ID is required")
-		return
-	}
-	
-	// 調用業務邏輯
-	ctx := context.Background()
-	err := mh.gameUsecase.JoinRoom(ctx, roomID, client.PlayerID)
-	if err != nil {
-		mh.logger.Errorf("Failed to join room: %v", err)
-		mh.sendErrorResponse(client, "Failed to join room")
-		return
-	}
-	
-	// 更新客戶端房間ID
-	client.RoomID = roomID
-	
-	// 通知 Hub
-	mh.hub.joinRoom <- &JoinRoomMessage{
-		Client: client,
-		RoomID: roomID,
-	}
-	
-	// 獲取房間信息以獲取正確的玩家數量
-	room, err := mh.gameUsecase.GetRoom(ctx, roomID)
-	if err != nil {
-		mh.logger.Errorf("Failed to get room info after join: %v", err)
-	}
-	
-	playerCount := int32(1)
-	if room != nil {
-		playerCount = int32(len(room.Players))
-	}
-	
-	// 發送響應
-	response := &pb.GameMessage{
-		Type: pb.MessageType_JOIN_ROOM_RESPONSE,
-		Data: &pb.GameMessage_JoinRoomResponse{
-			JoinRoomResponse: &pb.JoinRoomResponse{
-				Success:     true,
-				RoomId:      roomID,
-				Timestamp:   time.Now().Unix(),
-				PlayerCount: playerCount,
-			},
-		},
-	}
-	
-	client.sendProtobuf(response)
-	
-	// 立即發送一次房間狀態更新
-	go mh.broadcastRoomState(roomID)
-	
-	// 如果這是房間的第一個玩家，啟動定期狀態更新
-	if playerCount == 1 {
-		go mh.StartRoomStateUpdates(roomID)
-		mh.logger.Infof("Started room state updates for room %s", roomID)
-	}
-	
-	mh.logger.Infof("Player %d joined room %s", client.PlayerID, roomID)
+    joinData := message.GetJoinRoom()
+    if joinData == nil {
+        mh.sendErrorResponse(client, "Invalid join room data")
+        return
+    }
+    
+    roomID := joinData.RoomId
+    if roomID == "" {
+        mh.sendErrorResponse(client, "Room ID is required")
+        return
+    }
+    
+    ctx := context.Background()
+    if client.PlayerID != 0 {
+        if err := mh.gameUsecase.JoinRoom(ctx, roomID, client.PlayerID); err != nil {
+            mh.logger.Errorf("Failed to join room: %v", err)
+            mh.sendErrorResponse(client, "Failed to join room")
+            return
+        }
+    }
+    
+    client.RoomID = roomID
+    mh.hub.joinRoom <- &JoinRoomMessage{Client: client, RoomID: roomID}
+    
+    room, err := mh.gameUsecase.GetRoom(ctx, roomID)
+    if err != nil {
+        mh.logger.Errorf("Failed to get room info after join: %v", err)
+    }
+    playerCount := int32(1)
+    if room != nil {
+        playerCount = int32(len(room.Players))
+    } else {
+        mh.hub.mu.RLock()
+        if clients, ok := mh.hub.rooms[roomID]; ok {
+            playerCount = int32(len(clients))
+        }
+        mh.hub.mu.RUnlock()
+    }
+    
+    response := &pb.GameMessage{
+        Type: pb.MessageType_JOIN_ROOM_RESPONSE,
+        Data: &pb.GameMessage_JoinRoomResponse{
+            JoinRoomResponse: &pb.JoinRoomResponse{
+                Success:     true,
+                RoomId:      roomID,
+                Timestamp:   time.Now().Unix(),
+                PlayerCount: playerCount,
+            },
+        },
+    }
+    client.sendProtobuf(response)
+    
+    go mh.broadcastRoomState(roomID)
+    if playerCount == 1 {
+        go mh.StartRoomStateUpdates(roomID)
+        mh.logger.Infof("Started room state updates for room %s", roomID)
+    }
+    
+    mh.logger.Infof("Player %d joined room %s", client.PlayerID, roomID)
 }
 
 // handleLeaveRoom 處理離開房間消息
@@ -478,44 +471,56 @@ func (mh *MessageHandler) handleGetRoomList(client *Client, message *pb.GameMess
 
 // handleGetPlayerInfo 處理獲取玩家信息消息
 func (mh *MessageHandler) handleGetPlayerInfo(client *Client, message *pb.GameMessage) {
-	ctx := context.Background()
-
-	// 從資料庫獲取最新的玩家信息
-	player, err := mh.gameUsecase.GetPlayerInfo(ctx, client.PlayerID)
-	if err != nil {
-		mh.logger.Errorf("Failed to get player info: %v", err)
-		mh.sendErrorResponse(client, "Failed to get player info")
-		return
-	}
-
-	// 獲取座位ID（如果在房間中）
-	seatID := int32(-1)
-	if client.RoomID != "" {
-		room, err := mh.gameUsecase.GetRoom(ctx, client.RoomID)
-		if err == nil && room != nil {
-			seatID = int32(room.GetPlayerSeat(client.PlayerID))
-		}
-	}
-
-	response := &pb.GameMessage{
-		Type: pb.MessageType_PLAYER_INFO_RESPONSE,
-		Data: &pb.GameMessage_PlayerInfoResponse{
-			PlayerInfoResponse: &pb.PlayerInfoResponse{
-				PlayerId:  client.PlayerID,
-				Nickname:  player.Nickname,
-				Balance:   player.Balance, // 真實餘額
-				Level:     1,               // TODO: 從資料庫獲取
-				Exp:       0,               // TODO: 從資料庫獲取
-				RoomId:    client.RoomID,
-				SeatId:    seatID,
-				Timestamp: time.Now().Unix(),
-			},
-		},
-	}
-
-	client.sendProtobuf(response)
-
-	mh.logger.Debugf("Sent player info: player=%d, balance=%d", client.PlayerID, player.Balance)
+    ctx := context.Background()
+    var nickname string
+    var balance int64
+    seatID := int32(-1)
+    if client.PlayerID == 0 {
+        nickname = client.ID
+        if client.RoomID != "" {
+            mh.hub.mu.RLock()
+            rm := mh.hub.roomManagers[client.RoomID]
+            if rm != nil {
+                if pi, ok := rm.gameState.Players[client.ID]; ok {
+                    balance = pi.Balance
+                    seatID = int32(pi.SeatID)
+                }
+            }
+            mh.hub.mu.RUnlock()
+        }
+    } else {
+        player, err := mh.gameUsecase.GetPlayerInfo(ctx, client.PlayerID)
+        if err != nil {
+            mh.logger.Errorf("Failed to get player info: %v", err)
+            mh.sendErrorResponse(client, "Failed to get player info")
+            return
+        }
+        nickname = player.Nickname
+        balance = player.Balance
+        if client.RoomID != "" {
+            room, err := mh.gameUsecase.GetRoom(ctx, client.RoomID)
+            if err == nil && room != nil {
+                seatID = int32(room.GetPlayerSeat(client.PlayerID))
+            }
+        }
+    }
+    response := &pb.GameMessage{
+        Type: pb.MessageType_PLAYER_INFO_RESPONSE,
+        Data: &pb.GameMessage_PlayerInfoResponse{
+            PlayerInfoResponse: &pb.PlayerInfoResponse{
+                PlayerId:  client.PlayerID,
+                Nickname:  nickname,
+                Balance:   balance,
+                Level:     1,
+                Exp:       0,
+                RoomId:    client.RoomID,
+                SeatId:    seatID,
+                Timestamp: time.Now().Unix(),
+            },
+        },
+    }
+    client.sendProtobuf(response)
+    mh.logger.Debugf("Sent player info: player=%d, balance=%d", client.PlayerID, balance)
 }
 
 // sendErrorResponse 發送錯誤響應
@@ -784,42 +789,53 @@ func (mh *MessageHandler) StartRoomStateUpdates(roomID string) {
 
 // sendPlayerInfoUpdate 發送玩家資訊更新（用於餘額變動後）
 func (mh *MessageHandler) sendPlayerInfoUpdate(client *Client) {
-	ctx := context.Background()
-
-	// 從資料庫獲取最新的玩家信息
-	player, err := mh.gameUsecase.GetPlayerInfo(ctx, client.PlayerID)
-	if err != nil {
-		mh.logger.Errorf("Failed to get player info for update: %v", err)
-		return
-	}
-
-	// 獲取座位ID（如果在房間中）
-	seatID := int32(-1)
-	if client.RoomID != "" {
-		room, err := mh.gameUsecase.GetRoom(ctx, client.RoomID)
-		if err == nil && room != nil {
-			seatID = int32(room.GetPlayerSeat(client.PlayerID))
-		}
-	}
-
-	// 發送更新的玩家資訊
-	response := &pb.GameMessage{
-		Type: pb.MessageType_PLAYER_INFO_RESPONSE,
-		Data: &pb.GameMessage_PlayerInfoResponse{
-			PlayerInfoResponse: &pb.PlayerInfoResponse{
-				PlayerId:  client.PlayerID,
-				Nickname:  player.Nickname,
-				Balance:   player.Balance, // 最新餘額
-				Level:     1,
-				Exp:       0,
-				RoomId:    client.RoomID,
-				SeatId:    seatID,
-				Timestamp: time.Now().Unix(),
-			},
-		},
-	}
-
-	client.sendProtobuf(response)
-
-	mh.logger.Debugf("Sent player info update: player=%d, balance=%d", client.PlayerID, player.Balance)
+    ctx := context.Background()
+    var nickname string
+    var balance int64
+    seatID := int32(-1)
+    if client.PlayerID == 0 {
+        nickname = client.ID
+        if client.RoomID != "" {
+            mh.hub.mu.RLock()
+            rm := mh.hub.roomManagers[client.RoomID]
+            if rm != nil {
+                if pi, ok := rm.gameState.Players[client.ID]; ok {
+                    balance = pi.Balance
+                    seatID = int32(pi.SeatID)
+                }
+            }
+            mh.hub.mu.RUnlock()
+        }
+    } else {
+        player, err := mh.gameUsecase.GetPlayerInfo(ctx, client.PlayerID)
+        if err != nil {
+            mh.logger.Errorf("Failed to get player info for update: %v", err)
+            return
+        }
+        nickname = player.Nickname
+        balance = player.Balance
+        if client.RoomID != "" {
+            room, err := mh.gameUsecase.GetRoom(ctx, client.RoomID)
+            if err == nil && room != nil {
+                seatID = int32(room.GetPlayerSeat(client.PlayerID))
+            }
+        }
+    }
+    response := &pb.GameMessage{
+        Type: pb.MessageType_PLAYER_INFO_RESPONSE,
+        Data: &pb.GameMessage_PlayerInfoResponse{
+            PlayerInfoResponse: &pb.PlayerInfoResponse{
+                PlayerId:  client.PlayerID,
+                Nickname:  nickname,
+                Balance:   balance,
+                Level:     1,
+                Exp:       0,
+                RoomId:    client.RoomID,
+                SeatId:    seatID,
+                Timestamp: time.Now().Unix(),
+            },
+        },
+    }
+    client.sendProtobuf(response)
+    mh.logger.Debugf("Sent player info update: player=%d, balance=%d", client.PlayerID, balance)
 }

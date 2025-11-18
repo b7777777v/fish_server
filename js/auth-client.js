@@ -1,10 +1,15 @@
 // Auth Client - 處理認證和錢包管理
 
 // API 配置
-const API_CONFIG = {
-    adminBaseURL: 'http://localhost:6060',
-    gameServerURL: 'ws://localhost:9090/ws',
-};
+const API_CONFIG = (() => {
+    const qs = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+    const lsAdmin = typeof localStorage !== 'undefined' ? localStorage.getItem('admin_base_url') : null
+    const lsGame = typeof localStorage !== 'undefined' ? localStorage.getItem('game_ws_url') : null
+    const envCfg = typeof window !== 'undefined' && window.__FISH_CONFIG__ ? window.__FISH_CONFIG__ : {}
+    const admin = qs.get('admin') || lsAdmin || envCfg.adminBaseURL || 'http://localhost:6060'
+    const game = qs.get('game') || lsGame || envCfg.gameServerURL || 'ws://localhost:9090/ws'
+    return { adminBaseURL: admin, gameServerURL: game }
+})();
 
 // 應用狀態
 const appState = {

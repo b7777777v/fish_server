@@ -8,15 +8,16 @@ import (
 
 // Config 是所有配置的集合
 type Config struct {
-	Environment string    `mapstructure:"environment"`
-	Server      *Server   `mapstructure:"server"`
-	Data        *Data     `mapstructure:"data"`
-	JWT         *JWT      `mapstructure:"jwt"`
-	Log         *Log      `mapstructure:"log"`
-	Debug       *Debug    `mapstructure:"debug"`
-	CORS        *CORS     `mapstructure:"cors"`
-	RateLimit   *RateLimit `mapstructure:"rate_limit"`
-	Security    *Security `mapstructure:"security"`
+    Environment string    `mapstructure:"environment"`
+    Server      *Server   `mapstructure:"server"`
+    Data        *Data     `mapstructure:"data"`
+    JWT         *JWT      `mapstructure:"jwt"`
+    Log         *Log      `mapstructure:"log"`
+    Debug       *Debug    `mapstructure:"debug"`
+    CORS        *CORS     `mapstructure:"cors"`
+    RateLimit   *RateLimit `mapstructure:"rate_limit"`
+    Security    *Security `mapstructure:"security"`
+    Game        *Game     `mapstructure:"game"`
 }
 
 type Server struct {
@@ -117,9 +118,21 @@ type RateLimit struct {
 
 // Security 安全配置
 type Security struct {
-	EnableCSRF         bool   `mapstructure:"enable_csrf"`
-	EnableSecureHeaders bool   `mapstructure:"enable_secure_headers"`
-	MaxRequestSize     string `mapstructure:"max_request_size"`
+    EnableCSRF         bool   `mapstructure:"enable_csrf"`
+    EnableSecureHeaders bool   `mapstructure:"enable_secure_headers"`
+    MaxRequestSize     string `mapstructure:"max_request_size"`
+}
+
+// Game 遊戲相關配置
+type Game struct {
+    PrebuiltRooms []PrebuiltRoom `mapstructure:"prebuilt_rooms"`
+}
+
+// PrebuiltRoom 預建房間配置
+type PrebuiltRoom struct {
+    Type       string `mapstructure:"type"`
+    MaxPlayers int32  `mapstructure:"max_players"`
+    Count      int    `mapstructure:"count"`
 }
 
 // NewConfig 創建並加載配置
@@ -196,9 +209,12 @@ func setDefaultValues(c *Config) {
 	if c.RateLimit == nil {
 		c.RateLimit = &RateLimit{}
 	}
-	if c.Security == nil {
-		c.Security = &Security{}
-	}
+    if c.Security == nil {
+        c.Security = &Security{}
+    }
+    if c.Game == nil {
+        c.Game = &Game{}
+    }
 	
 	// 根據環境設置默認值
 	switch c.Environment {

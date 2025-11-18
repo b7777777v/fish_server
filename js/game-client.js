@@ -74,8 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- WebSocket 相關 ---
-    const WEBSOCKET_URL = 'ws://localhost:9090/ws';
-    const API_BASE_URL = 'http://localhost:9090';
+    const __cfg = (() => {
+        const qs = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+        const lsWs = typeof localStorage !== 'undefined' ? localStorage.getItem('game_ws_url') : null
+        const lsApi = typeof localStorage !== 'undefined' ? localStorage.getItem('game_api_base') : null
+        const envCfg = typeof window !== 'undefined' && window.__FISH_CONFIG__ ? window.__FISH_CONFIG__ : {}
+        const ws = qs.get('game') || lsWs || envCfg.gameServerURL || 'ws://localhost:9090/ws'
+        const api = qs.get('api') || lsApi || envCfg.gameApiBase || 'http://localhost:9090'
+        return { ws, api }
+    })()
+    const WEBSOCKET_URL = __cfg.ws;
+    const API_BASE_URL = __cfg.api;
     let socket = null;
     let heartbeatInterval = null;
     let authToken = null; // JWT token for guest mode
@@ -434,8 +443,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case MessageType.ROOM_LIST_RESPONSE:
                 const roomListResp = gameMessage.getRoomListResponse();
-                log(`收到房間列表: ${roomListResp.getRoomsList().length} 個房間`);
-                displayRoomList(roomListResp.getRoomsList());
+                const rooms = roomListResp.getRoomsList();
+                lastRooms = rooms;
+                log(`收到房間列表: ${rooms.length} 個房間`);
+                displayRoomList(rooms);
                 break;
             case MessageType.JOIN_ROOM_RESPONSE:
                 const joinRoomResp = gameMessage.getJoinRoomResponse();
@@ -583,12 +594,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     joinRoomBtn.addEventListener('click', () => {
+        let targetId = "";
+        if (lastRooms && lastRooms.length > 0) {
+            for (let i = 0; i < lastRooms.length; i++) {
+                const r = lastRooms[i];
+                const pc = r.getPlayerCount();
+                const mp = r.getMaxPlayers();
+                if (pc < mp) { targetId = r.getRoomId(); break; }
+            }
+            if (!targetId) { targetId = lastRooms[0].getRoomId(); }
+        } else {
+            targetId = "101";
+        }
         const gameMessage = new proto.v1.GameMessage();
         gameMessage.setType(MessageType.JOIN_ROOM);
         const joinRoomReq = new proto.v1.JoinRoomRequest();
-        joinRoomReq.setRoomId("101"); // 假設加入房間 ID 為 "101"
+        joinRoomReq.setRoomId(targetId);
         gameMessage.setJoinRoom(joinRoomReq);
         sendMessage(gameMessage);
+        log(`正在加入房間 ${targetId}...`, 'system');
     });
 
     getPlayerInfoBtn.addEventListener('click', () => {
@@ -1156,3 +1180,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+    let lastRooms = [];

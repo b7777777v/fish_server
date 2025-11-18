@@ -380,12 +380,10 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 		return
 	}
 
-	// TODO: Uncomment after running `make proto` to enable seat selection requirement
-	// // 檢查玩家是否已選擇座位
-	// if playerInfo.SeatID == -1 {
-	// 	client.sendError("Please select a seat first")
-	// 	return
-	// }
+	if playerInfo.SeatID == -1 {
+		client.sendError("Please select a seat first")
+		return
+	}
 
 	// 解析消息
 	gameMsg, ok := action.Data.(*pb.GameMessage)
