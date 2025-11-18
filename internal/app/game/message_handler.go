@@ -495,7 +495,19 @@ func (mh *MessageHandler) handleGetPlayerInfo(client *Client, message *pb.GameMe
     var nickname string
     var balance int64
     seatID := int32(-1)
-    if client.PlayerID == 0 {
+
+    // 遊客使用虛擬 Player 對象
+    if client.IsGuest && client.GuestPlayer != nil {
+        nickname = client.GuestPlayer.Nickname
+        balance = client.GuestPlayer.Balance
+        if client.RoomID != "" {
+            room, err := mh.gameUsecase.GetRoom(ctx, client.RoomID)
+            if err == nil && room != nil {
+                seatID = int32(room.GetPlayerSeat(client.PlayerID))
+            }
+        }
+    } else if client.PlayerID == 0 {
+        // 舊的兼容模式（PlayerID == 0）
         nickname = client.ID
         if client.RoomID != "" {
             mh.hub.mu.RLock()
@@ -509,6 +521,7 @@ func (mh *MessageHandler) handleGetPlayerInfo(client *Client, message *pb.GameMe
             mh.hub.mu.RUnlock()
         }
     } else {
+        // 正式玩家從數據庫查詢
         player, err := mh.gameUsecase.GetPlayerInfo(ctx, client.PlayerID)
         if err != nil {
             mh.logger.Errorf("Failed to get player info: %v", err)
@@ -813,7 +826,19 @@ func (mh *MessageHandler) sendPlayerInfoUpdate(client *Client) {
     var nickname string
     var balance int64
     seatID := int32(-1)
-    if client.PlayerID == 0 {
+
+    // 遊客使用虛擬 Player 對象
+    if client.IsGuest && client.GuestPlayer != nil {
+        nickname = client.GuestPlayer.Nickname
+        balance = client.GuestPlayer.Balance
+        if client.RoomID != "" {
+            room, err := mh.gameUsecase.GetRoom(ctx, client.RoomID)
+            if err == nil && room != nil {
+                seatID = int32(room.GetPlayerSeat(client.PlayerID))
+            }
+        }
+    } else if client.PlayerID == 0 {
+        // 舊的兼容模式（PlayerID == 0）
         nickname = client.ID
         if client.RoomID != "" {
             mh.hub.mu.RLock()
@@ -827,6 +852,7 @@ func (mh *MessageHandler) sendPlayerInfoUpdate(client *Client) {
             mh.hub.mu.RUnlock()
         }
     } else {
+        // 正式玩家從數據庫查詢
         player, err := mh.gameUsecase.GetPlayerInfo(ctx, client.PlayerID)
         if err != nil {
             mh.logger.Errorf("Failed to get player info for update: %v", err)

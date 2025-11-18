@@ -424,9 +424,16 @@ func (gu *GameUsecase) HitFish(ctx context.Context, roomID string, bulletID int6
 			}
 		}
 
-		if playerID > 0 {
-			// 更新玩家餘額到數據庫並創建錢包交易記錄
+		if playerID != 0 {
+			// 更新玩家餘額（遊客和正式玩家都需要更新內存中的餘額）
 			if player, exists := room.Players[playerID]; exists && hitResult.Reward > 0 {
+				// 遊客（ID < 0）只更新內存餘額，跳過數據庫和錢包操作
+				isGuest := playerID < 0
+				if isGuest {
+					// 遊客的餘額已經在 ProcessBulletHit 中更新了
+					gu.logger.Debugf("Guest player %d received reward: %d", playerID, hitResult.Reward)
+				} else {
+					// 正式玩家：創建錢包交易記錄並更新數據庫
 				// 創建錢包交易記錄（如果玩家有錢包且獲得獎勵）
 				var walletErr error
 				if player.WalletID > 0 {
@@ -460,21 +467,22 @@ func (gu *GameUsecase) HitFish(ctx context.Context, roomID string, bulletID int6
 					}
 				}
 
-				// 只有錢包操作成功（或玩家沒有錢包）才更新數據庫餘額
-				gu.playerRepo.UpdatePlayerBalance(ctx, playerID, player.Balance)
+					// 只有錢包操作成功（或玩家沒有錢包）才更新數據庫餘額
+					gu.playerRepo.UpdatePlayerBalance(ctx, playerID, player.Balance)
 
-				// 只有錢包操作成功且有實際獎勵才更新遊戲記錄
-				if walletErr == nil && hitResult.Reward > 0 {
-					activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
-					if err != nil {
-						gu.logger.Warnf("Failed to find active game record: %v", err)
-					}
+					// 只有錢包操作成功且有實際獎勵才更新遊戲記錄
+					if walletErr == nil && hitResult.Reward > 0 {
+						activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
+						if err != nil {
+							gu.logger.Warnf("Failed to find active game record: %v", err)
+						}
 
-					if activeRecord != nil {
-						reward := float64(hitResult.Reward) / 100.0 // 轉換為元
-						activeRecord.RecordFishCaught(reward, hitResult.IsCritical)
-						if err := gu.gameRecordRepo.Update(ctx, activeRecord); err != nil {
-							gu.logger.Warnf("Failed to update game record: %v", err)
+						if activeRecord != nil {
+							reward := float64(hitResult.Reward) / 100.0 // 轉換為元
+							activeRecord.RecordFishCaught(reward, hitResult.IsCritical)
+							if err := gu.gameRecordRepo.Update(ctx, activeRecord); err != nil {
+								gu.logger.Warnf("Failed to update game record: %v", err)
+							}
 						}
 					}
 				}
