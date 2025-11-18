@@ -2,6 +2,7 @@ package game_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"sync"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/b7777777v/fish_server/internal/biz/wallet"
 	"github.com/b7777777v/fish_server/internal/pkg/logger"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 // ========================================
@@ -82,6 +84,60 @@ func (m *MockWalletRepo) CreateTransaction(ctx context.Context, tx *wallet.Trans
 }
 func (m *MockWalletRepo) FindTransactionsByWalletID(ctx context.Context, walletID uint, limit, offset int) ([]*wallet.Transaction, error) {
 	return []*wallet.Transaction{}, nil
+}
+
+type MockGameRecordRepo struct {
+	mock.Mock
+}
+
+func (m *MockGameRecordRepo) Create(ctx context.Context, record *game.GameRecord) error {
+	args := m.Called(ctx, record)
+	return args.Error(0)
+}
+
+func (m *MockGameRecordRepo) Update(ctx context.Context, record *game.GameRecord) error {
+	args := m.Called(ctx, record)
+	return args.Error(0)
+}
+
+func (m *MockGameRecordRepo) FindByID(ctx context.Context, id int64) (*game.GameRecord, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*game.GameRecord), args.Error(1)
+}
+
+func (m *MockGameRecordRepo) FindByUserID(ctx context.Context, userID int64, limit, offset int) ([]*game.GameRecord, error) {
+	args := m.Called(ctx, userID, limit, offset)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*game.GameRecord), args.Error(1)
+}
+
+func (m *MockGameRecordRepo) FindBySessionID(ctx context.Context, sessionID string) ([]*game.GameRecord, error) {
+	args := m.Called(ctx, sessionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*game.GameRecord), args.Error(1)
+}
+
+func (m *MockGameRecordRepo) FindActiveByUserID(ctx context.Context, userID int64) (*game.GameRecord, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*game.GameRecord), args.Error(1)
+}
+
+func (m *MockGameRecordRepo) GetUserTotalStats(ctx context.Context, userID int64) (*game.UserGameStats, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*game.UserGameStats), args.Error(1)
 }
 
 type MockInventoryRepo struct {
@@ -166,7 +222,14 @@ func setupTestEnvironment(t *testing.T) *testEnvironment {
 
 	rtpController := game.NewRTPController(inventoryManager, log)
 	roomManager := game.NewRoomManager(log, spawner, mathModel, inventoryManager, rtpController)
-	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
+
+	// Create mock GameRecordRepo
+	gameRecordRepo := &MockGameRecordRepo{}
+	gameRecordRepo.On("FindActiveByUserID", mock.Anything, mock.Anything).Return(nil, errors.New("not found"))
+	gameRecordRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+	gameRecordRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+
+	gameUsecase := game.NewGameUsecase(gameRepo, playerRepo, gameRecordRepo, walletUC, roomManager, spawner, mathModel, inventoryManager, rtpController, log)
 
 	return &testEnvironment{
 		ctx:              context.Background(),

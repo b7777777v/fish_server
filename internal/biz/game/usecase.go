@@ -270,13 +270,11 @@ func (gu *GameUsecase) FireBullet(ctx context.Context, roomID string, playerID i
 	room, _ := gu.roomManager.GetRoom(roomID)
 	if room != nil {
 		if player, exists := room.Players[playerID]; exists {
-			// 更新數據庫中的餘額
-			gu.playerRepo.UpdatePlayerBalance(ctx, playerID, player.Balance)
-
 			// 創建錢包交易記錄（如果玩家有錢包）
+			var walletErr error
 			if player.WalletID > 0 {
 				bulletCost := float64(bullet.Cost) / 100.0 // 轉換為元
-				err := gu.walletUC.Withdraw(
+				walletErr = gu.walletUC.Withdraw(
 					ctx,
 					player.WalletID,
 					bulletCost,
@@ -290,22 +288,32 @@ func (gu *GameUsecase) FireBullet(ctx context.Context, roomID string, playerID i
 						"player_id":    playerID,
 					},
 				)
-				if err != nil {
-					gu.logger.Warnf("Failed to create wallet transaction for bullet cost: %v", err)
+				if walletErr != nil {
+					// 錢包操作失敗，需要回滾內存中的餘額扣除
+					gu.logger.Errorf("Failed to create wallet transaction for bullet cost: %v, rolling back", walletErr)
+					// 回滾內存餘額
+					player.Balance += bullet.Cost
+					// 不更新數據庫餘額，保持一致性
+					return nil, fmt.Errorf("wallet operation failed: %w", walletErr)
 				}
 			}
 
-			// 更新遊戲記錄
-			activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
-			if err != nil {
-				gu.logger.Warnf("Failed to find active game record: %v", err)
-			}
+			// 只有錢包操作成功（或玩家沒有錢包）才更新數據庫餘額
+			gu.playerRepo.UpdatePlayerBalance(ctx, playerID, player.Balance)
 
-			if activeRecord != nil {
-				bulletCost := float64(bullet.Cost) / 100.0 // 轉換為元
-				activeRecord.RecordBulletFired(bulletCost)
-				if err := gu.gameRecordRepo.Update(ctx, activeRecord); err != nil {
-					gu.logger.Warnf("Failed to update game record: %v", err)
+			// 只有錢包操作成功才更新遊戲記錄
+			if walletErr == nil {
+				activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
+				if err != nil {
+					gu.logger.Warnf("Failed to find active game record: %v", err)
+				}
+
+				if activeRecord != nil {
+					bulletCost := float64(bullet.Cost) / 100.0 // 轉換為元
+					activeRecord.RecordBulletFired(bulletCost)
+					if err := gu.gameRecordRepo.Update(ctx, activeRecord); err != nil {
+						gu.logger.Warnf("Failed to update game record: %v", err)
+					}
 				}
 			}
 		}
@@ -361,13 +369,11 @@ func (gu *GameUsecase) HitFish(ctx context.Context, roomID string, bulletID int6
 		if playerID > 0 {
 			// 更新玩家餘額到數據庫並創建錢包交易記錄
 			if player, exists := room.Players[playerID]; exists && hitResult.Reward > 0 {
-				// 更新數據庫中的餘額
-				gu.playerRepo.UpdatePlayerBalance(ctx, playerID, player.Balance)
-
 				// 創建錢包交易記錄（如果玩家有錢包且獲得獎勵）
+				var walletErr error
 				if player.WalletID > 0 {
 					reward := float64(hitResult.Reward) / 100.0 // 轉換為元
-					err := gu.walletUC.Deposit(
+					walletErr = gu.walletUC.Deposit(
 						ctx,
 						player.WalletID,
 						reward,
@@ -384,22 +390,34 @@ func (gu *GameUsecase) HitFish(ctx context.Context, roomID string, bulletID int6
 							"player_id":    playerID,
 						},
 					)
-					if err != nil {
-						gu.logger.Warnf("Failed to create wallet transaction for fish reward: %v", err)
+					if walletErr != nil {
+						// 錢包操作失敗，需要回滾內存中的獎勵增加
+						gu.logger.Errorf("Failed to create wallet transaction for fish reward: %v, rolling back", walletErr)
+						// 回滾內存餘額
+						player.Balance -= hitResult.Reward
+						// 記錄錯誤但不阻塞遊戲流程（因為魚已經死亡）
+						gu.logger.Warnf("Rolled back reward for player %d, amount: %d", playerID, hitResult.Reward)
+						// 將 hitResult 的 Reward 設為 0，表示未實際獲得獎勵
+						hitResult.Reward = 0
 					}
 				}
 
-				// 更新遊戲記錄
-				activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
-				if err != nil {
-					gu.logger.Warnf("Failed to find active game record: %v", err)
-				}
+				// 只有錢包操作成功（或玩家沒有錢包）才更新數據庫餘額
+				gu.playerRepo.UpdatePlayerBalance(ctx, playerID, player.Balance)
 
-				if activeRecord != nil {
-					reward := float64(hitResult.Reward) / 100.0 // 轉換為元
-					activeRecord.RecordFishCaught(reward, hitResult.IsCritical)
-					if err := gu.gameRecordRepo.Update(ctx, activeRecord); err != nil {
-						gu.logger.Warnf("Failed to update game record: %v", err)
+				// 只有錢包操作成功且有實際獎勵才更新遊戲記錄
+				if walletErr == nil && hitResult.Reward > 0 {
+					activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
+					if err != nil {
+						gu.logger.Warnf("Failed to find active game record: %v", err)
+					}
+
+					if activeRecord != nil {
+						reward := float64(hitResult.Reward) / 100.0 // 轉換為元
+						activeRecord.RecordFishCaught(reward, hitResult.IsCritical)
+						if err := gu.gameRecordRepo.Update(ctx, activeRecord); err != nil {
+							gu.logger.Warnf("Failed to update game record: %v", err)
+						}
 					}
 				}
 			}
