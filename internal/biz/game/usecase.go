@@ -187,6 +187,60 @@ func (gu *GameUsecase) JoinRoom(ctx context.Context, roomID string, playerID int
 	return nil
 }
 
+// JoinRoomWithPlayer 使用已有的 Player 對象加入房間（用於遊客）
+func (gu *GameUsecase) JoinRoomWithPlayer(ctx context.Context, roomID string, player *Player) error {
+	// 檢查玩家餘額
+	if player.Balance < 100 { // 最小餘額要求
+		return fmt.Errorf("insufficient balance to join room")
+	}
+
+	// 加入房間
+	if err := gu.roomManager.JoinRoom(roomID, player); err != nil {
+		gu.logger.Errorf("Failed to join room %s: %v", roomID, err)
+		return err
+	}
+
+	// 遊客不需要更新數據庫中的玩家狀態（ID 為負數）
+	if player.ID > 0 {
+		if err := gu.playerRepo.UpdatePlayerStatus(ctx, player.ID, PlayerStatusPlaying); err != nil {
+			gu.logger.Errorf("Failed to update player status: %v", err)
+			return err
+		}
+	}
+
+	// 遊客不需要創建數據庫中的遊戲記錄（ID 為負數）
+	if player.ID > 0 {
+		activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, player.ID)
+		if err != nil {
+			gu.logger.Warnf("Failed to check active game record: %v", err)
+		}
+
+		if activeRecord == nil {
+			sessionID := fmt.Sprintf("session_%d_%d", player.ID, time.Now().Unix())
+			newRecord := NewGameRecord(player.ID, roomID, sessionID)
+			if err := gu.gameRecordRepo.Create(ctx, newRecord); err != nil {
+				gu.logger.Errorf("Failed to create game record: %v", err)
+			} else {
+				gu.logger.Infof("Created game record for player %d: record_id=%d", player.ID, newRecord.ID)
+			}
+		}
+	}
+
+	// 記錄事件（遊客和正式玩家都記錄）
+	event := &GameEvent{
+		ID:        time.Now().UnixNano(),
+		Type:      EventPlayerJoin,
+		RoomID:    roomID,
+		PlayerID:  player.ID,
+		Data:      map[string]interface{}{"player_nickname": player.Nickname},
+		Timestamp: time.Now(),
+	}
+	gu.gameRepo.SaveGameEvent(ctx, event)
+
+	gu.logger.Infof("Player %d (%s) joined room %s", player.ID, player.Nickname, roomID)
+	return nil
+}
+
 // LeaveRoom 玩家離開房間
 func (gu *GameUsecase) LeaveRoom(ctx context.Context, roomID string, playerID int64) error {
 	if err := gu.roomManager.LeaveRoom(roomID, playerID); err != nil {
@@ -194,28 +248,32 @@ func (gu *GameUsecase) LeaveRoom(ctx context.Context, roomID string, playerID in
 		return err
 	}
 
-	// 更新玩家狀態
-	if err := gu.playerRepo.UpdatePlayerStatus(ctx, playerID, PlayerStatusIdle); err != nil {
-		gu.logger.Errorf("Failed to update player status: %v", err)
-	}
-
-	// 完成遊戲記錄
-	activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
-	if err != nil {
-		gu.logger.Warnf("Failed to find active game record: %v", err)
-	}
-
-	if activeRecord != nil {
-		activeRecord.Finish()
-		if err := gu.gameRecordRepo.Update(ctx, activeRecord); err != nil {
-			gu.logger.Errorf("Failed to finish game record: %v", err)
-		} else {
-			gu.logger.Infof("Finished game record for player %d: record_id=%d, profit=%.2f",
-				playerID, activeRecord.ID, activeRecord.NetProfit)
+	// 遊客不需要更新數據庫中的玩家狀態（ID 為負數）
+	if playerID > 0 {
+		if err := gu.playerRepo.UpdatePlayerStatus(ctx, playerID, PlayerStatusIdle); err != nil {
+			gu.logger.Errorf("Failed to update player status: %v", err)
 		}
 	}
 
-	// 記錄事件
+	// 遊客不需要完成數據庫中的遊戲記錄（ID 為負數）
+	if playerID > 0 {
+		activeRecord, err := gu.gameRecordRepo.FindActiveByUserID(ctx, playerID)
+		if err != nil {
+			gu.logger.Warnf("Failed to find active game record: %v", err)
+		}
+
+		if activeRecord != nil {
+			activeRecord.Finish()
+			if err := gu.gameRecordRepo.Update(ctx, activeRecord); err != nil {
+				gu.logger.Errorf("Failed to finish game record: %v", err)
+			} else {
+				gu.logger.Infof("Finished game record for player %d: record_id=%d, profit=%.2f",
+					playerID, activeRecord.ID, activeRecord.NetProfit)
+			}
+		}
+	}
+
+	// 記錄事件（遊客和正式玩家都記錄）
 	event := &GameEvent{
 		ID:        time.Now().UnixNano(),
 		Type:      EventPlayerLeave,

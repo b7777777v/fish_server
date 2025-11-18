@@ -22,6 +22,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config from %s: %v", configPath, err)
 	}
+
+	// 為 game server 設置專屬的日誌文件路徑
+	if cfg.Log != nil && cfg.Log.FilePath != "" {
+		// 將日誌路徑修改為 game 專用（例如：logs/game-dev.log -> logs/game-server-dev.log）
+		cfg.Log.FilePath = "logs/game-server.log"
+		if cfg.Environment == "dev" || cfg.Environment == "development" {
+			cfg.Log.FilePath = "logs/game-server-dev.log"
+		} else if cfg.Environment == "staging" || cfg.Environment == "stag" {
+			cfg.Log.FilePath = "logs/game-server-staging.log"
+		} else if cfg.Environment == "prod" || cfg.Environment == "production" {
+			cfg.Log.FilePath = "logs/game-server-prod.log"
+		}
+	}
+
 	// 透過 wire 初始化 App
 	app, cleanup, err := initApp(cfg)
 	if err != nil {

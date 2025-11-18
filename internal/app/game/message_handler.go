@@ -239,7 +239,22 @@ func (mh *MessageHandler) handleJoinRoom(client *Client, message *pb.GameMessage
     }
     
     ctx := context.Background()
-    if client.PlayerID != 0 {
+
+    // 處理加入房間的業務邏輯
+    if client.IsGuest {
+        // 遊客使用虛擬 Player 對象加入房間
+        if client.GuestPlayer == nil {
+            mh.logger.Errorf("Guest player object is nil for client %s", client.ID)
+            mh.sendErrorResponse(client, "Guest player data error")
+            return
+        }
+        if err := mh.gameUsecase.JoinRoomWithPlayer(ctx, roomID, client.GuestPlayer); err != nil {
+            mh.logger.Errorf("Failed to join room (guest): %v", err)
+            mh.sendErrorResponse(client, "Failed to join room")
+            return
+        }
+    } else if client.PlayerID != 0 {
+        // 正式玩家通過 PlayerID 加入房間
         if err := mh.gameUsecase.JoinRoom(ctx, roomID, client.PlayerID); err != nil {
             mh.logger.Errorf("Failed to join room: %v", err)
             mh.sendErrorResponse(client, "Failed to join room")
