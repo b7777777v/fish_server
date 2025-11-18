@@ -106,3 +106,32 @@ func (c *Client) Exists(ctx context.Context, keys ...string) (bool, error) {
 func (c *Client) Expire(ctx context.Context, key string, expiration time.Duration) error {
 	return c.Redis.Expire(ctx, key, expiration).Err()
 }
+
+// Incr 增加 key 的數值
+func (c *Client) Incr(ctx context.Context, key string) (int64, error) {
+	return c.Redis.Incr(ctx, key).Result()
+}
+
+// Decr 減少 key 的數值
+func (c *Client) Decr(ctx context.Context, key string) (int64, error) {
+	return c.Redis.Decr(ctx, key).Result()
+}
+
+// IncrBy 增加 key 的數值（指定增量）
+func (c *Client) IncrBy(ctx context.Context, key string, value int64) (int64, error) {
+	return c.Redis.IncrBy(ctx, key, value).Result()
+}
+
+// DecrBy 減少 key 的數值（指定減量）
+func (c *Client) DecrBy(ctx context.Context, key string, value int64) (int64, error) {
+	return c.Redis.DecrBy(ctx, key, value).Result()
+}
+
+// GetInt64 獲取 key 的整數值
+func (c *Client) GetInt64(ctx context.Context, key string) (int64, error) {
+	val, err := c.Redis.Get(ctx, key).Int64()
+	if err == redis.Nil {
+		return 0, nil // key 不存在時返回 0
+	}
+	return val, err
+}

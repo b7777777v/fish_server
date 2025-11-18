@@ -159,7 +159,7 @@ func DefaultRoomConfig() game.RoomConfig {
 
 // setupDefaultMocks sets up default behavior for all mocks
 func setupDefaultMocks(gameRepo *mocks.GameRepo, playerRepo *mocks.PlayerRepo, walletRepo *mocks.WalletRepo, inventoryRepo *mocks.InventoryRepo) {
-	// GameRepo defaults
+	// GameRepo defaults (PostgreSQL)
 	gameRepo.On("SaveRoom", mock.Anything, mock.Anything).Return(nil).Maybe()
 	gameRepo.On("DeleteRoom", mock.Anything, mock.Anything).Return(nil).Maybe()
 	gameRepo.On("SaveGameStatistics", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -174,6 +174,15 @@ func setupDefaultMocks(gameRepo *mocks.GameRepo, playerRepo *mocks.PlayerRepo, w
 	gameRepo.On("ListRooms", mock.Anything, mock.Anything).Return([]*game.Room{}, nil).Maybe()
 	gameRepo.On("GetGameStatistics", mock.Anything, mock.Anything).Return(&game.GameStatistics{}, nil).Maybe()
 	gameRepo.On("GetGameEvents", mock.Anything, mock.Anything, mock.Anything).Return([]*game.GameEvent{}, nil).Maybe()
+
+	// GameRepo Redis 相關方法
+	gameRepo.On("SaveRoomToRedis", mock.Anything, mock.Anything).Return(nil).Maybe()
+	gameRepo.On("DeleteRoomFromRedis", mock.Anything, mock.Anything).Return(nil).Maybe()
+	gameRepo.On("IncrementRoomCount", mock.Anything, mock.Anything).Return(nil).Maybe()
+	gameRepo.On("DecrementRoomCount", mock.Anything, mock.Anything).Return(nil).Maybe()
+	gameRepo.On("GetRoomCount", mock.Anything, mock.Anything).Return(int64(0), nil).Maybe()
+	gameRepo.On("GetTotalRoomCount", mock.Anything).Return(int64(0), nil).Maybe()
+	gameRepo.On("GetAllRoomCounts", mock.Anything).Return(map[string]int64{}, nil).Maybe()
 
 	// PlayerRepo defaults
 	// Note: PlayerRepo methods are NOT mocked by default

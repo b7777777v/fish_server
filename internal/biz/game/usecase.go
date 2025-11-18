@@ -15,16 +15,25 @@ import (
 
 // GameRepo 遊戲數據倉庫接口
 type GameRepo interface {
-	// 房間相關
+	// 房間相關 (PostgreSQL - 僅用於持久化歷史記錄)
 	SaveRoom(ctx context.Context, room *Room) error
 	GetRoom(ctx context.Context, roomID string) (*Room, error)
 	ListRooms(ctx context.Context, roomType RoomType) ([]*Room, error)
 	DeleteRoom(ctx context.Context, roomID string) error
-	
+
+	// 房間相關 (Redis - 用於實時數據)
+	SaveRoomToRedis(ctx context.Context, room *Room) error
+	DeleteRoomFromRedis(ctx context.Context, roomID string) error
+	IncrementRoomCount(ctx context.Context, roomType RoomType) error
+	DecrementRoomCount(ctx context.Context, roomType RoomType) error
+	GetRoomCount(ctx context.Context, roomType RoomType) (int64, error)
+	GetTotalRoomCount(ctx context.Context) (int64, error)
+	GetAllRoomCounts(ctx context.Context) (map[string]int64, error)
+
 	// 遊戲統計
 	SaveGameStatistics(ctx context.Context, playerID int64, stats *GameStatistics) error
 	GetGameStatistics(ctx context.Context, playerID int64) (*GameStatistics, error)
-	
+
 	// 遊戲事件
 	SaveGameEvent(ctx context.Context, event *GameEvent) error
 	GetGameEvents(ctx context.Context, roomID string, limit int) ([]*GameEvent, error)
@@ -100,19 +109,25 @@ func (gu *GameUsecase) CreateRoom(ctx context.Context, roomType RoomType, maxPla
 		gu.logger.Errorf("Failed to create room: %v", err)
 		return nil, err
 	}
-	
+
 	// 初始化房間魚類
 	initialFishes := gu.spawner.BatchSpawnFish(5, room.Config)
 	for _, fish := range initialFishes {
 		room.Fishes[fish.ID] = fish
 	}
-	
-	// 保存房間到數據庫
-	if err := gu.gameRepo.SaveRoom(ctx, room); err != nil {
-		gu.logger.Errorf("Failed to save room to database: %v", err)
+
+	// 保存房間基本信息到 Redis（不保存到 PostgreSQL）
+	if err := gu.gameRepo.SaveRoomToRedis(ctx, room); err != nil {
+		gu.logger.Errorf("Failed to save room to Redis: %v", err)
 		return nil, err
 	}
-	
+
+	// 增加房間計數器
+	if err := gu.gameRepo.IncrementRoomCount(ctx, roomType); err != nil {
+		gu.logger.Errorf("Failed to increment room count: %v", err)
+		// 不阻斷房間創建流程，只記錄錯誤
+	}
+
 	// 記錄事件（魚類生成事件不關聯特定玩家，所以不設置 PlayerID）
 	event := &GameEvent{
 		ID:        time.Now().UnixNano(),
@@ -123,7 +138,7 @@ func (gu *GameUsecase) CreateRoom(ctx context.Context, roomType RoomType, maxPla
 		Timestamp: time.Now(),
 	}
 	gu.gameRepo.SaveGameEvent(ctx, event)
-	
+
 	gu.logger.Infof("Created room %s with %d initial fishes", room.ID, len(initialFishes))
 	return room, nil
 }
@@ -636,12 +651,37 @@ func (gu *GameUsecase) UpdateRoomConfig(ctx context.Context, roomID string, conf
 	if err != nil {
 		return err
 	}
-	
+
 	room.Config = config
 	room.UpdatedAt = time.Now()
-	
-	// 保存到數據庫
-	return gu.gameRepo.SaveRoom(ctx, room)
+
+	// 保存到 Redis（不保存到 PostgreSQL）
+	return gu.gameRepo.SaveRoomToRedis(ctx, room)
+}
+
+// CloseRoom 關閉房間並清理資源
+func (gu *GameUsecase) CloseRoom(ctx context.Context, roomID string) error {
+	// 獲取房間信息以確定房間類型
+	room, err := gu.roomManager.GetRoom(roomID)
+	if err != nil {
+		gu.logger.Errorf("Failed to get room %s for closing: %v", roomID, err)
+		return err
+	}
+
+	// 減少 Redis 中的房間計數器
+	if err := gu.gameRepo.DecrementRoomCount(ctx, room.Type); err != nil {
+		gu.logger.Errorf("Failed to decrement room count for type %s: %v", room.Type, err)
+		// 不阻斷關閉流程，只記錄錯誤
+	}
+
+	// 從 Redis 中刪除房間信息
+	if err := gu.gameRepo.DeleteRoomFromRedis(ctx, roomID); err != nil {
+		gu.logger.Errorf("Failed to delete room from Redis: %v", err)
+		// 不阻斷關閉流程，只記錄錯誤
+	}
+
+	gu.logger.Infof("Closed room %s (type: %s)", roomID, room.Type)
+	return nil
 }
 
 // GetRoom 獲取房間詳細信息
