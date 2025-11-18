@@ -1,8 +1,10 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/b7777777v/fish_server/internal/conf"
 	"go.uber.org/zap"
@@ -71,9 +73,15 @@ func NewLogger(c *conf.Log) (Logger, func(), error) {
 
 	// 2. 如果配置了檔案路徑，也輸出到檔案
 	if c.FilePath != "" {
+		// 自動創建日誌文件所在的目錄
+		dir := filepath.Dir(c.FilePath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, nil, fmt.Errorf("failed to create log directory: %w", err)
+		}
+
 		file, err := os.OpenFile(c.FilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to open log file: %w", err)
 		}
 		filesToClose = append(filesToClose, file)
 
