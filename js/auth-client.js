@@ -393,9 +393,17 @@ function startGame() {
 // ==================== 事件處理 ====================
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 檢查是否在認證頁面（有 authPanel 元素）
+    const isAuthPage = !!document.getElementById('authPanel');
+
     // 檢查是否已登入
-    if (loadAuth()) {
+    if (loadAuth() && isAuthPage) {
         showMainPanel();
+    }
+
+    // 以下事件監聽器只在認證頁面需要
+    if (!isAuthPage) {
+        return; // 不在認證頁面，跳過表單事件綁定
     }
 
     // Tab 切換
@@ -420,7 +428,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 登入表單
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = document.getElementById('loginUsername').value;
         const password = document.getElementById('loginPassword').value;
@@ -432,10 +442,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             showAlert('登入失敗: ' + error.message, 'error');
         }
-    });
+        });
+    }
 
     // 註冊表單
-    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    const registerForm = document.getElementById('registerForm');
+    if (registerForm) {
+        registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = document.getElementById('registerUsername').value;
         const password = document.getElementById('registerPassword').value;
@@ -455,10 +468,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             showAlert('註冊失敗: ' + error.message, 'error');
         }
-    });
+        });
+    }
 
     // 遊客登入
-    document.getElementById('guestLoginBtn').addEventListener('click', async () => {
+    const guestLoginBtn = document.getElementById('guestLoginBtn');
+    if (guestLoginBtn) {
+        guestLoginBtn.addEventListener('click', async () => {
         try {
             await guestLogin();
             showAlert('已進入遊客模式！', 'success');
@@ -466,13 +482,19 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             showAlert('遊客登入失敗: ' + error.message, 'error');
         }
-    });
+        });
+    }
 
     // 登出按鈕
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
 
     // 儲值表單
-    document.getElementById('depositForm').addEventListener('submit', async (e) => {
+    const depositForm = document.getElementById('depositForm');
+    if (depositForm) {
+        depositForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const amount = document.getElementById('depositAmount').value;
         const description = document.getElementById('depositDescription').value;
@@ -486,10 +508,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             showAlert('儲值失敗: ' + error.message, 'error');
         }
-    });
+        });
+    }
 
     // 提款表單
-    document.getElementById('withdrawForm').addEventListener('submit', async (e) => {
+    const withdrawForm = document.getElementById('withdrawForm');
+    if (withdrawForm) {
+        withdrawForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const amount = document.getElementById('withdrawAmount').value;
         const description = document.getElementById('withdrawDescription').value;
@@ -503,20 +528,27 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             showAlert('提款失敗: ' + error.message, 'error');
         }
-    });
+        });
+    }
 
     // Modal 外部點擊關閉
-    document.getElementById('depositModal').addEventListener('click', (e) => {
-        if (e.target.id === 'depositModal') {
-            closeDepositModal();
-        }
-    });
+    const depositModal = document.getElementById('depositModal');
+    if (depositModal) {
+        depositModal.addEventListener('click', (e) => {
+            if (e.target.id === 'depositModal') {
+                closeDepositModal();
+            }
+        });
+    }
 
-    document.getElementById('withdrawModal').addEventListener('click', (e) => {
-        if (e.target.id === 'withdrawModal') {
-            closeWithdrawModal();
-        }
-    });
+    const withdrawModal = document.getElementById('withdrawModal');
+    if (withdrawModal) {
+        withdrawModal.addEventListener('click', (e) => {
+            if (e.target.id === 'withdrawModal') {
+                closeWithdrawModal();
+            }
+        });
+    }
 });
 
 // 導出給其他頁面使用
