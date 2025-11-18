@@ -3,13 +3,15 @@ package game
 import (
     "encoding/json"
     "fmt"
+    "hash/fnv"
     "net"
     "net/http"
     "net/url"
     "strings"
     "time"
-    
+
     "github.com/b7777777v/fish_server/internal/biz/account"
+    bizgame "github.com/b7777777v/fish_server/internal/biz/game"
     "github.com/b7777777v/fish_server/internal/conf"
     "github.com/b7777777v/fish_server/internal/pkg/logger"
     "github.com/b7777777v/fish_server/internal/pkg/token"
@@ -66,6 +68,10 @@ type Client struct {
 	ID       string `json:"id"`
 	PlayerID int64  `json:"player_id"`
 	RoomID   string `json:"room_id"`
+
+	// 遊客相關
+	IsGuest       bool               `json:"is_guest"`        // 是否為遊客
+	GuestPlayer   *bizgame.Player    `json:"guest_player"`    // 遊客的虛擬 Player 對象
 
 	// 消息通道
 	send chan []byte
@@ -175,6 +181,15 @@ func NewWebSocketHandler(hub *Hub, tokenHelper *token.TokenHelper, accountUsecas
 	}
 }
 
+// generateGuestID 為遊客生成唯一的負數 ID（基於 nickname 的 hash）
+func generateGuestID(nickname string) int64 {
+	h := fnv.New64a()
+	h.Write([]byte(nickname))
+	hash := h.Sum64()
+	// 轉換為負數，避免與真實玩家 ID 衝突
+	return -int64(hash & 0x7FFFFFFFFFFFFFFF)
+}
+
 // ServeWS 處理 WebSocket 升級和連接
 func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	// 升級 HTTP 連接為 WebSocket
@@ -215,7 +230,28 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		// 如果是遊客，直接使用 token 中的 nickname，不查詢數據庫
 		if claims.IsGuest {
 			playerUsername = claims.Nickname
-			h.logger.Infof("WebSocket connection (guest mode): nickname=%s", playerUsername)
+			// 為遊客生成唯一的負數 ID
+			guestID := generateGuestID(playerUsername)
+			userID = guestID
+
+			// 創建遊客的虛擬 Player 對象
+			guestPlayer := &bizgame.Player{
+				ID:       guestID,
+				UserID:   guestID,
+				Nickname: playerUsername,
+				Balance:  100000, // 遊客初始餘額 1000.00 元（以分為單位）
+				WalletID: 0,      // 遊客無錢包ID
+				RoomID:   "",
+				SeatID:   -1,
+				Status:   bizgame.PlayerStatusIdle,
+				JoinTime: time.Now(),
+			}
+
+			// 將虛擬 Player 暫存到 client 中
+			client.IsGuest = true
+			client.GuestPlayer = guestPlayer
+
+			h.logger.Infof("WebSocket connection (guest mode): nickname=%s, guestID=%d", playerUsername, guestID)
 			// ✨ 遊客不在數據庫中創建記錄，跳過 GetOrCreateByUsername
 		} else {
 			// 一般用戶：從 AccountUsecase 獲取用戶信息

@@ -9,6 +9,7 @@ import (
 	"github.com/b7777777v/fish_server/internal/conf"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // Logger 為了方便，我們直接使用 SugaredLogger
@@ -71,7 +72,7 @@ func NewLogger(c *conf.Log) (Logger, func(), error) {
 		level,
 	))
 
-	// 2. 如果配置了檔案路徑，也輸出到檔案
+	// 2. 如果配置了檔案路徑，也輸出到檔案（使用 lumberjack 實現按日期分割）
 	if c.FilePath != "" {
 		// 自動創建日誌文件所在的目錄
 		dir := filepath.Dir(c.FilePath)
@@ -79,15 +80,21 @@ func NewLogger(c *conf.Log) (Logger, func(), error) {
 			return nil, nil, fmt.Errorf("failed to create log directory: %w", err)
 		}
 
-		file, err := os.OpenFile(c.FilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to open log file: %w", err)
+		// 使用 lumberjack 實現日誌輪轉
+		// 按日期分割：每天自動創建新的日誌文件
+		lumberjackLogger := &lumberjack.Logger{
+			Filename:   c.FilePath,
+			MaxSize:    100,  // 單個日誌文件最大 100 MB
+			MaxBackups: 30,   // 保留最近 30 個日誌文件
+			MaxAge:     30,   // 保留 30 天內的日誌
+			Compress:   true, // 壓縮舊日誌文件
+			LocalTime:  true, // 使用本地時間（而非 UTC）
 		}
-		filesToClose = append(filesToClose, file)
+		filesToClose = append(filesToClose, lumberjackLogger)
 
 		cores = append(cores, zapcore.NewCore(
 			encoder,
-			zapcore.AddSync(file),
+			zapcore.AddSync(lumberjackLogger),
 			level,
 		))
 	}
