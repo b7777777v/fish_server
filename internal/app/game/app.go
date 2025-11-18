@@ -84,38 +84,75 @@ func NewGameApp(
 		}
 	}()
 
+	// 根據配置創建預建房間
 	go func() {
 		ctx := context.Background()
-		if app.config != nil && app.config.Game != nil {
-			for _, pr := range app.config.Game.PrebuiltRooms {
-				var rt game.RoomType
-				switch strings.ToLower(pr.Type) {
-				case "novice":
-					rt = game.RoomTypeNovice
-				case "intermediate":
-					rt = game.RoomTypeIntermediate
-				case "advanced":
-					rt = game.RoomTypeAdvanced
-				case "vip":
-					rt = game.RoomTypeVIP
-				default:
-					app.logger.Warnf("Unknown prebuilt room type: %s", pr.Type)
-					continue
-				}
-				count := pr.Count
-				if count <= 0 { count = 1 }
-				existing, err := app.gameUsecase.GetRoomsFromDB(ctx, rt)
+		if app.config == nil || app.config.Game == nil || len(app.config.Game.PrebuiltRooms) == 0 {
+			app.logger.Info("No prebuilt rooms configured")
+			return
+		}
+
+		app.logger.Info("Starting prebuilt room creation...")
+		totalCreated := 0
+		totalFailed := 0
+
+		for _, pr := range app.config.Game.PrebuiltRooms {
+			var rt game.RoomType
+			switch strings.ToLower(pr.Type) {
+			case "novice":
+				rt = game.RoomTypeNovice
+			case "intermediate":
+				rt = game.RoomTypeIntermediate
+			case "advanced":
+				rt = game.RoomTypeAdvanced
+			case "vip":
+				rt = game.RoomTypeVIP
+			default:
+				app.logger.Warnf("Unknown prebuilt room type: %s, skipping", pr.Type)
+				continue
+			}
+
+			count := pr.Count
+			if count <= 0 {
+				count = 1
+			}
+
+			// 查詢已存在的房間
+			existing, err := app.gameUsecase.GetRoomsFromDB(ctx, rt)
+			if err != nil {
+				app.logger.Errorf("Failed to list rooms from DB for type=%s: %v", pr.Type, err)
+				totalFailed += count
+				continue
+			}
+
+			existingCount := len(existing)
+			missing := count - existingCount
+
+			if missing <= 0 {
+				app.logger.Infof("Room type %s: %d rooms already exist (target: %d), no need to create", pr.Type, existingCount, count)
+				continue
+			}
+
+			app.logger.Infof("Creating %d %s rooms (existing: %d, target: %d)...", missing, pr.Type, existingCount, count)
+
+			// 創建缺少的房間
+			for i := 0; i < missing; i++ {
+				room, err := app.gameUsecase.CreateRoom(ctx, rt, pr.MaxPlayers)
 				if err != nil {
-					app.logger.Errorf("Failed to list rooms from DB for type=%s: %v", pr.Type, err)
-					continue
-				}
-				missing := count - len(existing)
-				for i := 0; i < missing; i++ {
-					if _, err := app.gameUsecase.CreateRoom(ctx, rt, pr.MaxPlayers); err != nil {
-						app.logger.Errorf("Failed to create prebuilt room: type=%s, err=%v", pr.Type, err)
-					}
+					app.logger.Errorf("Failed to create prebuilt room: type=%s, index=%d, err=%v", pr.Type, i+1, err)
+					totalFailed++
+				} else {
+					app.logger.Infof("Successfully created room: id=%s, type=%s, max_players=%d", room.ID, pr.Type, pr.MaxPlayers)
+					totalCreated++
 				}
 			}
+		}
+
+		// 總結日誌
+		if totalCreated > 0 || totalFailed > 0 {
+			app.logger.Infof("Prebuilt room creation completed: %d created, %d failed", totalCreated, totalFailed)
+		} else {
+			app.logger.Info("No new prebuilt rooms needed")
 		}
 	}()
 
