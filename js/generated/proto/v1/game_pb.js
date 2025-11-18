@@ -2823,7 +2823,8 @@ proto.v1.FireBulletRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
 direction: jspb.Message.getFloatingPointFieldWithDefault(msg, 1, 0.0),
 power: jspb.Message.getFieldWithDefault(msg, 2, 0),
-position: (f = msg.getPosition()) && proto.v1.Position.toObject(includeInstance, f)
+position: (f = msg.getPosition()) && proto.v1.Position.toObject(includeInstance, f),
+targetFishId: jspb.Message.getFieldWithDefault(msg, 4, 0)
   };
 
   if (includeInstance) {
@@ -2872,6 +2873,10 @@ proto.v1.FireBulletRequest.deserializeBinaryFromReader = function(msg, reader) {
       var value = new proto.v1.Position;
       reader.readMessage(value,proto.v1.Position.deserializeBinaryFromReader);
       msg.setPosition(value);
+      break;
+    case 4:
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setTargetFishId(value);
       break;
     default:
       reader.skipField();
@@ -2922,6 +2927,13 @@ proto.v1.FireBulletRequest.serializeBinaryToWriter = function(message, writer) {
       3,
       f,
       proto.v1.Position.serializeBinaryToWriter
+    );
+  }
+  f = message.getTargetFishId();
+  if (f !== 0) {
+    writer.writeInt64(
+      4,
+      f
     );
   }
 };
@@ -2997,6 +3009,24 @@ proto.v1.FireBulletRequest.prototype.clearPosition = function() {
  */
 proto.v1.FireBulletRequest.prototype.hasPosition = function() {
   return jspb.Message.getField(this, 3) != null;
+};
+
+
+/**
+ * optional int64 target_fish_id = 4;
+ * @return {number}
+ */
+proto.v1.FireBulletRequest.prototype.getTargetFishId = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 4, 0));
+};
+
+
+/**
+ * @param {number} value
+ * @return {!proto.v1.FireBulletRequest} returns this
+ */
+proto.v1.FireBulletRequest.prototype.setTargetFishId = function(value) {
+  return jspb.Message.setProto3IntField(this, 4, value);
 };
 
 
@@ -4077,7 +4107,8 @@ proto.v1.FireBulletResponse.toObject = function(includeInstance, msg) {
 success: jspb.Message.getBooleanFieldWithDefault(msg, 1, false),
 bulletId: jspb.Message.getFieldWithDefault(msg, 2, 0),
 cost: jspb.Message.getFieldWithDefault(msg, 3, 0),
-timestamp: jspb.Message.getFieldWithDefault(msg, 4, 0)
+timestamp: jspb.Message.getFieldWithDefault(msg, 4, 0),
+targetFishId: jspb.Message.getFieldWithDefault(msg, 5, 0)
   };
 
   if (includeInstance) {
@@ -4129,6 +4160,10 @@ proto.v1.FireBulletResponse.deserializeBinaryFromReader = function(msg, reader) 
     case 4:
       var value = /** @type {number} */ (reader.readInt64());
       msg.setTimestamp(value);
+      break;
+    case 5:
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setTargetFishId(value);
       break;
     default:
       reader.skipField();
@@ -4184,6 +4219,13 @@ proto.v1.FireBulletResponse.serializeBinaryToWriter = function(message, writer) 
   if (f !== 0) {
     writer.writeInt64(
       4,
+      f
+    );
+  }
+  f = message.getTargetFishId();
+  if (f !== 0) {
+    writer.writeInt64(
+      5,
       f
     );
   }
@@ -4259,6 +4301,24 @@ proto.v1.FireBulletResponse.prototype.getTimestamp = function() {
  */
 proto.v1.FireBulletResponse.prototype.setTimestamp = function(value) {
   return jspb.Message.setProto3IntField(this, 4, value);
+};
+
+
+/**
+ * optional int64 target_fish_id = 5;
+ * @return {number}
+ */
+proto.v1.FireBulletResponse.prototype.getTargetFishId = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 5, 0));
+};
+
+
+/**
+ * @param {number} value
+ * @return {!proto.v1.FireBulletResponse} returns this
+ */
+proto.v1.FireBulletResponse.prototype.setTargetFishId = function(value) {
+  return jspb.Message.setProto3IntField(this, 5, value);
 };
 
 
@@ -6269,7 +6329,8 @@ bulletId: jspb.Message.getFieldWithDefault(msg, 2, 0),
 direction: jspb.Message.getFloatingPointFieldWithDefault(msg, 3, 0.0),
 power: jspb.Message.getFieldWithDefault(msg, 4, 0),
 position: (f = msg.getPosition()) && proto.v1.Position.toObject(includeInstance, f),
-timestamp: jspb.Message.getFieldWithDefault(msg, 6, 0)
+timestamp: jspb.Message.getFieldWithDefault(msg, 6, 0),
+targetFishId: jspb.Message.getFieldWithDefault(msg, 7, 0)
   };
 
   if (includeInstance) {
@@ -6330,6 +6391,10 @@ proto.v1.BulletFiredEvent.deserializeBinaryFromReader = function(msg, reader) {
     case 6:
       var value = /** @type {number} */ (reader.readInt64());
       msg.setTimestamp(value);
+      break;
+    case 7:
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setTargetFishId(value);
       break;
     default:
       reader.skipField();
@@ -6400,6 +6465,13 @@ proto.v1.BulletFiredEvent.serializeBinaryToWriter = function(message, writer) {
   if (f !== 0) {
     writer.writeInt64(
       6,
+      f
+    );
+  }
+  f = message.getTargetFishId();
+  if (f !== 0) {
+    writer.writeInt64(
+      7,
       f
     );
   }
@@ -6530,6 +6602,24 @@ proto.v1.BulletFiredEvent.prototype.getTimestamp = function() {
  */
 proto.v1.BulletFiredEvent.prototype.setTimestamp = function(value) {
   return jspb.Message.setProto3IntField(this, 6, value);
+};
+
+
+/**
+ * optional int64 target_fish_id = 7;
+ * @return {number}
+ */
+proto.v1.BulletFiredEvent.prototype.getTargetFishId = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 7, 0));
+};
+
+
+/**
+ * @param {number} value
+ * @return {!proto.v1.BulletFiredEvent} returns this
+ */
+proto.v1.BulletFiredEvent.prototype.setTargetFishId = function(value) {
+  return jspb.Message.setProto3IntField(this, 7, value);
 };
 
 
@@ -8525,7 +8615,8 @@ speed: jspb.Message.getFloatingPointFieldWithDefault(msg, 5, 0.0),
 power: jspb.Message.getFieldWithDefault(msg, 6, 0),
 cost: jspb.Message.getFieldWithDefault(msg, 7, 0),
 status: jspb.Message.getFieldWithDefault(msg, 8, ""),
-createdAt: jspb.Message.getFieldWithDefault(msg, 9, 0)
+createdAt: jspb.Message.getFieldWithDefault(msg, 9, 0),
+targetFishId: jspb.Message.getFieldWithDefault(msg, 10, 0)
   };
 
   if (includeInstance) {
@@ -8598,6 +8689,10 @@ proto.v1.BulletInfo.deserializeBinaryFromReader = function(msg, reader) {
     case 9:
       var value = /** @type {number} */ (reader.readInt64());
       msg.setCreatedAt(value);
+      break;
+    case 10:
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setTargetFishId(value);
       break;
     default:
       reader.skipField();
@@ -8689,6 +8784,13 @@ proto.v1.BulletInfo.serializeBinaryToWriter = function(message, writer) {
   if (f !== 0) {
     writer.writeInt64(
       9,
+      f
+    );
+  }
+  f = message.getTargetFishId();
+  if (f !== 0) {
+    writer.writeInt64(
+      10,
       f
     );
   }
@@ -8873,6 +8975,24 @@ proto.v1.BulletInfo.prototype.getCreatedAt = function() {
  */
 proto.v1.BulletInfo.prototype.setCreatedAt = function(value) {
   return jspb.Message.setProto3IntField(this, 9, value);
+};
+
+
+/**
+ * optional int64 target_fish_id = 10;
+ * @return {number}
+ */
+proto.v1.BulletInfo.prototype.getTargetFishId = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 10, 0));
+};
+
+
+/**
+ * @param {number} value
+ * @return {!proto.v1.BulletInfo} returns this
+ */
+proto.v1.BulletInfo.prototype.setTargetFishId = function(value) {
+  return jspb.Message.setProto3IntField(this, 10, value);
 };
 
 

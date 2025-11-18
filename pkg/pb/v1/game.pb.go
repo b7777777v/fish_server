@@ -761,9 +761,10 @@ func (*GameMessage_Error) isGameMessage_Data() {}
 // 開火請求
 type FireBulletRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Direction     float64                `protobuf:"fixed64,1,opt,name=direction,proto3" json:"direction,omitempty"` // 方向（弧度）
-	Power         int32                  `protobuf:"varint,2,opt,name=power,proto3" json:"power,omitempty"`          // 威力 1-100
-	Position      *Position              `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"`     // 發射位置
+	Direction     float64                `protobuf:"fixed64,1,opt,name=direction,proto3" json:"direction,omitempty"`                            // 方向（弧度）
+	Power         int32                  `protobuf:"varint,2,opt,name=power,proto3" json:"power,omitempty"`                                     // 威力 1-100
+	Position      *Position              `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"`                                // 發射位置
+	TargetFishId  int64                  `protobuf:"varint,4,opt,name=target_fish_id,json=targetFishId,proto3" json:"target_fish_id,omitempty"` // 鎖定的目標魚ID，0表示無鎖定
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -817,6 +818,13 @@ func (x *FireBulletRequest) GetPosition() *Position {
 		return x.Position
 	}
 	return nil
+}
+
+func (x *FireBulletRequest) GetTargetFishId() int64 {
+	if x != nil {
+		return x.TargetFishId
+	}
+	return 0
 }
 
 // 切換砲台請求
@@ -1186,6 +1194,7 @@ type FireBulletResponse struct {
 	BulletId      int64                  `protobuf:"varint,2,opt,name=bullet_id,json=bulletId,proto3" json:"bullet_id,omitempty"`
 	Cost          int64                  `protobuf:"varint,3,opt,name=cost,proto3" json:"cost,omitempty"`
 	Timestamp     int64                  `protobuf:"varint,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	TargetFishId  int64                  `protobuf:"varint,5,opt,name=target_fish_id,json=targetFishId,proto3" json:"target_fish_id,omitempty"` // 鎖定的目標魚ID
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1244,6 +1253,13 @@ func (x *FireBulletResponse) GetCost() int64 {
 func (x *FireBulletResponse) GetTimestamp() int64 {
 	if x != nil {
 		return x.Timestamp
+	}
+	return 0
+}
+
+func (x *FireBulletResponse) GetTargetFishId() int64 {
+	if x != nil {
+		return x.TargetFishId
 	}
 	return 0
 }
@@ -1857,6 +1873,7 @@ type BulletFiredEvent struct {
 	Power         int32                  `protobuf:"varint,4,opt,name=power,proto3" json:"power,omitempty"`
 	Position      *Position              `protobuf:"bytes,5,opt,name=position,proto3" json:"position,omitempty"`
 	Timestamp     int64                  `protobuf:"varint,6,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	TargetFishId  int64                  `protobuf:"varint,7,opt,name=target_fish_id,json=targetFishId,proto3" json:"target_fish_id,omitempty"` // 鎖定的目標魚ID，0表示無鎖定
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1929,6 +1946,13 @@ func (x *BulletFiredEvent) GetPosition() *Position {
 func (x *BulletFiredEvent) GetTimestamp() int64 {
 	if x != nil {
 		return x.Timestamp
+	}
+	return 0
+}
+
+func (x *BulletFiredEvent) GetTargetFishId() int64 {
+	if x != nil {
+		return x.TargetFishId
 	}
 	return 0
 }
@@ -2537,6 +2561,7 @@ type BulletInfo struct {
 	Cost          int64                  `protobuf:"varint,7,opt,name=cost,proto3" json:"cost,omitempty"`
 	Status        string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
 	CreatedAt     int64                  `protobuf:"varint,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	TargetFishId  int64                  `protobuf:"varint,10,opt,name=target_fish_id,json=targetFishId,proto3" json:"target_fish_id,omitempty"` // 鎖定的目標魚ID，0表示無鎖定
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2630,6 +2655,13 @@ func (x *BulletInfo) GetStatus() string {
 func (x *BulletInfo) GetCreatedAt() int64 {
 	if x != nil {
 		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *BulletInfo) GetTargetFishId() int64 {
+	if x != nil {
+		return x.TargetFishId
 	}
 	return 0
 }
@@ -3550,11 +3582,12 @@ const file_proto_v1_game_proto_rawDesc = "" +
 	"\x11formation_spawned\x18\x1f \x01(\v2\x19.v1.FormationSpawnedEventH\x00R\x10formationSpawned\x12H\n" +
 	"\x11formation_updated\x18  \x01(\v2\x19.v1.FormationUpdatedEventH\x00R\x10formationUpdated\x12(\n" +
 	"\x05error\x18c \x01(\v2\x10.v1.ErrorMessageH\x00R\x05errorB\x06\n" +
-	"\x04data\"q\n" +
+	"\x04data\"\x97\x01\n" +
 	"\x11FireBulletRequest\x12\x1c\n" +
 	"\tdirection\x18\x01 \x01(\x01R\tdirection\x12\x14\n" +
 	"\x05power\x18\x02 \x01(\x05R\x05power\x12(\n" +
-	"\bposition\x18\x03 \x01(\v2\f.v1.PositionR\bposition\"L\n" +
+	"\bposition\x18\x03 \x01(\v2\f.v1.PositionR\bposition\x12$\n" +
+	"\x0etarget_fish_id\x18\x04 \x01(\x03R\ftargetFishId\"L\n" +
 	"\x13SwitchCannonRequest\x12\x1f\n" +
 	"\vcannon_type\x18\x01 \x01(\x05R\n" +
 	"cannonType\x12\x14\n" +
@@ -3571,12 +3604,13 @@ const file_proto_v1_game_proto_rawDesc = "" +
 	"\aseat_id\x18\x01 \x01(\x05R\x06seatId\"F\n" +
 	"\x0eHitFishRequest\x12\x1b\n" +
 	"\tbullet_id\x18\x01 \x01(\x03R\bbulletId\x12\x17\n" +
-	"\afish_id\x18\x02 \x01(\x03R\x06fishId\"}\n" +
+	"\afish_id\x18\x02 \x01(\x03R\x06fishId\"\xa3\x01\n" +
 	"\x12FireBulletResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1b\n" +
 	"\tbullet_id\x18\x02 \x01(\x03R\bbulletId\x12\x12\n" +
 	"\x04cost\x18\x03 \x01(\x03R\x04cost\x12\x1c\n" +
-	"\ttimestamp\x18\x04 \x01(\x03R\ttimestamp\"\x9b\x01\n" +
+	"\ttimestamp\x18\x04 \x01(\x03R\ttimestamp\x12$\n" +
+	"\x0etarget_fish_id\x18\x05 \x01(\x03R\ftargetFishId\"\x9b\x01\n" +
 	"\x14SwitchCannonResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1f\n" +
 	"\vcannon_type\x18\x02 \x01(\x05R\n" +
@@ -3627,14 +3661,15 @@ const file_proto_v1_game_proto_rawDesc = "" +
 	"\n" +
 	"multiplier\x18\b \x01(\x01R\n" +
 	"multiplier\x12\x1c\n" +
-	"\ttimestamp\x18\t \x01(\x03R\ttimestamp\"\xc8\x01\n" +
+	"\ttimestamp\x18\t \x01(\x03R\ttimestamp\"\xee\x01\n" +
 	"\x10BulletFiredEvent\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\x03R\bplayerId\x12\x1b\n" +
 	"\tbullet_id\x18\x02 \x01(\x03R\bbulletId\x12\x1c\n" +
 	"\tdirection\x18\x03 \x01(\x01R\tdirection\x12\x14\n" +
 	"\x05power\x18\x04 \x01(\x05R\x05power\x12(\n" +
 	"\bposition\x18\x05 \x01(\v2\f.v1.PositionR\bposition\x12\x1c\n" +
-	"\ttimestamp\x18\x06 \x01(\x03R\ttimestamp\"\x9d\x01\n" +
+	"\ttimestamp\x18\x06 \x01(\x03R\ttimestamp\x12$\n" +
+	"\x0etarget_fish_id\x18\a \x01(\x03R\ftargetFishId\"\x9d\x01\n" +
 	"\x13CannonSwitchedEvent\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\x03R\bplayerId\x12\x1f\n" +
 	"\vcannon_type\x18\x02 \x01(\x05R\n" +
@@ -3684,7 +3719,7 @@ const file_proto_v1_game_proto_rawDesc = "" +
 	"spawn_time\x18\n" +
 	" \x01(\x03R\tspawnTime\x12!\n" +
 	"\fin_formation\x18\v \x01(\bR\vinFormation\x12!\n" +
-	"\fformation_id\x18\f \x01(\tR\vformationId\"\x85\x02\n" +
+	"\fformation_id\x18\f \x01(\tR\vformationId\"\xab\x02\n" +
 	"\n" +
 	"BulletInfo\x12\x1b\n" +
 	"\tbullet_id\x18\x01 \x01(\x03R\bbulletId\x12\x1b\n" +
@@ -3696,7 +3731,9 @@ const file_proto_v1_game_proto_rawDesc = "" +
 	"\x04cost\x18\a \x01(\x03R\x04cost\x12\x16\n" +
 	"\x06status\x18\b \x01(\tR\x06status\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\t \x01(\x03R\tcreatedAt\"\xb8\x03\n" +
+	"created_at\x18\t \x01(\x03R\tcreatedAt\x12$\n" +
+	"\x0etarget_fish_id\x18\n" +
+	" \x01(\x03R\ftargetFishId\"\xb8\x03\n" +
 	"\rFormationInfo\x12!\n" +
 	"\fformation_id\x18\x01 \x01(\tR\vformationId\x12%\n" +
 	"\x0eformation_type\x18\x02 \x01(\tR\rformationType\x12\x19\n" +
