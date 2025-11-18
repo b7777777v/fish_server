@@ -685,18 +685,52 @@ func (rm *RoomManager) gameLoop() {
 	}
 }
 
-// updateBullets 更新子彈位置
+// updateBullets 更新子彈位置並處理邊界反射
 func (rm *RoomManager) updateBullets(deltaTime float64) {
-	for bulletID, bullet := range rm.gameState.Bullets {
+	const (
+		roomWidth  = 1200.0
+		roomHeight = 800.0
+	)
+
+	for _, bullet := range rm.gameState.Bullets {
 		// 根據子彈的方向和速度進行移動
 		// Direction 是弧度值，表示子彈的飛行方向
 		bullet.Position.X += math.Cos(bullet.Direction) * bullet.Speed * deltaTime
 		bullet.Position.Y += math.Sin(bullet.Direction) * bullet.Speed * deltaTime
 
-		// 檢查是否出界（擴大範圍以允許子彈稍微飛出螢幕）
-		if bullet.Position.Y < -100 || bullet.Position.Y > 900 ||
-			bullet.Position.X < -100 || bullet.Position.X > 1300 {
-			delete(rm.gameState.Bullets, bulletID)
+		// 邊界反射邏輯
+		reflected := false
+
+		// 檢查左右邊界
+		if bullet.Position.X < 0 {
+			bullet.Position.X = -bullet.Position.X // 彈回
+			bullet.Direction = math.Pi - bullet.Direction // 水平反射
+			reflected = true
+		} else if bullet.Position.X > roomWidth {
+			bullet.Position.X = 2*roomWidth - bullet.Position.X // 彈回
+			bullet.Direction = math.Pi - bullet.Direction // 水平反射
+			reflected = true
+		}
+
+		// 檢查上下邊界
+		if bullet.Position.Y < 0 {
+			bullet.Position.Y = -bullet.Position.Y // 彈回
+			bullet.Direction = -bullet.Direction // 垂直反射
+			reflected = true
+		} else if bullet.Position.Y > roomHeight {
+			bullet.Position.Y = 2*roomHeight - bullet.Position.Y // 彈回
+			bullet.Direction = -bullet.Direction // 垂直反射
+			reflected = true
+		}
+
+		// 規範化角度到 [-π, π] 範圍
+		if reflected {
+			for bullet.Direction > math.Pi {
+				bullet.Direction -= 2 * math.Pi
+			}
+			for bullet.Direction < -math.Pi {
+				bullet.Direction += 2 * math.Pi
+			}
 		}
 	}
 }
@@ -857,14 +891,14 @@ func (rm *RoomManager) spawnFishes() {
 
 // cleanupExpiredObjects 清理過期對象
 func (rm *RoomManager) cleanupExpiredObjects() {
-	now := time.Now()
+	// 注意：子彈不再有超時刪除邏輯
+	// 子彈會在邊界反射，只有碰到魚才會消失
+	// 這樣可以讓子彈在遊戲區域內持續彈跳，增加遊戲趣味性
 
-	// 清理超時的子彈（5秒）
-	for bulletID, bullet := range rm.gameState.Bullets {
-		if now.Sub(bullet.CreatedAt) > 5*time.Second {
-			delete(rm.gameState.Bullets, bulletID)
-		}
-	}
+	// 如果需要限制子彈數量以避免性能問題，可以考慮：
+	// 1. 限制每個玩家同時存在的子彈數量
+	// 2. 使用極長的超時時間（如 60 秒）作為安全措施
+	// 目前暫時移除超時刪除邏輯
 }
 
 // startGame 開始遊戲
