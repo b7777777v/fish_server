@@ -56,16 +56,44 @@ func NewLogger(c *conf.Log) (Logger, func(), error) {
 		EncodeName:     zapcore.FullNameEncoder,
 	}
 
-	core := zapcore.NewCore(
-		buildEncoder(c.Format, encoderConfig),
+	encoder := buildEncoder(c.Format, encoderConfig)
+
+	// 建立多個輸出目標
+	var cores []zapcore.Core
+	var filesToClose []io.Closer
+
+	// 1. 總是輸出到控制台
+	cores = append(cores, zapcore.NewCore(
+		encoder,
 		zapcore.AddSync(zapcore.Lock(os.Stdout)),
 		level,
-	)
+	))
+
+	// 2. 如果配置了檔案路徑，也輸出到檔案
+	if c.FilePath != "" {
+		file, err := os.OpenFile(c.FilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+		if err != nil {
+			return nil, nil, err
+		}
+		filesToClose = append(filesToClose, file)
+
+		cores = append(cores, zapcore.NewCore(
+			encoder,
+			zapcore.AddSync(file),
+			level,
+		))
+	}
+
+	// 組合多個 core
+	core := zapcore.NewTee(cores...)
 
 	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 	sugaredLogger := logger.Sugar()
 	cleanup := func() {
 		_ = sugaredLogger.Sync()
+		for _, f := range filesToClose {
+			_ = f.Close()
+		}
 	}
 	return sugaredLogger, cleanup, nil
 }

@@ -89,8 +89,9 @@ type JWT struct {
 	Expire int64  `mapstructure:"expire"`
 }
 type Log struct {
-	Level  string `mapstructure:"level"`
-	Format string `mapstructure:"format"`
+	Level    string `mapstructure:"level"`
+	Format   string `mapstructure:"format"`
+	FilePath string `mapstructure:"file_path"` // 日誌檔案路徑，為空則只輸出到控制台
 }
 
 // Debug 調試相關配置

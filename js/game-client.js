@@ -476,11 +476,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case MessageType.FISH_DIED:
                 const fishDied = gameMessage.getFishDied();
-                log(`🐟 魚 ${fishDied.getFishId()} 被捕獲！玩家 ${fishDied.getPlayerId()} 獲得獎勵 ${fishDied.getReward()} 金幣。`, 'received');
+                log(`🐟 魚 ${fishDied.getFishId()} 被捕獲！玩家 ${fishDied.getPlayerId()} 錢包增加 ${fishDied.getReward()} 分。`, 'received');
                 break;
             case MessageType.PLAYER_REWARD:
                 const playerReward = gameMessage.getPlayerReward();
-                log(`💰 玩家 ${playerReward.getPlayerId()} 獲得獎勵: ${playerReward.getReward()} 金幣。`, 'received');
+                log(`💰 玩家 ${playerReward.getPlayerId()} 錢包增加: ${playerReward.getReward()} 分。`, 'received');
                 break;
             case MessageType.PLAYER_LEFT:
                 const playerLeft = gameMessage.getPlayerLeft();
