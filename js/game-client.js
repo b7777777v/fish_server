@@ -657,6 +657,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // 獲取鎖定的目標魚ID
+        const lockedFishId = window.gameRenderer ? gameRenderer.getLockedFishId() : null;
+
         const gameMessage = new proto.v1.GameMessage();
         gameMessage.setType(MessageType.FIRE_BULLET);
         const fireBulletReq = new proto.v1.FireBulletRequest();
@@ -666,6 +669,15 @@ document.addEventListener('DOMContentLoaded', () => {
         position.setX(cannonPosition.x);
         position.setY(cannonPosition.y);
         fireBulletReq.setPosition(position);
+
+        // 設置鎖定的目標魚ID（0表示無鎖定）
+        if (lockedFishId) {
+            fireBulletReq.setTargetFishId(lockedFishId);
+            log(`🎯 發射鎖定子彈，目標魚ID: ${lockedFishId}`, 'system');
+        } else {
+            fireBulletReq.setTargetFishId(0);
+        }
+
         gameMessage.setFireBullet(fireBulletReq);
         sendMessage(gameMessage);
     });

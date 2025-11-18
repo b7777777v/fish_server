@@ -106,13 +106,14 @@ type FishInfo struct {
 
 // BulletInfo 子彈信息
 type BulletInfo struct {
-	ID        int64        `json:"id"`
-	PlayerID  string       `json:"player_id"`
-	Position  GamePosition `json:"position"`
-	Direction float64      `json:"direction"`
-	Speed     float64      `json:"speed"`
-	Power     int32        `json:"power"`
-	CreatedAt time.Time    `json:"created_at"`
+	ID           int64        `json:"id"`
+	PlayerID     string       `json:"player_id"`
+	Position     GamePosition `json:"position"`
+	Direction    float64      `json:"direction"`
+	Speed        float64      `json:"speed"`
+	Power        int32        `json:"power"`
+	CreatedAt    time.Time    `json:"created_at"`
+	TargetFishID int64        `json:"target_fish_id"` // 鎖定的目標魚ID，0表示無鎖定
 }
 
 // GamePosition 遊戲位置信息 (避免與 mock_protobuf.go 中的 Position 衝突)
@@ -396,12 +397,14 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 	fireData := gameMsg.GetFireBullet()
 	direction := 0.0 // 默認方向
 	power := playerInfo.Cannon.Power
+	targetFishID := int64(0) // 默認無鎖定
 
 	// 獲取子彈發射位置（使用前端發送的位置，而不是玩家位置）
 	bulletPosition := GamePosition{X: playerInfo.Position.X, Y: playerInfo.Position.Y} // 默認值
 	if fireData != nil {
 		direction = fireData.Direction
 		power = fireData.Power
+		targetFishID = fireData.GetTargetFishId() // 獲取鎖定的目標魚ID
 		// 使用前端發送的砲口位置
 		if fireData.Position != nil {
 			bulletPosition = GamePosition{
@@ -425,13 +428,14 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 
 	// 添加子彈到遊戲狀態
 	bulletInfo := &BulletInfo{
-		ID:        bulletID,
-		PlayerID:  client.ID,
-		Position:  bulletPosition, // 使用前端發送的砲口位置
-		Direction: direction,
-		Speed:     200.0, // 固定速度
-		Power:     power,
-		CreatedAt: time.Now(),
+		ID:           bulletID,
+		PlayerID:     client.ID,
+		Position:     bulletPosition, // 使用前端發送的砲口位置
+		Direction:    direction,
+		Speed:        200.0, // 固定速度
+		Power:        power,
+		CreatedAt:    time.Now(),
+		TargetFishID: targetFishID, // 鎖定的目標魚ID
 	}
 
 	// 記錄子彈發射位置用於調試
@@ -945,13 +949,14 @@ func (rm *RoomManager) sendGameStateProtobufToClient(client *Client) {
 		}
 
 		bulletInfos = append(bulletInfos, &pb.BulletInfo{
-			BulletId:  bullet.ID,
-			PlayerId:  playerID,
-			Position:  &pb.Position{X: bullet.Position.X, Y: bullet.Position.Y},
-			Direction: bullet.Direction,
-			Speed:     bullet.Speed,
-			Power:     bullet.Power,
-			CreatedAt: bullet.CreatedAt.Unix(),
+			BulletId:     bullet.ID,
+			PlayerId:     playerID,
+			Position:     &pb.Position{X: bullet.Position.X, Y: bullet.Position.Y},
+			Direction:    bullet.Direction,
+			Speed:        bullet.Speed,
+			Power:        bullet.Power,
+			CreatedAt:    bullet.CreatedAt.Unix(),
+			TargetFishId: bullet.TargetFishID,
 		})
 	}
 
@@ -1027,13 +1032,14 @@ func (rm *RoomManager) broadcastGameStateProtobuf() {
 		}
 
 		bulletInfos = append(bulletInfos, &pb.BulletInfo{
-			BulletId:  bullet.ID,
-			PlayerId:  playerID,
-			Position:  &pb.Position{X: bullet.Position.X, Y: bullet.Position.Y},
-			Direction: bullet.Direction,
-			Speed:     bullet.Speed,
-			Power:     bullet.Power,
-			CreatedAt: bullet.CreatedAt.Unix(),
+			BulletId:     bullet.ID,
+			PlayerId:     playerID,
+			Position:     &pb.Position{X: bullet.Position.X, Y: bullet.Position.Y},
+			Direction:    bullet.Direction,
+			Speed:        bullet.Speed,
+			Power:        bullet.Power,
+			CreatedAt:    bullet.CreatedAt.Unix(),
+			TargetFishId: bullet.TargetFishID,
 		})
 	}
 

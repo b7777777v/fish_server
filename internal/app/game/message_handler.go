@@ -103,8 +103,11 @@ func (mh *MessageHandler) handleFireBullet(client *Client, message *pb.GameMessa
 		}
 	}
 
+	// 獲取鎖定的目標魚ID（0表示無鎖定）
+	targetFishID := fireData.GetTargetFishId()
+
 	bullet, err := mh.gameUsecase.FireBullet(ctx, client.RoomID, client.PlayerID,
-		fireData.Direction, fireData.Power, position)
+		fireData.Direction, fireData.Power, position, targetFishID)
 	if err != nil {
 		mh.logger.Errorf("Failed to fire bullet: %v", err)
 		mh.sendErrorResponse(client, "Failed to fire bullet")
@@ -116,10 +119,11 @@ func (mh *MessageHandler) handleFireBullet(client *Client, message *pb.GameMessa
 		Type: pb.MessageType_FIRE_BULLET_RESPONSE,
 		Data: &pb.GameMessage_FireBulletResponse{
 			FireBulletResponse: &pb.FireBulletResponse{
-				Success:   true,
-				BulletId:  bullet.ID,
-				Cost:      bullet.Cost,
-				Timestamp: time.Now().Unix(),
+				Success:      true,
+				BulletId:     bullet.ID,
+				Cost:         bullet.Cost,
+				Timestamp:    time.Now().Unix(),
+				TargetFishId: bullet.TargetFishID,
 			},
 		},
 	}
@@ -132,15 +136,16 @@ func (mh *MessageHandler) handleFireBullet(client *Client, message *pb.GameMessa
 		Type: pb.MessageType_BULLET_FIRED,
 		Data: &pb.GameMessage_BulletFired{
 			BulletFired: &pb.BulletFiredEvent{
-				PlayerId:  client.PlayerID,
-				BulletId:  bullet.ID,
-				Direction: fireData.Direction,
-				Power:     fireData.Power,
+				PlayerId:     client.PlayerID,
+				BulletId:     bullet.ID,
+				Direction:    fireData.Direction,
+				Power:        fireData.Power,
 				Position: &pb.Position{
 					X: fireData.Position.X,
 					Y: fireData.Position.Y,
 				},
-				Timestamp: time.Now().Unix(),
+				Timestamp:    time.Now().Unix(),
+				TargetFishId: bullet.TargetFishID,
 			},
 		},
 	}

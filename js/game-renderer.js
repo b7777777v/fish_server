@@ -21,6 +21,9 @@ class GameRenderer {
         this.players = new Map(); // player_id -> {id, position, cannonType, level}
         this.currentPlayerId = null; // 當前玩家ID
 
+        // 鎖定目標功能
+        this.lockedFishId = null; // 當前鎖定的魚ID
+
         // 追蹤上次的數量，用於減少日誌
         this.lastFishCount = 0;
         this.lastBulletCount = 0;
@@ -341,6 +344,53 @@ class GameRenderer {
 
             this.ctx.restore();
 
+            // 繪製鎖定指示器
+            if (this.lockedFishId === fish.id) {
+                this.ctx.save();
+                const indicatorRadius = Math.max(fishWidth, fishHeight) + 15;
+
+                // 繪製旋轉的鎖定圓圈
+                const rotationSpeed = Date.now() / 500; // 旋轉速度
+                this.ctx.translate(fish.x, fish.y);
+                this.ctx.rotate(rotationSpeed);
+
+                // 外圈
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, indicatorRadius, 0, Math.PI * 2);
+                this.ctx.strokeStyle = '#FF0000';
+                this.ctx.lineWidth = 3;
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+
+                // 十字準心
+                this.ctx.beginPath();
+                this.ctx.moveTo(-indicatorRadius - 5, 0);
+                this.ctx.lineTo(-indicatorRadius + 5, 0);
+                this.ctx.moveTo(indicatorRadius - 5, 0);
+                this.ctx.lineTo(indicatorRadius + 5, 0);
+                this.ctx.moveTo(0, -indicatorRadius - 5);
+                this.ctx.lineTo(0, -indicatorRadius + 5);
+                this.ctx.moveTo(0, indicatorRadius - 5);
+                this.ctx.lineTo(0, indicatorRadius + 5);
+                this.ctx.strokeStyle = '#FF0000';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+
+                this.ctx.restore();
+
+                // 鎖定文字標籤
+                this.ctx.save();
+                this.ctx.font = 'bold 12px Arial';
+                this.ctx.fillStyle = '#FF0000';
+                this.ctx.strokeStyle = '#FFFFFF';
+                this.ctx.lineWidth = 2;
+                this.ctx.textAlign = 'center';
+                this.ctx.strokeText('🎯 鎖定', fish.x, fish.y - indicatorRadius - 10);
+                this.ctx.fillText('🎯 鎖定', fish.x, fish.y - indicatorRadius - 10);
+                this.ctx.restore();
+            }
+
             // 繪製血量條
             if (fish.health < fish.maxHealth) {
                 this.ctx.save();
@@ -611,6 +661,46 @@ class GameRenderer {
     }
 
     /**
+     * 設置鎖定的目標魚
+     */
+    lockFish(fishId) {
+        this.lockedFishId = fishId;
+        console.log(`[Renderer] Locked fish: ${fishId}`);
+    }
+
+    /**
+     * 取消鎖定
+     */
+    unlockFish() {
+        this.lockedFishId = null;
+        console.log('[Renderer] Unlocked fish');
+    }
+
+    /**
+     * 獲取當前鎖定的魚ID
+     */
+    getLockedFishId() {
+        return this.lockedFishId;
+    }
+
+    /**
+     * 檢查點擊位置是否在魚上，返回魚的ID
+     */
+    getFishAtPosition(x, y) {
+        for (const fish of this.fishes) {
+            const fishWidth = 20 + fish.type * 5;
+            const fishHeight = 12 + fish.type * 3;
+            const distance = Math.sqrt((x - fish.x) ** 2 + (y - fish.y) ** 2);
+            const clickRadius = Math.max(fishWidth, fishHeight) + 10; // 增加點擊範圍
+
+            if (distance < clickRadius) {
+                return fish.id;
+            }
+        }
+        return null;
+    }
+
+    /**
      * 獲取砲口位置（用於子彈發射）
      */
     getBarrelEndPosition(playerId) {
@@ -791,7 +881,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // 添加點擊事件：點擊發射子彈
+            // 添加點擊事件：點擊魚鎖定，點擊空白處發射子彈
             canvas.addEventListener('click', (event) => {
                 if (window.gameRenderer && gameRenderer.isRunning && gameRenderer.currentPlayerId) {
                     const player = gameRenderer.players.get(gameRenderer.currentPlayerId);
@@ -799,14 +889,32 @@ document.addEventListener('DOMContentLoaded', () => {
                         const rect = canvas.getBoundingClientRect();
                         const clickX = event.clientX - rect.left;
                         const clickY = event.clientY - rect.top;
-                        console.log(`[Renderer] Canvas clicked at (${clickX}, ${clickY}) - triggering fire`);
 
-                        // 觸發開火按鈕點擊事件
-                        const fireBulletBtn = document.getElementById('fireBulletBtn');
-                        if (fireBulletBtn && !fireBulletBtn.disabled) {
-                            fireBulletBtn.click();
+                        // 檢查是否點擊到魚
+                        const fishId = gameRenderer.getFishAtPosition(clickX, clickY);
+
+                        if (fishId) {
+                            // 點擊到魚 - 切換鎖定狀態
+                            if (gameRenderer.lockedFishId === fishId) {
+                                // 已鎖定的魚，取消鎖定
+                                gameRenderer.unlockFish();
+                                console.log('[Renderer] Unlocked fish:', fishId);
+                            } else {
+                                // 鎖定新的魚
+                                gameRenderer.lockFish(fishId);
+                                console.log('[Renderer] Locked new fish:', fishId);
+                            }
                         } else {
-                            console.log('[Renderer] Fire button disabled - please select a seat first');
+                            // 點擊空白處 - 發射子彈
+                            console.log(`[Renderer] Canvas clicked at (${clickX}, ${clickY}) - triggering fire`);
+
+                            // 觸發開火按鈕點擊事件
+                            const fireBulletBtn = document.getElementById('fireBulletBtn');
+                            if (fireBulletBtn && !fireBulletBtn.disabled) {
+                                fireBulletBtn.click();
+                            } else {
+                                console.log('[Renderer] Fire button disabled - please select a seat first');
+                            }
                         }
                     } else {
                         console.log('[Renderer] Player not in renderer - please select a seat first');
