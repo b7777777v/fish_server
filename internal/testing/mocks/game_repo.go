@@ -87,3 +87,48 @@ func (m *GameRepo) SaveFishTypeCache(ctx context.Context, ft *game.FishType) err
 	args := m.Called(ctx, ft)
 	return args.Error(0)
 }
+
+// SaveRoomToRedis mocks the SaveRoomToRedis method
+func (m *GameRepo) SaveRoomToRedis(ctx context.Context, room *game.Room) error {
+	args := m.Called(ctx, room)
+	return args.Error(0)
+}
+
+// DeleteRoomFromRedis mocks the DeleteRoomFromRedis method
+func (m *GameRepo) DeleteRoomFromRedis(ctx context.Context, roomID string) error {
+	args := m.Called(ctx, roomID)
+	return args.Error(0)
+}
+
+// IncrementRoomCount mocks the IncrementRoomCount method
+func (m *GameRepo) IncrementRoomCount(ctx context.Context, roomType game.RoomType) error {
+	args := m.Called(ctx, roomType)
+	return args.Error(0)
+}
+
+// DecrementRoomCount mocks the DecrementRoomCount method
+func (m *GameRepo) DecrementRoomCount(ctx context.Context, roomType game.RoomType) error {
+	args := m.Called(ctx, roomType)
+	return args.Error(0)
+}
+
+// GetRoomCount mocks the GetRoomCount method
+func (m *GameRepo) GetRoomCount(ctx context.Context, roomType game.RoomType) (int64, error) {
+	args := m.Called(ctx, roomType)
+	return args.Get(0).(int64), args.Error(1)
+}
+
+// GetTotalRoomCount mocks the GetTotalRoomCount method
+func (m *GameRepo) GetTotalRoomCount(ctx context.Context) (int64, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(int64), args.Error(1)
+}
+
+// GetAllRoomCounts mocks the GetAllRoomCounts method
+func (m *GameRepo) GetAllRoomCounts(ctx context.Context) (map[string]int64, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string]int64), args.Error(1)
+}

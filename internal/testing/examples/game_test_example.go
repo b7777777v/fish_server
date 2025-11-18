@@ -130,7 +130,7 @@ func ExampleGameFlowTest(t *testing.T) {
 	assert.NoError(t, err)
 
 	// 3. Fire Bullet
-	bullet, err := env.GameUsecase.FireBullet(env.Ctx, room.ID, playerID, 1.0, 10, game.Position{X: 600, Y: 750})
+	bullet, err := env.GameUsecase.FireBullet(env.Ctx, room.ID, playerID, 1.0, 10, game.Position{X: 600, Y: 750}, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, bullet)
 

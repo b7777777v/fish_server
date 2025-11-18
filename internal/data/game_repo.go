@@ -349,3 +349,89 @@ func (r *gameRepo) SaveFishTypeCache(ctx context.Context, ft *game.FishType) err
 	}
 	return nil
 }
+
+// ========================================
+// 房間計數器相關方法 (Redis)
+// ========================================
+
+// IncrementRoomCount 增加房間計數
+func (r *gameRepo) IncrementRoomCount(ctx context.Context, roomType game.RoomType) error {
+	_, err := r.data.redis.IncrementRoomCount(ctx, string(roomType))
+	if err != nil {
+		r.logger.Errorf("Failed to increment room count for type %s: %v", roomType, err)
+		return err
+	}
+	return nil
+}
+
+// DecrementRoomCount 減少房間計數
+func (r *gameRepo) DecrementRoomCount(ctx context.Context, roomType game.RoomType) error {
+	_, err := r.data.redis.DecrementRoomCount(ctx, string(roomType))
+	if err != nil {
+		r.logger.Errorf("Failed to decrement room count for type %s: %v", roomType, err)
+		return err
+	}
+	return nil
+}
+
+// GetRoomCount 獲取指定類型房間的數量
+func (r *gameRepo) GetRoomCount(ctx context.Context, roomType game.RoomType) (int64, error) {
+	count, err := r.data.redis.GetRoomCount(ctx, string(roomType))
+	if err != nil {
+		r.logger.Errorf("Failed to get room count for type %s: %v", roomType, err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetTotalRoomCount 獲取所有房間的總數量
+func (r *gameRepo) GetTotalRoomCount(ctx context.Context) (int64, error) {
+	count, err := r.data.redis.GetTotalRoomCount(ctx)
+	if err != nil {
+		r.logger.Errorf("Failed to get total room count: %v", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetAllRoomCounts 獲取所有類型房間的數量
+func (r *gameRepo) GetAllRoomCounts(ctx context.Context) (map[string]int64, error) {
+	counts, err := r.data.redis.GetAllRoomCounts(ctx)
+	if err != nil {
+		r.logger.Errorf("Failed to get all room counts: %v", err)
+		return nil, err
+	}
+	return counts, nil
+}
+
+// SaveRoomToRedis 保存房間基本信息到 Redis
+func (r *gameRepo) SaveRoomToRedis(ctx context.Context, room *game.Room) error {
+	roomData := map[string]interface{}{
+		"id":          room.ID,
+		"name":        room.Name,
+		"type":        string(room.Type),
+		"status":      string(room.Status),
+		"max_players": room.MaxPlayers,
+		"created_at":  room.CreatedAt.Unix(),
+		"updated_at":  room.UpdatedAt.Unix(),
+	}
+
+	if err := r.data.redis.SaveRoomInfo(ctx, room.ID, roomData); err != nil {
+		r.logger.Errorf("Failed to save room to Redis: %v", err)
+		return err
+	}
+
+	r.logger.Debugf("Saved room %s to Redis", room.ID)
+	return nil
+}
+
+// DeleteRoomFromRedis 從 Redis 刪除房間信息
+func (r *gameRepo) DeleteRoomFromRedis(ctx context.Context, roomID string) error {
+	if err := r.data.redis.DeleteRoomInfo(ctx, roomID); err != nil {
+		r.logger.Errorf("Failed to delete room from Redis: %v", err)
+		return err
+	}
+
+	r.logger.Debugf("Deleted room %s from Redis", roomID)
+	return nil
+}
