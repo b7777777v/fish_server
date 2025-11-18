@@ -116,6 +116,7 @@ message FireBulletRequest {
   double direction = 1;  // 方向（弧度）
   int32 power = 2;       // 威力 1-100
   Position position = 3; // 發射位置
+  int64 target_fish_id = 4; // 鎖定的目標魚ID，0表示無鎖定
 }
 
 // 切換砲台請求
@@ -170,6 +171,7 @@ message FireBulletResponse {
   int64 bullet_id = 2;
   int64 cost = 3;
   int64 timestamp = 4;
+  int64 target_fish_id = 5; // 鎖定的目標魚ID
 }
 
 // 切換砲台響應
@@ -254,6 +256,7 @@ message BulletFiredEvent {
   int32 power = 4;
   Position position = 5;
   int64 timestamp = 6;
+  int64 target_fish_id = 7; // 鎖定的目標魚ID，0表示無鎖定
 }
 
 // 砲台切換事件
@@ -336,6 +339,7 @@ message BulletInfo {
   int64 cost = 7;
   string status = 8;
   int64 created_at = 9;
+  int64 target_fish_id = 10; // 鎖定的目標魚ID，0表示無鎖定
 }
 
 // 魚群陣型信息

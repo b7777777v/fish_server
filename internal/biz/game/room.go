@@ -169,7 +169,7 @@ func (rm *RoomManager) LeaveRoom(roomID string, playerID int64) error {
 }
 
 // FireBullet 玩家開火
-func (rm *RoomManager) FireBullet(roomID string, playerID int64, direction float64, power int32, position Position) (*Bullet, error) {
+func (rm *RoomManager) FireBullet(roomID string, playerID int64, direction float64, power int32, position Position, targetFishID int64) (*Bullet, error) {
 	// First check room and player existence with read lock
 	rm.mu.RLock()
 	room, exists := rm.rooms[roomID]
@@ -195,15 +195,16 @@ func (rm *RoomManager) FireBullet(roomID string, playerID int64, direction float
 	// Create bullet outside of lock
 	bulletID := time.Now().UnixNano()
 	bullet := &Bullet{
-		ID:        bulletID,
-		PlayerID:  playerID,
-		Position:  position, // 使用客戶端發送的位置
-		Direction: direction,
-		Speed:     500.0, // 固定速度
-		Power:     power,
-		Cost:      bulletCost,
-		CreatedAt: time.Now(),
-		Status:    BulletStatusFlying,
+		ID:           bulletID,
+		PlayerID:     playerID,
+		Position:     position, // 使用客戶端發送的位置
+		Direction:    direction,
+		Speed:        500.0, // 固定速度
+		Power:        power,
+		Cost:         bulletCost,
+		CreatedAt:    time.Now(),
+		Status:       BulletStatusFlying,
+		TargetFishID: targetFishID, // 鎖定的目標魚ID
 	}
 
 	// Now acquire write lock for the actual modifications

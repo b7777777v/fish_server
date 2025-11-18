@@ -74,15 +74,16 @@ type Position struct {
 
 // Bullet 子彈實體
 type Bullet struct {
-	ID        int64    `json:"id"`
-	PlayerID  int64    `json:"player_id"`
-	Position  Position `json:"position"`
-	Direction float64  `json:"direction"`
-	Speed     float64  `json:"speed"`
-	Power     int32    `json:"power"`     // 攻擊力
-	Cost      int64    `json:"cost"`      // 子彈成本
-	CreatedAt time.Time `json:"created_at"`
-	Status    BulletStatus `json:"status"`
+	ID           int64    `json:"id"`
+	PlayerID     int64    `json:"player_id"`
+	Position     Position `json:"position"`
+	Direction    float64  `json:"direction"`
+	Speed        float64  `json:"speed"`
+	Power        int32    `json:"power"`     // 攻擊力
+	Cost         int64    `json:"cost"`      // 子彈成本
+	CreatedAt    time.Time `json:"created_at"`
+	Status       BulletStatus `json:"status"`
+	TargetFishID int64    `json:"target_fish_id"` // 鎖定的目標魚ID，0表示無鎖定
 }
 
 // BulletStatus 子彈狀態

@@ -106,13 +106,14 @@ type FishInfo struct {
 
 // BulletInfo 子彈信息
 type BulletInfo struct {
-	ID        int64        `json:"id"`
-	PlayerID  string       `json:"player_id"`
-	Position  GamePosition `json:"position"`
-	Direction float64      `json:"direction"`
-	Speed     float64      `json:"speed"`
-	Power     int32        `json:"power"`
-	CreatedAt time.Time    `json:"created_at"`
+	ID           int64        `json:"id"`
+	PlayerID     string       `json:"player_id"`
+	Position     GamePosition `json:"position"`
+	Direction    float64      `json:"direction"`
+	Speed        float64      `json:"speed"`
+	Power        int32        `json:"power"`
+	CreatedAt    time.Time    `json:"created_at"`
+	TargetFishID int64        `json:"target_fish_id"` // 鎖定的目標魚ID，0表示無鎖定
 }
 
 // GamePosition 遊戲位置信息 (避免與 mock_protobuf.go 中的 Position 衝突)
@@ -396,12 +397,14 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 	fireData := gameMsg.GetFireBullet()
 	direction := 0.0 // 默認方向
 	power := playerInfo.Cannon.Power
+	targetFishID := int64(0) // 默認無鎖定
 
 	// 獲取子彈發射位置（使用前端發送的位置，而不是玩家位置）
 	bulletPosition := GamePosition{X: playerInfo.Position.X, Y: playerInfo.Position.Y} // 默認值
 	if fireData != nil {
 		direction = fireData.Direction
 		power = fireData.Power
+		targetFishID = fireData.GetTargetFishId() // 獲取鎖定的目標魚ID
 		// 使用前端發送的砲口位置
 		if fireData.Position != nil {
 			bulletPosition = GamePosition{
@@ -425,13 +428,14 @@ func (rm *RoomManager) handleFireBullet(action *GameActionMessage) {
 
 	// 添加子彈到遊戲狀態
 	bulletInfo := &BulletInfo{
-		ID:        bulletID,
-		PlayerID:  client.ID,
-		Position:  bulletPosition, // 使用前端發送的砲口位置
-		Direction: direction,
-		Speed:     200.0, // 固定速度
-		Power:     power,
-		CreatedAt: time.Now(),
+		ID:           bulletID,
+		PlayerID:     client.ID,
+		Position:     bulletPosition, // 使用前端發送的砲口位置
+		Direction:    direction,
+		Speed:        200.0, // 固定速度
+		Power:        power,
+		CreatedAt:    time.Now(),
+		TargetFishID: targetFishID, // 鎖定的目標魚ID
 	}
 
 	// 記錄子彈發射位置用於調試
@@ -681,18 +685,52 @@ func (rm *RoomManager) gameLoop() {
 	}
 }
 
-// updateBullets 更新子彈位置
+// updateBullets 更新子彈位置並處理邊界反射
 func (rm *RoomManager) updateBullets(deltaTime float64) {
-	for bulletID, bullet := range rm.gameState.Bullets {
+	const (
+		roomWidth  = 1200.0
+		roomHeight = 800.0
+	)
+
+	for _, bullet := range rm.gameState.Bullets {
 		// 根據子彈的方向和速度進行移動
 		// Direction 是弧度值，表示子彈的飛行方向
 		bullet.Position.X += math.Cos(bullet.Direction) * bullet.Speed * deltaTime
 		bullet.Position.Y += math.Sin(bullet.Direction) * bullet.Speed * deltaTime
 
-		// 檢查是否出界（擴大範圍以允許子彈稍微飛出螢幕）
-		if bullet.Position.Y < -100 || bullet.Position.Y > 900 ||
-			bullet.Position.X < -100 || bullet.Position.X > 1300 {
-			delete(rm.gameState.Bullets, bulletID)
+		// 邊界反射邏輯
+		reflected := false
+
+		// 檢查左右邊界
+		if bullet.Position.X < 0 {
+			bullet.Position.X = -bullet.Position.X // 彈回
+			bullet.Direction = math.Pi - bullet.Direction // 水平反射
+			reflected = true
+		} else if bullet.Position.X > roomWidth {
+			bullet.Position.X = 2*roomWidth - bullet.Position.X // 彈回
+			bullet.Direction = math.Pi - bullet.Direction // 水平反射
+			reflected = true
+		}
+
+		// 檢查上下邊界
+		if bullet.Position.Y < 0 {
+			bullet.Position.Y = -bullet.Position.Y // 彈回
+			bullet.Direction = -bullet.Direction // 垂直反射
+			reflected = true
+		} else if bullet.Position.Y > roomHeight {
+			bullet.Position.Y = 2*roomHeight - bullet.Position.Y // 彈回
+			bullet.Direction = -bullet.Direction // 垂直反射
+			reflected = true
+		}
+
+		// 規範化角度到 [-π, π] 範圍
+		if reflected {
+			for bullet.Direction > math.Pi {
+				bullet.Direction -= 2 * math.Pi
+			}
+			for bullet.Direction < -math.Pi {
+				bullet.Direction += 2 * math.Pi
+			}
 		}
 	}
 }
@@ -853,14 +891,14 @@ func (rm *RoomManager) spawnFishes() {
 
 // cleanupExpiredObjects 清理過期對象
 func (rm *RoomManager) cleanupExpiredObjects() {
-	now := time.Now()
+	// 注意：子彈不再有超時刪除邏輯
+	// 子彈會在邊界反射，只有碰到魚才會消失
+	// 這樣可以讓子彈在遊戲區域內持續彈跳，增加遊戲趣味性
 
-	// 清理超時的子彈（5秒）
-	for bulletID, bullet := range rm.gameState.Bullets {
-		if now.Sub(bullet.CreatedAt) > 5*time.Second {
-			delete(rm.gameState.Bullets, bulletID)
-		}
-	}
+	// 如果需要限制子彈數量以避免性能問題，可以考慮：
+	// 1. 限制每個玩家同時存在的子彈數量
+	// 2. 使用極長的超時時間（如 60 秒）作為安全措施
+	// 目前暫時移除超時刪除邏輯
 }
 
 // startGame 開始遊戲
@@ -945,13 +983,14 @@ func (rm *RoomManager) sendGameStateProtobufToClient(client *Client) {
 		}
 
 		bulletInfos = append(bulletInfos, &pb.BulletInfo{
-			BulletId:  bullet.ID,
-			PlayerId:  playerID,
-			Position:  &pb.Position{X: bullet.Position.X, Y: bullet.Position.Y},
-			Direction: bullet.Direction,
-			Speed:     bullet.Speed,
-			Power:     bullet.Power,
-			CreatedAt: bullet.CreatedAt.Unix(),
+			BulletId:     bullet.ID,
+			PlayerId:     playerID,
+			Position:     &pb.Position{X: bullet.Position.X, Y: bullet.Position.Y},
+			Direction:    bullet.Direction,
+			Speed:        bullet.Speed,
+			Power:        bullet.Power,
+			CreatedAt:    bullet.CreatedAt.Unix(),
+			TargetFishId: bullet.TargetFishID,
 		})
 	}
 
@@ -1027,13 +1066,14 @@ func (rm *RoomManager) broadcastGameStateProtobuf() {
 		}
 
 		bulletInfos = append(bulletInfos, &pb.BulletInfo{
-			BulletId:  bullet.ID,
-			PlayerId:  playerID,
-			Position:  &pb.Position{X: bullet.Position.X, Y: bullet.Position.Y},
-			Direction: bullet.Direction,
-			Speed:     bullet.Speed,
-			Power:     bullet.Power,
-			CreatedAt: bullet.CreatedAt.Unix(),
+			BulletId:     bullet.ID,
+			PlayerId:     playerID,
+			Position:     &pb.Position{X: bullet.Position.X, Y: bullet.Position.Y},
+			Direction:    bullet.Direction,
+			Speed:        bullet.Speed,
+			Power:        bullet.Power,
+			CreatedAt:    bullet.CreatedAt.Unix(),
+			TargetFishId: bullet.TargetFishID,
 		})
 	}
 
