@@ -117,23 +117,17 @@ func NewGameApp(
 				count = 1
 			}
 
-			// 查詢已存在的房間
-			existing, err := app.gameUsecase.GetRoomsFromDB(ctx, rt)
-			if err != nil {
-				app.logger.Errorf("Failed to list rooms from DB for type=%s: %v", pr.Type, err)
-				totalFailed += count
-				continue
-			}
-
-			existingCount := len(existing)
+			// 檢查內存中的房間數量（實際可用的房間）
+			allRooms, _ := app.gameUsecase.GetRoomList(ctx, rt)
+			existingCount := len(allRooms)
 			missing := count - existingCount
 
 			if missing <= 0 {
-				app.logger.Infof("Room type %s: %d rooms already exist (target: %d), no need to create", pr.Type, existingCount, count)
+				app.logger.Infof("Room type %s: %d rooms already exist in memory (target: %d), no need to create", pr.Type, existingCount, count)
 				continue
 			}
 
-			app.logger.Infof("Creating %d %s rooms (existing: %d, target: %d)...", missing, pr.Type, existingCount, count)
+			app.logger.Infof("Creating %d %s rooms (existing in memory: %d, target: %d)...", missing, pr.Type, existingCount, count)
 
 			// 創建缺少的房間
 			for i := 0; i < missing; i++ {
